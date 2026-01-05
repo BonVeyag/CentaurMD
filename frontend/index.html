@@ -1274,11 +1274,11 @@ textarea::-webkit-scrollbar-track{
 <div id="macroOverlay" class="macro-overlay" style="display:none"></div>
 <div id="macroPanel" class="macro-panel" style="display:none" aria-label="Macro builder">
   <div class="macro-head">
-    <div class="headline">Macro builder</div>
+    <div class="headline">Macro Builder</div>
     <button id="macroCloseBtn" type="button">✕</button>
   </div>
 
-  <div class="macro-section macro-editor">
+  <div class="macro-section">
     <div class="macro-picker">
       <select id="macroPickerSelect"></select>
       <button id="macroEditBtn" type="button">Edit</button>
@@ -1287,17 +1287,17 @@ textarea::-webkit-scrollbar-track{
     </div>
   </div>
 
-  <div class="macro-section">
+  <div class="macro-section macro-editor">
     <div class="summary-title">Editor</div>
     <label class="macro-label" for="macroNameInput">Name</label>
     <input id="macroNameInput" type="text" placeholder="Macro name" />
     <label class="macro-label" for="macroContentInput">Content</label>
     <textarea id="macroContentInput" placeholder="Paste macro content"></textarea>
+    <div id="macroStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
       <button id="macroSaveBtn" class="primary" type="button">Save</button>
       <button id="macroCancelBtn" type="button">Cancel</button>
     </div>
-    <div id="macroStatus" class="macro-status"></div>
   </div>
 </div>
 
