@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark" data-contrast="clinic">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -30,15 +30,15 @@
    - Better typography + spacing
 ===================== */
 :root{
-  /* Light defaults */
-  --bg:#F7F8FA;
-  --bg2:#EEF2F7;
-  --panel:#F0F2F5;
+  /* Clinic-optimized light defaults (reduced glare, high legibility) */
+  --bg:#F4F6F9;
+  --bg2:#EDF1F6;
+  --panel:#F7F9FB;
   --panel2:#FFFFFF;
-  --border:#D1D5DB;
-  --text:#111827;
-  --muted:#6B7280;
-  --accent:#2563EB;
+  --border:#D0D7E2;
+  --text:#0F172A;
+  --muted:#475569;
+  --accent:#1D4ED8;
   --danger:#DC2626;
   --ok:#059669;
   --warn:#B45309;
@@ -78,11 +78,11 @@
 
 /* Dark theme (explicit) */
 :root[data-theme="dark"]{
-  --bg:#0B0F14;
-  --bg2:#0E1520;
+  --bg:#0A0F14;
+  --bg2:#0D141C;
   --panel:#0F1720;
-  --panel2: rgba(255,255,255,.04);
-  --border: rgba(255,255,255,.12);
+  --panel2:#101826;
+  --border: rgba(255,255,255,.14);
   --text:#E5E7EB;
   --muted:#9CA3AF;
 
@@ -99,11 +99,11 @@
 }
 @media (prefers-color-scheme: dark){
   :root[data-theme="auto"]{
-    --bg:#0B0F14;
-    --bg2:#0E1520;
+    --bg:#0A0F14;
+    --bg2:#0D141C;
     --panel:#0F1720;
-    --panel2: rgba(255,255,255,.04);
-    --border: rgba(255,255,255,.12);
+    --panel2:#101826;
+    --border: rgba(255,255,255,.14);
     --text:#E5E7EB;
     --muted:#9CA3AF;
 
@@ -115,43 +115,12 @@
   }
 }
 
-/* Clinic contrast mode (high legibility, reduced translucency/gradients) */
-:root[data-contrast="clinic"]{
-  --bg:#0B0F14;
-  --bg2:#0B0F14;
-  --panel:#0F1720;
-  --panel2:#0F1720;
-  --border: rgba(255,255,255,.16);
-  --text:#F3F4F6;
-  --muted:#CBD5E1;
-
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.40);
-  --shadow-md: 0 10px 22px rgba(0,0,0,.55);
-  --shadow-lg: 0 18px 40px rgba(0,0,0,.65);
-}
-
-/* In clinic mode: remove decorative gradients */
-:root[data-contrast="clinic"] body{
-  background: linear-gradient(180deg, var(--bg), var(--bg2));
-}
-
-/* Reduce translucency for readability in clinic mode */
-:root[data-contrast="clinic"] .topbar,
-:root[data-contrast="clinic"] .chatinput{
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  background: var(--panel2);
-}
-
 *{box-sizing:border-box}
 html, body{ height:100%; }
 body{
   margin:0;
   font-family: var(--font-ui);
-  background:
-    radial-gradient(1200px 700px at 10% -10%, rgba(37,99,235,.10), transparent 60%),
-    radial-gradient(1000px 600px at 90% 0%, rgba(5,150,105,.08), transparent 55%),
-    linear-gradient(180deg, var(--bg), var(--bg2));
+  background: linear-gradient(180deg, var(--bg), var(--bg2));
   color:var(--text);
   font-size:15px;
   line-height:1.45;
@@ -325,9 +294,7 @@ input[type="text"]:focus-visible{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  background: color-mix(in oklab, var(--panel) 86%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--panel2);
 }
 
 .brand{
@@ -385,6 +352,18 @@ input[type="text"]:focus-visible{
 }
 .menu-popover{
   width:220px;
+}
+.theme-popover{
+  width:170px;
+  right:108px;
+}
+.theme-icon{
+  width:18px;
+  height:18px;
+  border-radius:50%;
+  border:1px solid var(--border);
+  background: linear-gradient(90deg, #F8FAFC 0 50%, #0F172A 50% 100%);
+  display:inline-block;
 }
 .menu-item{
   width:100%;
@@ -635,14 +614,11 @@ textarea::-webkit-scrollbar-track{
   bottom: 12px;
   margin-top:12px;
 
-  background: color-mix(in oklab, var(--panel) 88%, transparent);
+  background: var(--panel2);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 10px;
   box-shadow: var(--shadow-md);
-
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 /* reserve space on the right for '+' + Send */
@@ -684,6 +660,8 @@ textarea::-webkit-scrollbar-track{
   width:100%;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
   color: var(--text);
+  border:1px solid color-mix(in oklab, var(--accent) 65%, var(--border));
+  box-shadow: var(--shadow-xs);
 }
 .macro-row select option{
   color: var(--text);
@@ -732,6 +710,12 @@ textarea::-webkit-scrollbar-track{
   padding:12px;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
 }
+.macro-editor{
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+}
 .macro-picker{
   display:flex;
   gap:8px;
@@ -765,11 +749,16 @@ textarea::-webkit-scrollbar-track{
   min-height:180px;
   resize:vertical;
 }
+.macro-editor textarea{
+  flex:1;
+  min-height:240px;
+}
 .macro-editor-actions{
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  margin-top:10px;
+  margin-top:auto;
+  padding-top:10px;
 }
 .macro-status{
   min-height:16px;
@@ -1115,8 +1104,20 @@ textarea::-webkit-scrollbar-track{
       <span>CentaurMD</span>
     </div>
     <div class="actions">
+      <button id="themeBtn" type="button" title="Theme" aria-label="Theme">
+        <span class="theme-icon" aria-hidden="true"></span>
+      </button>
       <button id="menuBtn" type="button" title="Menu" aria-label="Menu">☰</button>
       <button type="button" title="Profile" aria-label="Profile">👤</button>
+
+      <div id="themePopover" class="popover theme-popover" role="dialog" aria-label="Theme" style="display:none">
+        <div class="pop-row" style="margin-bottom:0;">
+          <div class="seg" aria-label="Theme selector">
+            <button id="themeLightBtn" type="button">Light</button>
+            <button id="themeDarkBtn" type="button">Dark</button>
+          </div>
+        </div>
+      </div>
 
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
@@ -1268,7 +1269,7 @@ textarea::-webkit-scrollbar-track{
     <button id="macroCloseBtn" type="button">✕</button>
   </div>
 
-  <div class="macro-section">
+  <div class="macro-section macro-editor">
     <div class="macro-picker">
       <select id="macroPickerSelect"></select>
       <button id="macroEditBtn" type="button">Edit</button>
@@ -1456,6 +1457,10 @@ const macroContentInput = document.getElementById("macroContentInput");
 const macroSaveBtn = document.getElementById("macroSaveBtn");
 const macroCancelBtn = document.getElementById("macroCancelBtn");
 const macroStatus = document.getElementById("macroStatus");
+const themeBtn = document.getElementById("themeBtn");
+const themePopover = document.getElementById("themePopover");
+const themeLightBtn = document.getElementById("themeLightBtn");
+const themeDarkBtn = document.getElementById("themeDarkBtn");
 
 // -------------------------
 // Helpers
@@ -1828,7 +1833,7 @@ function refreshMacroPicker(selectedId="") {
 function startNewMacro() {
   editingMacroId = "";
   setEditorValues(null);
-  setMacroStatus("New macro");
+  setMacroStatus("");
   refreshMacroPicker("");
 }
 
@@ -1872,7 +1877,7 @@ function cancelMacroEdit() {
   if (editingMacroId) {
     const current = macros.find(m => m.id === editingMacroId);
     if (current) setEditorValues(current);
-    setMacroStatus(current ? `Editing: ${current.name}` : "");
+    setMacroStatus("");
   } else {
     setEditorValues(null);
     setMacroStatus("");
@@ -1908,7 +1913,7 @@ function editMacroFromPicker() {
   }
   editingMacroId = id;
   setEditorValues(target);
-  setMacroStatus(`Editing: ${target.name}`);
+  setMacroStatus("");
 }
 
 async function deleteMacroFromPicker() {
@@ -1958,6 +1963,47 @@ function toggleMenuPopover() {
   if (!menuPopover) return;
   const open = menuPopover.style.display !== "none";
   menuPopover.style.display = open ? "none" : "block";
+}
+
+// -------------------------
+// Theme
+// -------------------------
+const THEME_KEY = "centaur_theme_v1";
+
+function normalizeTheme(t) {
+  return (String(t || "").toLowerCase() === "dark") ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  const t = normalizeTheme(theme);
+  document.documentElement.dataset.theme = t;
+  if (themeLightBtn) themeLightBtn.classList.toggle("active", t === "light");
+  if (themeDarkBtn) themeDarkBtn.classList.toggle("active", t === "dark");
+}
+
+function getThemePref() {
+  return normalizeTheme(localStorage.getItem(THEME_KEY) || "light");
+}
+
+function setThemePref(theme) {
+  const t = normalizeTheme(theme);
+  localStorage.setItem(THEME_KEY, t);
+  applyTheme(t);
+  return t;
+}
+
+function initTheme() {
+  applyTheme(getThemePref());
+}
+
+function closeThemePopover() {
+  if (themePopover) themePopover.style.display = "none";
+}
+
+function toggleThemePopover() {
+  if (!themePopover) return;
+  const open = themePopover.style.display !== "none";
+  themePopover.style.display = open ? "none" : "block";
 }
 
 // -------------------------
@@ -3830,6 +3876,20 @@ menuBtn?.addEventListener("click", (e) => {
   toggleMenuPopover();
 });
 menuPopover?.addEventListener("click", (e) => e.stopPropagation());
+themeBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleThemePopover();
+});
+themePopover?.addEventListener("click", (e) => e.stopPropagation());
+themeLightBtn?.addEventListener("click", () => {
+  setThemePref("light");
+  closeThemePopover();
+});
+themeDarkBtn?.addEventListener("click", () => {
+  setThemePref("dark");
+  closeThemePopover();
+});
 macroBuilderBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   closeMenuPopover();
@@ -3961,11 +4021,12 @@ chatInput.addEventListener("keydown", (e) => {
 
 // Attachments: + menu open/close
 cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
-document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); });
+document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); closeThemePopover(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePlusMenu();
     closeMenuPopover();
+    closeThemePopover();
     closeMacroPanel();
   }
 });
@@ -4103,6 +4164,7 @@ window.addEventListener("beforeunload", () => {
   try {
     updateRecUI();
     stopTimer(false);
+    initTheme();
 
     await createSession();
     startCoachPolling();
