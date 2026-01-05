@@ -678,15 +678,10 @@ textarea::-webkit-scrollbar-track{
 .macro-row{
   display:flex;
   align-items:center;
-  gap:12px;
   margin-top:10px;
 }
-.macro-row label{
-  font-size:12px;
-  color:var(--muted);
-}
 .macro-row select{
-  flex:1;
+  width:100%;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
 }
 
@@ -737,46 +732,19 @@ textarea::-webkit-scrollbar-track{
   justify-content:flex-end;
   margin-bottom:10px;
 }
-.macro-list{
+.macro-picker{
   display:flex;
-  flex-direction:column;
   gap:8px;
-  max-height:180px;
-  overflow:auto;
-}
-.macro-item{
-  display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  text-align:left;
-  padding:10px 12px;
-  border-radius:12px;
-  border:1px solid var(--border);
+  flex-wrap:wrap;
+}
+.macro-picker select{
+  flex:1;
+  min-width:220px;
   background: color-mix(in oklab, var(--panel) 92%, transparent);
-  box-shadow: var(--shadow-xs);
-  cursor:pointer;
 }
-.macro-item.active{
-  border-color: rgba(37,99,235,.6);
-  box-shadow: 0 0 0 1px rgba(37,99,235,.25);
-}
-.macro-item-name{
-  font-weight:700;
-  font-size:13px;
-}
-.macro-item-tag{
-  font-size:11px;
-  color:var(--muted);
-  border:1px solid var(--border);
-  border-radius:999px;
-  padding:2px 8px;
-}
-.macro-empty{
-  font-size:12px;
-  color:var(--muted);
-  text-align:center;
-  padding:10px 0;
+.macro-picker button{
+  min-width:86px;
 }
 .macro-label{
   display:block;
@@ -1249,7 +1217,6 @@ textarea::-webkit-scrollbar-track{
       </div>
 
       <div class="macro-row">
-        <label for="macroSelect">Macro</label>
         <select id="macroSelect"></select>
       </div>
     </div>
@@ -1300,7 +1267,11 @@ textarea::-webkit-scrollbar-track{
     <div class="macro-actions">
       <button id="macroAddBtn" class="primary" type="button">+ New macro</button>
     </div>
-    <div id="macroList" class="macro-list"></div>
+    <div class="macro-picker">
+      <select id="macroPickerSelect"></select>
+      <button id="macroEditBtn" type="button">Edit</button>
+      <button id="macroDeleteBtn" type="button">Delete</button>
+    </div>
   </div>
 
   <div class="macro-section">
@@ -1474,7 +1445,9 @@ const macroOverlay = document.getElementById("macroOverlay");
 const macroPanel = document.getElementById("macroPanel");
 const macroCloseBtn = document.getElementById("macroCloseBtn");
 const macroAddBtn = document.getElementById("macroAddBtn");
-const macroList = document.getElementById("macroList");
+const macroPickerSelect = document.getElementById("macroPickerSelect");
+const macroEditBtn = document.getElementById("macroEditBtn");
+const macroDeleteBtn = document.getElementById("macroDeleteBtn");
 const macroNameInput = document.getElementById("macroNameInput");
 const macroContentInput = document.getElementById("macroContentInput");
 const macroSaveBtn = document.getElementById("macroSaveBtn");
@@ -1805,7 +1778,7 @@ function refreshMacroDropdown() {
   macroSelect.innerHTML = "";
   const optNone = document.createElement("option");
   optNone.value = "";
-  optNone.textContent = "None";
+  optNone.textContent = "Macros";
   macroSelect.appendChild(optNone);
   for (const m of macros) {
     const opt = document.createElement("option");
@@ -1832,44 +1805,28 @@ function setEditorValues(macro) {
   macroContentInput.value = macro?.content || "";
 }
 
-function renderMacroList() {
-  if (!macroList) return;
-  macroList.innerHTML = "";
-  if (!macros.length) {
-    const empty = document.createElement("div");
-    empty.className = "macro-empty";
-    empty.textContent = "No macros yet.";
-    macroList.appendChild(empty);
-    return;
-  }
-  const selectedId = getSelectedMacroId();
+function refreshMacroPicker(selectedId="") {
+  if (!macroPickerSelect) return;
+  const current = selectedId || macroPickerSelect.value || "";
+  macroPickerSelect.innerHTML = "";
+  const optNone = document.createElement("option");
+  optNone.value = "";
+  optNone.textContent = "Select macro";
+  macroPickerSelect.appendChild(optNone);
   for (const m of macros) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "macro-item" + (m.id === editingMacroId ? " active" : "");
-    const name = document.createElement("span");
-    name.className = "macro-item-name";
-    name.textContent = m.name;
-    const tag = document.createElement("span");
-    tag.className = "macro-item-tag";
-    tag.textContent = (m.id === selectedId) ? "Selected" : "Edit";
-    btn.appendChild(name);
-    btn.appendChild(tag);
-    btn.addEventListener("click", () => {
-      editingMacroId = m.id;
-      setEditorValues(m);
-      setMacroStatus(`Editing: ${m.name}`);
-      renderMacroList();
-    });
-    macroList.appendChild(btn);
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name;
+    macroPickerSelect.appendChild(opt);
   }
+  macroPickerSelect.value = macros.some(m => m.id === current) ? current : "";
 }
 
 function startNewMacro() {
   editingMacroId = "";
   setEditorValues(null);
   setMacroStatus("New macro");
-  renderMacroList();
+  refreshMacroPicker("");
 }
 
 async function saveMacroFromEditor() {
@@ -1904,7 +1861,7 @@ async function saveMacroFromEditor() {
   saveMacrosToCache();
   refreshMacroDropdown();
   setSelectedMacroId(editingMacroId);
-  renderMacroList();
+  refreshMacroPicker(editingMacroId);
   setMacroStatus("Saved.");
 }
 
@@ -1924,17 +1881,7 @@ function openMacroPanel() {
   macroOverlay.style.display = "block";
   macroPanel.style.display = "flex";
   document.body.style.overflow = "hidden";
-  renderMacroList();
-  if (!editingMacroId && macros.length) {
-    const selectedId = getSelectedMacroId();
-    const target = macros.find(m => m.id === selectedId) || macros[0];
-    if (target) {
-      editingMacroId = target.id;
-      setEditorValues(target);
-      setMacroStatus(`Editing: ${target.name}`);
-      renderMacroList();
-    }
-  }
+  refreshMacroPicker(getSelectedMacroId());
 }
 
 function closeMacroPanel() {
@@ -1945,10 +1892,58 @@ function closeMacroPanel() {
   setMacroStatus("");
 }
 
+function editMacroFromPicker() {
+  const id = String(macroPickerSelect?.value || "").trim();
+  if (!id) {
+    setMacroStatus("Select a macro to edit.", true);
+    return;
+  }
+  const target = macros.find(m => m.id === id);
+  if (!target) {
+    setMacroStatus("Macro not found.", true);
+    return;
+  }
+  editingMacroId = id;
+  setEditorValues(target);
+  setMacroStatus(`Editing: ${target.name}`);
+}
+
+async function deleteMacroFromPicker() {
+  const id = String(macroPickerSelect?.value || "").trim();
+  if (!id) {
+    setMacroStatus("Select a macro to delete.", true);
+    return;
+  }
+  const target = macros.find(m => m.id === id);
+  if (!target) {
+    setMacroStatus("Macro not found.", true);
+    return;
+  }
+  const ok = window.confirm(`Delete macro "${target.name}"?`);
+  if (!ok) return;
+  setMacroStatus("Deleting…");
+  try {
+    await apiDelete(`/macros/${id}`);
+  } catch (err) {
+    setMacroStatus(`Delete failed: ${err?.message || err}`, true);
+    return;
+  }
+  macros = macros.filter(m => m.id !== id);
+  saveMacrosToCache();
+  if (editingMacroId === id) {
+    editingMacroId = "";
+    setEditorValues(null);
+  }
+  refreshMacroDropdown();
+  refreshMacroPicker("");
+  setSelectedMacroId(getSelectedMacroId());
+  setMacroStatus("Deleted.");
+}
+
 async function initMacros() {
   await loadMacrosFromServer();
   refreshMacroDropdown();
-  renderMacroList();
+  refreshMacroPicker(getSelectedMacroId());
   cancelMacroEdit();
 }
 
@@ -3844,6 +3839,10 @@ macroSaveBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(macroSaveBtn, "Saving…", saveMacroFromEditor);
 });
 macroCancelBtn?.addEventListener("click", () => cancelMacroEdit());
+macroEditBtn?.addEventListener("click", () => editMacroFromPicker());
+macroDeleteBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(macroDeleteBtn, "Deleting…", deleteMacroFromPicker);
+});
 macroSelect?.addEventListener("change", () => setSelectedMacroId(macroSelect.value));
 
 recordBtn.addEventListener("click", async () => {
