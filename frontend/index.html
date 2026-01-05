@@ -1742,29 +1742,45 @@ function normalizeAttachmentForDisplay(d) {
 // -------------------------
 // Macros
 // -------------------------
-const MACROS_LS_KEY = "centaur_macros_v1";
+const MACROS_CACHE_KEY = "centaur_macros_cache_v1";
 const MACRO_SELECTED_KEY = "centaur_macro_selected_v1";
 
-function loadMacrosFromStorage() {
+function normalizeMacroRecord(m) {
+  const id = String(m?.id || "").trim();
+  const name = String(m?.name || "").trim();
+  const content = String(m?.content || "").trim();
+  const updatedRaw = m?.updated_at_utc || m?.updatedAt || m?.updated_at || "";
+  const updatedAt = updatedRaw ? Date.parse(updatedRaw) || Date.now() : (Number(m?.updatedAt) || Date.now());
+  if (!id || !name || !content) return null;
+  return { id, name, content, updatedAt };
+}
+
+function loadMacrosFromCache() {
   try {
-    const raw = localStorage.getItem(MACROS_LS_KEY);
+    const raw = localStorage.getItem(MACROS_CACHE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(parsed)) { macros = []; return; }
-    macros = parsed.map((m) => {
-      const id = String(m?.id || "").trim();
-      const name = String(m?.name || "").trim();
-      const content = String(m?.content || "").trim();
-      const updatedAt = Number(m?.updatedAt) || Date.now();
-      if (!id || !name || !content) return null;
-      return { id, name, content, updatedAt };
-    }).filter(Boolean);
+    macros = parsed.map(normalizeMacroRecord).filter(Boolean);
+    macros.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   } catch {
     macros = [];
   }
 }
 
-function saveMacrosToStorage() {
-  try { localStorage.setItem(MACROS_LS_KEY, JSON.stringify(macros)); } catch {}
+function saveMacrosToCache() {
+  try { localStorage.setItem(MACROS_CACHE_KEY, JSON.stringify(macros)); } catch {}
+}
+
+async function loadMacrosFromServer() {
+  try {
+    const data = await apiGet("/macros");
+    const list = Array.isArray(data?.macros) ? data.macros : [];
+    macros = list.map(normalizeMacroRecord).filter(Boolean);
+    macros.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    saveMacrosToCache();
+  } catch {
+    loadMacrosFromCache();
+  }
 }
 
 function getSelectedMacroId() {
@@ -1856,27 +1872,36 @@ function startNewMacro() {
   renderMacroList();
 }
 
-function saveMacroFromEditor() {
+async function saveMacroFromEditor() {
   const name = String(macroNameInput?.value || "").trim();
   const content = String(macroContentInput?.value || "").trim();
   if (!name || !content) {
     setMacroStatus("Name and content are required.", true);
     return;
   }
-  const now = Date.now();
-  if (editingMacroId) {
-    const idx = macros.findIndex(m => m.id === editingMacroId);
-    if (idx >= 0) {
-      macros[idx] = { ...macros[idx], name, content, updatedAt: now };
+  setMacroStatus("Saving…");
+  try {
+    const payload = { name, content };
+    let saved = null;
+    if (editingMacroId) {
+      const resp = await apiPut(`/macros/${editingMacroId}`, payload);
+      saved = resp?.macro || resp;
     } else {
-      macros.unshift({ id: editingMacroId, name, content, updatedAt: now });
+      const resp = await apiPost(`/macros`, payload);
+      saved = resp?.macro || resp;
     }
-  } else {
-    const id = `macro_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    macros.unshift({ id, name, content, updatedAt: now });
-    editingMacroId = id;
+    const normalized = normalizeMacroRecord(saved);
+    if (!normalized) throw new Error("Invalid macro response");
+    const idx = macros.findIndex(m => m.id === normalized.id);
+    if (idx >= 0) macros[idx] = normalized;
+    else macros.unshift(normalized);
+    editingMacroId = normalized.id;
+    macros.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  } catch (err) {
+    setMacroStatus(`Save failed: ${err?.message || err}`, true);
+    return;
   }
-  saveMacrosToStorage();
+  saveMacrosToCache();
   refreshMacroDropdown();
   setSelectedMacroId(editingMacroId);
   renderMacroList();
@@ -1920,8 +1945,8 @@ function closeMacroPanel() {
   setMacroStatus("");
 }
 
-function initMacros() {
-  loadMacrosFromStorage();
+async function initMacros() {
+  await loadMacrosFromServer();
   refreshMacroDropdown();
   renderMacroList();
   cancelMacroEdit();
@@ -2791,6 +2816,31 @@ async function apiGet(path) {
 async function apiPost(path, bodyObj) {
   const hasBody = !(bodyObj === undefined || bodyObj === null);
   const opts = { method: "POST" };
+  if (hasBody) {
+    opts.headers = { "Content-Type": "application/json" };
+    opts.body = JSON.stringify(bodyObj);
+  }
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.detail ? ` — ${j.detail}` : ` — ${safeJsonStringify(j)}`;
+    } catch {
+      try {
+        const t = await res.text();
+        detail = t ? ` — ${t}` : "";
+      } catch {}
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail}`);
+  }
+  const txt = await res.text();
+  if (!txt) return {};
+  try { return JSON.parse(txt); } catch { return { raw: txt }; }
+}
+async function apiPut(path, bodyObj) {
+  const hasBody = !(bodyObj === undefined || bodyObj === null);
+  const opts = { method: "PUT" };
   if (hasBody) {
     opts.headers = { "Content-Type": "application/json" };
     opts.body = JSON.stringify(bodyObj);
@@ -3790,7 +3840,9 @@ macroBuilderBtn?.addEventListener("click", (e) => {
 macroCloseBtn?.addEventListener("click", () => closeMacroPanel());
 macroOverlay?.addEventListener("click", () => closeMacroPanel());
 macroAddBtn?.addEventListener("click", () => startNewMacro());
-macroSaveBtn?.addEventListener("click", () => saveMacroFromEditor());
+macroSaveBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(macroSaveBtn, "Saving…", saveMacroFromEditor);
+});
 macroCancelBtn?.addEventListener("click", () => cancelMacroEdit());
 macroSelect?.addEventListener("change", () => setSelectedMacroId(macroSelect.value));
 
@@ -4053,7 +4105,7 @@ window.addEventListener("beforeunload", () => {
     await createSession();
     startCoachPolling();
     renderDraft();
-    initMacros();
+    await initMacros();
 
     snapshotPanel.textContent = snapshotPanel.textContent || "";
     coachPanel.textContent = coachPanel.textContent || "";
