@@ -6,6 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import router
 import logging
+import os
+import subprocess
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("centaurweb")
@@ -34,6 +37,7 @@ def startup_event():
     # Option A: in-memory billing state lives inside api.py (process memory).
     # This confirms startup, but does not persist billing across restarts.
     logger.info("CentaurWeb backend started (billing: in-memory Option A)")
+    _auto_commit_on_reload()
 
 
 @app.on_event("shutdown")
@@ -71,3 +75,35 @@ app.mount(
     StaticFiles(directory=str(FRONTEND_DIR)),
     name="static"
 )
+
+
+def _auto_commit_on_reload() -> None:
+    """
+    Best-effort auto-commit when the server reloads.
+    Skips if disabled or if no git changes are present.
+    """
+    if os.getenv("CENTAUR_AUTO_COMMIT", "1").strip() == "0":
+        return
+    try:
+        inside = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if inside.returncode != 0:
+            return
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if not status.stdout.strip():
+            return
+        subprocess.run(["git", "add", "-A"], check=False)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        subprocess.run(["git", "commit", "-m", f"auto: reload {ts}"], check=False)
+        subprocess.run(["git", "push"], check=False)
+    except Exception as e:
+        logger.warning(f"Auto-commit on reload skipped: {e}")
