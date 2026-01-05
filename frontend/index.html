@@ -667,7 +667,7 @@ textarea::-webkit-scrollbar-track{
 .query-actions{
   display:flex;
   gap:12px;
-  justify-content:flex-end;
+  justify-content:center;
   margin-top:12px;
   flex-wrap:wrap;
 }
@@ -683,6 +683,11 @@ textarea::-webkit-scrollbar-track{
 .macro-row select{
   width:100%;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+}
+.macro-row select option{
+  color: var(--text);
+  background: var(--panel);
 }
 
 .macro-overlay{
@@ -727,11 +732,6 @@ textarea::-webkit-scrollbar-track{
   padding:12px;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
 }
-.macro-actions{
-  display:flex;
-  justify-content:flex-end;
-  margin-bottom:10px;
-}
 .macro-picker{
   display:flex;
   gap:8px;
@@ -742,9 +742,14 @@ textarea::-webkit-scrollbar-track{
   flex:1;
   min-width:220px;
   background: color-mix(in oklab, var(--panel) 92%, transparent);
+  color: var(--text);
 }
 .macro-picker button{
   min-width:86px;
+}
+.macro-picker select option{
+  color: var(--text);
+  background: var(--panel);
 }
 .macro-label{
   display:block;
@@ -1264,13 +1269,11 @@ textarea::-webkit-scrollbar-track{
   </div>
 
   <div class="macro-section">
-    <div class="macro-actions">
-      <button id="macroAddBtn" class="primary" type="button">+ New macro</button>
-    </div>
     <div class="macro-picker">
       <select id="macroPickerSelect"></select>
       <button id="macroEditBtn" type="button">Edit</button>
       <button id="macroDeleteBtn" type="button">Delete</button>
+      <button id="macroAddBtn" class="primary" type="button">+ New macro</button>
     </div>
   </div>
 
