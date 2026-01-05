@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -352,10 +352,6 @@ input[type="text"]:focus-visible{
 }
 .menu-popover{
   width:220px;
-}
-.theme-popover{
-  width:170px;
-  right:108px;
 }
 .theme-icon{
   width:18px;
@@ -1104,20 +1100,11 @@ textarea::-webkit-scrollbar-track{
       <span>CentaurMD</span>
     </div>
     <div class="actions">
-      <button id="themeBtn" type="button" title="Theme" aria-label="Theme">
+      <button id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">
         <span class="theme-icon" aria-hidden="true"></span>
       </button>
       <button id="menuBtn" type="button" title="Menu" aria-label="Menu">☰</button>
       <button type="button" title="Profile" aria-label="Profile">👤</button>
-
-      <div id="themePopover" class="popover theme-popover" role="dialog" aria-label="Theme" style="display:none">
-        <div class="pop-row" style="margin-bottom:0;">
-          <div class="seg" aria-label="Theme selector">
-            <button id="themeLightBtn" type="button">Light</button>
-            <button id="themeDarkBtn" type="button">Dark</button>
-          </div>
-        </div>
-      </div>
 
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
@@ -1458,9 +1445,6 @@ const macroSaveBtn = document.getElementById("macroSaveBtn");
 const macroCancelBtn = document.getElementById("macroCancelBtn");
 const macroStatus = document.getElementById("macroStatus");
 const themeBtn = document.getElementById("themeBtn");
-const themePopover = document.getElementById("themePopover");
-const themeLightBtn = document.getElementById("themeLightBtn");
-const themeDarkBtn = document.getElementById("themeDarkBtn");
 
 // -------------------------
 // Helpers
@@ -1977,12 +1961,10 @@ function normalizeTheme(t) {
 function applyTheme(theme) {
   const t = normalizeTheme(theme);
   document.documentElement.dataset.theme = t;
-  if (themeLightBtn) themeLightBtn.classList.toggle("active", t === "light");
-  if (themeDarkBtn) themeDarkBtn.classList.toggle("active", t === "dark");
 }
 
 function getThemePref() {
-  return normalizeTheme(localStorage.getItem(THEME_KEY) || "light");
+  return normalizeTheme(localStorage.getItem(THEME_KEY) || "dark");
 }
 
 function setThemePref(theme) {
@@ -1996,14 +1978,10 @@ function initTheme() {
   applyTheme(getThemePref());
 }
 
-function closeThemePopover() {
-  if (themePopover) themePopover.style.display = "none";
-}
-
-function toggleThemePopover() {
-  if (!themePopover) return;
-  const open = themePopover.style.display !== "none";
-  themePopover.style.display = open ? "none" : "block";
+function toggleTheme() {
+  const current = getThemePref();
+  const next = current === "dark" ? "light" : "dark";
+  setThemePref(next);
 }
 
 // -------------------------
@@ -3879,16 +3857,7 @@ menuPopover?.addEventListener("click", (e) => e.stopPropagation());
 themeBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
-  toggleThemePopover();
-});
-themePopover?.addEventListener("click", (e) => e.stopPropagation());
-themeLightBtn?.addEventListener("click", () => {
-  setThemePref("light");
-  closeThemePopover();
-});
-themeDarkBtn?.addEventListener("click", () => {
-  setThemePref("dark");
-  closeThemePopover();
+  toggleTheme();
 });
 macroBuilderBtn?.addEventListener("click", (e) => {
   e.preventDefault();
@@ -4021,12 +3990,11 @@ chatInput.addEventListener("keydown", (e) => {
 
 // Attachments: + menu open/close
 cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
-document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); closeThemePopover(); });
+document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePlusMenu();
     closeMenuPopover();
-    closeThemePopover();
     closeMacroPanel();
   }
 });
