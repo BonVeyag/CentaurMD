@@ -357,9 +357,27 @@ input[type="text"]:focus-visible{
   width:18px;
   height:18px;
   border-radius:50%;
-  border:1px solid var(--border);
-  background: linear-gradient(90deg, #F8FAFC 0 50%, #0F172A 50% 100%);
   display:inline-block;
+  position:relative;
+  overflow:hidden;
+  background: transparent;
+}
+.theme-icon::before,
+.theme-icon::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+}
+.theme-icon::before{
+  left:0;
+  right:50%;
+  background:#F8FAFC;
+}
+.theme-icon::after{
+  left:50%;
+  right:0;
+  background:#0F172A;
 }
 .menu-item{
   width:100%;
