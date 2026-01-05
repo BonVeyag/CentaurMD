@@ -1,0 +1,85 @@
+Description03.01lg,,Health Services Code,Health Services Code,Associated Diagnostic Code,Modifier,Notes,Base Rate,,,Description,,Additional Services Code,Associated Diagnostic Code,Modifier (automatically includes tray fees),Notes,Base Rate
+General,Brief assessment of a patient's condition requiring minimal hx +/- exam,03.02A,03.02A,,None,,$30.17,,13.99BA,Gynecologic/GU,Pap smear ,13.99BA,"V76.2, 616?","• BMIPRO 
+• Claimable with visit",Will get rejected < 25yo,$30.17
+,Regular office visit,03.03A,03.03A,,"• CMGP
+• G75GP",NOT for M&G if only do that. Includes: suture/staple removal if inserted by another doc; ear syringing. Use for in person mental health visit <8 min or 15-22.5 mins instead of O8.19G.  08.19G = 03.03A at approx 30 mins face time + 7 mins admin work. ,$40.23,,13.99BE,,Pelvic exam using a speculum + swabs ,13.99BE,"V72.3, V74.8","• BMIPRO 
+• Claimable with visit","Cannot bill  if speculum but no swabs, self swab, swab without speculum. Often getting rejected, can try to use 13.99BA instead. ",$30.17
+,"Comprehensive office visit with complete history, exam and care plan ",03.04A,03.04A,V70,CMXC30,"1/pt/345days; examine every system except eg. GU (if has been done by another doc, but you still did comprehensive, do 03.03a with +++ CMGP)",$110.64,,80.83B,,Endometrial biopsy,80.83B,,BMIPRO,,$45.48
+,"(Virtual) Phone / Video conference < 10 min (often rejected, dont use) ",03.01AD,03.01AD,,None. ,"Must meet virtual visit requirements (see below). Message or email count towards this as well, incluing eg. notifying of normal result but DONT do on same day as initial visit with pt or only paid for result notification(can NOT delegate to nurse to get paid) ",$20.00,,12.23,,"Foreign body removal, vagina",12.23,,,add to base visit,$86.82
+,(Virtual) Phone / Video conference,03.03CV,03.03CV,,"CMGP01 only
+",Does not include admin tasks.,$40.23,,13.99BD,,Anal pap,13.99BD,,Claimable with visit,"Cannot also claim 13.99BA , 13.99BE, 13.99BD, 13.99BA ",$18.10
+,(Virtual) Phone / Video conference to discuss patient management / diagnostic test results,03.05JR,03.05JR,,,Max 14 calls/GP/wk. Claimable when physician-initiated & directly spoke with the pt. Excludes: managing anticoagulation rx (refer to 03.01N). ,$20.00,,81.8,,IUD Insertion,81.8,V25.1,"• BMIPRO 
+• Claimable with visit eg. 03.03a V72.4",can claim insertion and removal if do both,$71.48
+,Secure Electronic Communication ,03.01S,03.01S,,,1/wk/pt; NOT if planning to book in person visit ,$20.00,,11.71A,,IUD Removal,11.71A,V25.4,"• BMIPRO 
+• Claimable with visit",can claim insertion and removal if do both ,$37.24
+,Pre-op H&P in relation to insured surgical service,03.04M,03.04M,,CMXC30,Claimable when exam and standard pre-op form completed for insured surgery.  Copy must be maintained in pt's chart.,$110.62,,98.01A,,Implantation of subdermal contraceptive implant (i.e. Nexplanon),98.01A,"V 25, V 25.8",Only claimable with unrelated visit,,$63.69
+,"WCB, general assessment, condition unrelared to claim",03.01J,03.01J,,,,$25.14,,98.04C,,Removal of subdermal contraceptive implant (i.e. Nexplanon),98.04C," V25 (.0-.4)
+V25.8
+8 996
+9 996.3",Only claimable with unrelated visit,,$55.03
+,Chronic pain visit ,03.05O,03.05O,,M15,"Claimable if previously seen by chronic pain clinic, and referred back to GP.",$50.28,,13.59A,Injections,"IM/SC Injection: Insured (nurse can do): Influenza, pneumococcal.  Tetanus for wound by doc. ",13.59A,"302.08? , 626.2? ",Claimable with visit,"Can bill multiple in same visit. Cannot claim for allergy serum injection. Can only claim if you saw/evaluated patient too (beyond nurse). Uninsured: Gardasil, Shingrix, travel-related, hepatitis vaccine.",$10.73
+Meds,"INR management -  include ordering necessary blood tests, interpreting results, adjusting the anticoagulant dosage as required",03.01N,03.01N,,Claimable with visit,2/mth/pt. Claimable if advice re: dosage given. Must be documented. Excludes: hospital pt. ,$18.44,,13.42A,,Allergy serum injection,13.42A,"V15.0, 995.3",Claimable with visit,Can claim once regardless of # of injections. ,$24.14
+,Pharmacist consult (phone or fax) in relation to the care and treatment of a patient,03.01NM,03.01NM,,,Claimable in addition to visits or service for the pt on the same day. Must be initiated by the pharmacist. Inlcudes if pharmacist provided bridging dose until you see pt. Excludes: repeat refill of pt's long-term rx and you dont plan to see them. ,$18.44,,13.59J,,Injection of trigger points,13.59J,,"• NBRSER
+• Not claimable with visit (?) ","Max 3 calls/day. May not be claimed in addition to HSCs 16.89B, 16.89C or 16.89D.",$20.88
+Family,Discuss acute psych concern with family ,03.05JQ,03.05JQ,,Claimable with visit ,,$51.71,,93.91A,,Injection or aspiration of hip,93.91A,719.85,Claimable with visit,,$37.48
+,"Formal, scheduled family conference relating to a specific patient",03.05JB,03.05JB,,"• M15
+• CMGP (if longer than 3h/year)",Max 12 calls or 3h / 365d / pt / GP. Claimable when: family conferences are required / scheduled in advance / at least 8 mins discussion re: patient. No inderect time included. Can bill in same day as visit with pt if visit over and family member request more time independently to discuss this pt. ,$54.97,,93.91B,,Injection or aspiration of joint (except hip),93.91B,"717, 716.61",Claimable with visit,"Max 2 calls/day, 2nd call = 75% (if for different joint)",$19.98
+,"Periodic family conference in acute care, ED, outpt, and in nursing homes",03.05JC,03.05JC,,M15,Max 12 calls or 3h / 365d / pt / GP. Intended for pts whose condition warrants periodic family conferences. ,$44.92,,95.96A,,Injection of bursa / gangleon / tendon,98.12J,727,"• NBRSER
+• Not claimable with visit","Max 2 calls/day, 2nd call = 75% ",$13.35
+Perinatal,Prenatal visit ,03.03B,03.03B,V22,CMGP,Better to use 03.03A,$38.99,,98.12J,Dermatologic,Lesion removal or excision,98.12J,"warts, molluscum, SKs, AKs,  irritated/immunosupp & tx medically required, 216",Claimable with visit,Max 4 calls,$19.23
+,"Comprehensive prenatal visit with complete history, exam",03.04B,03.04B,V22,CMXC30,1/pt/pregnancy. Not claimable ≤ 90 days of comprehensive office visit (03.04A).,$110.62,,98.12R,,"Plantar wart removal (?excision), first encounter",98.12R,"078.1, 216, 708","• NBRSER
+• Claimable with visit","Max 3 calls/day; 2nd (+$14.10), 3rd (+1.89) 98.12R ; CAN use with other consult codes ",$36.87
+,6 week post-partum visit ,03.03C,03.03C,V22,CMGP,,$38.99,,98.12L,,"Non-surgical treatment (cryotherapy, chemotherapy) of warts and keratoses (e.g. genital warts, plantar warts, non-cosmetic AKs, SKs,molluscum contagiosum) ",98.12L,"709, 702, 078.1",Claimable with visit,1 call /day,$13.84
+Mental Health & Addiction,"Psych visit incl: psychotherapy, psychiatric rx, reassessment, patient education, counseling, and/or group therapy",08.19G,08.19G,"psych dx e.g. SUD, must be a three hundred code",M15 (direct pt contact time per 15 min or major portion thereof), If 8-15 mins or >22.5 mins better to use this than 03.03A. 08.19G = 03.03A at approx 30 mins face time + 7 mins admin work. ,$50.28,,98.22A,,"Laceration repairs - face, ≤ 2.5 cms (1 unit) or body ≤ 5 cms (1 unit)",98.22A,"959, 919.7-9","• BMIPRO
+• Not claimable with visit","Any method of closure included eg. suture, staples, glue (except tape or bandage); Local anesthetic included (except for WCB); Suture removal included (same physician, same practice group). Cant practically use 2 units (?)",$60.34
+,"(Office or Virtual) Psych visit, but without the patient being present during the interview",08.19D,08.19D,"psych dx e.g. SUD, must be a three hundred code",M15 (direct pt contact time per 15 min or major portion thereof),"Claimable with pt's PHN / the relationship of the patient to the person interviewed is indicated. 
+Max 2h / pt / 365d by GP. 
+",$54.97,,98.22B,,Laceration repairs - face >2.5cm (1 unit) or body >5cm (1 unit),98.22B,,"• BMIPRO
+• Not claimable with visit","Any method of closure included eg. suture, staples, glue (except tape or bandage); Local anesthetic included (except for WCB); Suture removal included (same physician, same practice group). Count each layer of closure separately for distance measurement. ",$63.69
+,(Virtual) Phone or video conference with patient for psych visit ,08.19CW,08.19CW,"psych dx e.g. SUD, must be a three hundred code",M15 (direct pt contact time per 15 min or major portion thereof),Use 03.03CV instead if 15-21 mins,$50.28,,98.03A,,"Incision and drainage (hematoma, abscess, SC, or submucosal)",98.03A,,Claimable with visit,,$16.69
+,Form 1,08.12A,08.12A,,,,$58.93,,98.12A,,"Excisional biopsy, skin",98.12A,,Claimable with visit ,Max 3 calls; Include suturing post-biopsy defects. ,$44.39
+,"Comprehensive visit, incl. completion of forms, required for admission into an AHS-operated facilities for addiction",03.04I,03.04I,,,Admission forms for non-AHS-operated facilities are uninsured.,$130.73,,98.12B,,"Excisional biopsy, face",98.12B,,Claimable with visit ,Max 3 calls; Include suturing post-biopsy defects. ,$56.93
+"Consults
+(Referring Physician)",Physician to Physician secure E-Consultation,03.01R,03.01R,,,Preapprove with netcare services catalogue. Usually get back to you in 5 days,$35.53,,98.12C,,Removal of sebaceous cyst,98.12C,"709, 706.2, 782, 682",Claimable with visit ,"Max 3 calls, 2/3rd = 75%",$38.56
+,Physician to physician consultation. WD 0700 - 1700,03.01LG,03.01LG,,,"A maximum of two (any combination of HSC 03.01LG, 03.01LH, 03.01LI) claims may be claimed per patient, per physician, per day. Restrictions on when can bill on same day as pt visit",$35.20,,98.12M,,Mole removal (body),98.12M,,Not claimable with visit ,,$36.87
+,"Physician to physician consultation. WD 1700 - 2200, WE/STAT 0700 - 2200",03.01LH,03.01LH,,,,$38.55,,98.12N,,Mole removal (face),98.12N,,Not claimable with visit ,,$56.99
+,Physician to physician consultation. Any day 2200 - 0700,03.01LI,03.01LI,,,,$41.90,,98.81A,,Biopsy (excision or shave),98.81A,"709, 706.2, 172, 173, 682, 078",Claimable with visit,max 3 units/pt/day,$38.94
+"Consults 
+(Receiving Physician)",Physician to physician consultation. WD 0700 - 1700,03.01LJ,03.01LJ,,,Referring Physician PRACID required.  ,$78.12,,98.81B,,Biopsy (punch),98.81B,,Claimable with visit,Better to do excisional 98.81B if debating which to do ,$20.11
+,"Physician to physician consultation. WD 1700 - 2200, WE/STAT 0700 - 2200",03.01LK,03.01LK,,,,$115.65,,12.21,Foreign Body Removal,"Foreign body removal, ear (except wax)",12.21,931,Not claimable with visit,,$50.28
+,Physician to physician consultation. Any day 2200 - 0700,03.01LL,03.01LL,,,,$136.49,,12.01,,"Foreign body removal, nose (intraluminal, without incision)",12.01,932,Not claimable with visit,,$50.28
+,Minor consultation. Referring provider specifically requests (verbal or written) opinion and or advice of consultant,03.07A,03.07A,,CMGP,"Must provide referring physician with written report about recommendations, treatment, opinion.",$70.39,,12.31,,"Foreign body removal, eye (non penetrating, no incision)",12.31,930,Not claimable with visit ,,$40.23
+,Repeat consultation ,03.07B,03.07B,,CMGP,,$40.23,,98.04B,,"Foreign body removal, skin, no anesthesia",98.04B,91(0-7).6,Not claimable with visit ,,$24.81
+,Comprehensive consultation,03.08A,03.08A,,CMXC30,"full history and physical, usual initial consult ",$131.40,,,,,,,,,
+,Virtual Consult w pt,03.08cv,,,,,,,,,,,,,,
+Home Visits,"Home visit for first patient in the home. Limited assessment with history, exam, management focused on presenting problem.",03.03N,03.03N,,CMGP,"Can bill for first patient of each residence. For most home visit fees, get paid more if book on evenings or weekend. ",$90.51,,,,,,,,,
+,"Home visit, ≥ 2nd patient",03.03NB,03.03NB,,CMGP,,$55.53,,,,,,,,,
+,"Home visit, 1st patient in assisted living",03.03NA,03.03NA,,CMGP,,$90.51,,,,,,,,,
+,"Home visit, repeat visit same day",03.03Q,03.03Q,,CMGP,,$90.51,,,,,,,,,
+Emergency,"Emergency, mental/physical, time required (included RAPIID consult for transfer)",13.99J,13.99J,,M15,,$63.69,,,,,,,,,
+,"Emergency, resuscitation/stabilization",13.99E,13.99E,,M15,,$96.52,,,,,,,,,
+,,,,,,,,,,,,,,,,
+Other Resources,,,,,,,,,,,,,,,,
+,AHS ICD Codes,,,,,,,,,,,,,,,
+, ,,,,,,,,,,,,,,,
+,• eg. drivers medical (>74.5 years old); suture removal (put in by you); court appearances; forms ,,,,,,,,,,,,,,,
+,"Virtual visit for out of province pt, reciprocal agreement only covers in person ",,,,,,,,,,,,,,,
+,"Include Green sleeve/GOC as time modifiers or 30 min modifier to base visit, no specifc bill for this",,,,,,,,,,,,,,,
+,"For WCB, can add BCP code (it should automatically be added for rest of codes in clinic - but verify with specific clinic) ",,,,,,,,,,,,,,,
+Errors/Updates,,,,,,,,,,,,,,,,
+,"For any errors you notice or updates that you feel may be helpful, please contact shaworiana@gmail.com",,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+General Billing Advice ,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,Try to finish all billing for that day by end of day,,,,,,,,,,,,,,,
+,Often simpler to have overhead removed from income by clinic before getting paid,,,,,,,,,,,,,,,
+,"If work at multiple locations, may be possible to direct all billing to one EMR/site ",,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,
+Consider adding; ,,,,,,,,,,,,,,,,
+,03.08 CV?,,rarely used ,,,,,,,,,,,,,
+,03.05JH,,"very bad, technically use this if talking to parent by phone on behalf of young kid?",,,,,,,,,,,,,
+,03.01NG,,calls from allied health professionals ,,,,,,,,,,,,,
+,03.01NH,,,,,,,,,,,,,,,
+,03.01NI,,,,,,,,,,,,,,,
+,03.05JP,,,,,,,,,,,,,,,

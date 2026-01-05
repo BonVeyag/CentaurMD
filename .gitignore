@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Local backups
+*.bak
+*.bak.*
+frontend_backup_*/
+
+# Local runtime/output data (likely PHI)
+data/*.json
+data/billing/*.json
+
+# OS files
+.DS_Store

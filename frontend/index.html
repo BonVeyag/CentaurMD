@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" data-contrast="clinic">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!-- Basic hardening headers (still compatible with inline CSS/JS in this single-file build) -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self';
+               base-uri 'self';
+               object-src 'none';
+               frame-ancestors 'self';
+               img-src 'self' blob: data:;
+               style-src 'self' 'unsafe-inline';
+               script-src 'self' 'unsafe-inline';
+               connect-src 'self';
+               form-action 'self'">
+<meta name="referrer" content="no-referrer" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+
+<title>Centaur Web</title>
+
+<style>
+/* =====================
+   PREMIUM THEME SYSTEM
+   - Shared elevation/shadows
+   - Focus rings
+   - Theme toggle (Auto/Dark/Light)
+   - Contrast toggle (Standard/Clinic)
+   - Better typography + spacing
+===================== */
+:root{
+  /* Light defaults */
+  --bg:#F7F8FA;
+  --bg2:#EEF2F7;
+  --panel:#F0F2F5;
+  --panel2:#FFFFFF;
+  --border:#D1D5DB;
+  --text:#111827;
+  --muted:#6B7280;
+  --accent:#2563EB;
+  --danger:#DC2626;
+  --ok:#059669;
+  --warn:#B45309;
+
+  --r:14px;
+  --pad:14px;
+  --gap:14px;
+
+  /* Elevation + effects */
+  --shadow-xs: 0 1px 1px rgba(0,0,0,.05);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 10px 24px rgba(0,0,0,.08);
+  --shadow-lg: 0 18px 42px rgba(0,0,0,.12);
+  --focus: 0 0 0 3px rgba(37,99,235,.28);
+
+  /* Layout tuning */
+  --rowH: 620px;          /* fixed height for the 3-column row */
+  --colLeft: 360px;       /* Transcript == Coach; Query gets the rest */
+  --topFrac: 0.333;       /* Transcript top 1/3 */
+  --botFrac: 0.667;       /* Snapshot bottom 2/3 */
+
+  /* Motion */
+  --ease: cubic-bezier(.2,.8,.2,1);
+  --t: 160ms;
+
+  /* Typography scale */
+  --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fs-hero: 18px;     /* card headline */
+  --fs-sub: 12px;      /* supportive text / eyebrow */
+  --fs-body: 14px;     /* panel body */
+  --lh-body: 1.55;
+
+  /* Readability: max characters per line for narrative output */
+  --measure: 74ch;
+  --measure-chat: 84ch;
+}
+
+/* Dark theme (explicit) */
+:root[data-theme="dark"]{
+  --bg:#0B0F14;
+  --bg2:#0E1520;
+  --panel:#0F1720;
+  --panel2: rgba(255,255,255,.04);
+  --border: rgba(255,255,255,.12);
+  --text:#E5E7EB;
+  --muted:#9CA3AF;
+
+  --shadow-xs: 0 1px 1px rgba(0,0,0,.35);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.45);
+  --shadow-md: 0 12px 28px rgba(0,0,0,.55);
+  --shadow-lg: 0 20px 50px rgba(0,0,0,.65);
+  --focus: 0 0 0 3px rgba(59,130,246,.35);
+}
+
+/* Auto theme: default light, but follow OS preference */
+:root[data-theme="auto"]{
+  /* keep :root light defaults */
+}
+@media (prefers-color-scheme: dark){
+  :root[data-theme="auto"]{
+    --bg:#0B0F14;
+    --bg2:#0E1520;
+    --panel:#0F1720;
+    --panel2: rgba(255,255,255,.04);
+    --border: rgba(255,255,255,.12);
+    --text:#E5E7EB;
+    --muted:#9CA3AF;
+
+    --shadow-xs: 0 1px 1px rgba(0,0,0,.35);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.45);
+    --shadow-md: 0 12px 28px rgba(0,0,0,.55);
+    --shadow-lg: 0 20px 50px rgba(0,0,0,.65);
+    --focus: 0 0 0 3px rgba(59,130,246,.35);
+  }
+}
+
+/* Clinic contrast mode (high legibility, reduced translucency/gradients) */
+:root[data-contrast="clinic"]{
+  --bg:#0B0F14;
+  --bg2:#0B0F14;
+  --panel:#0F1720;
+  --panel2:#0F1720;
+  --border: rgba(255,255,255,.16);
+  --text:#F3F4F6;
+  --muted:#CBD5E1;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.40);
+  --shadow-md: 0 10px 22px rgba(0,0,0,.55);
+  --shadow-lg: 0 18px 40px rgba(0,0,0,.65);
+}
+
+/* In clinic mode: remove decorative gradients */
+:root[data-contrast="clinic"] body{
+  background: linear-gradient(180deg, var(--bg), var(--bg2));
+}
+
+/* Reduce translucency for readability in clinic mode */
+:root[data-contrast="clinic"] .topbar,
+:root[data-contrast="clinic"] .chatinput{
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  background: var(--panel2);
+}
+
+*{box-sizing:border-box}
+html, body{ height:100%; }
+body{
+  margin:0;
+  font-family: var(--font-ui);
+  background:
+    radial-gradient(1200px 700px at 10% -10%, rgba(37,99,235,.10), transparent 60%),
+    radial-gradient(1000px 600px at 90% 0%, rgba(5,150,105,.08), transparent 55%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  color:var(--text);
+  font-size:15px;
+  line-height:1.45;
+}
+
+.page{
+  max-width:1280px;
+  margin:auto;
+  padding:16px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+}
+
+/* Premium cards */
+.card{
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:var(--pad);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease), border-color var(--t) var(--ease), background-color var(--t) var(--ease);
+}
+.card:hover{
+  box-shadow: var(--shadow-md);
+}
+
+.section-title{
+  font-weight:650;
+  margin-bottom:10px;
+  font-size:15px;
+  letter-spacing:.1px;
+}
+
+/* Card header primitives */
+.card-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px; /* slightly tighter to give more space to main panels */
+}
+
+.headline{
+  font-size: var(--fs-hero);
+  font-weight: 750;
+  letter-spacing: .1px;
+  line-height: 1.15;
+}
+
+.subhead{
+  margin-top:4px;
+  font-size: var(--fs-sub);
+  color: var(--muted);
+}
+
+.eyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-size: var(--fs-sub);
+  color: var(--muted);
+  white-space:nowrap;
+  user-select:none;
+}
+.status-time{
+  font-size: var(--fs-sub);
+  color: var(--muted);
+  opacity: .95;
+}
+
+.status-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs);
+}
+
+.status-pill.live{ color: var(--danger); border-color: rgba(220,38,38,.35); background: rgba(220,38,38,.10); }
+.status-pill.ok{ color: var(--ok); border-color: rgba(5,150,105,.35); background: rgba(5,150,105,.10); }
+.status-pill.warn{ color: var(--warn); border-color: rgba(180,83,9,.35); background: rgba(180,83,9,.10); }
+
+/* Premium controls */
+button{
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  font-size:14px;
+  cursor:pointer;
+  box-shadow: var(--shadow-xs);
+  transition: transform .06s var(--ease), box-shadow var(--t) var(--ease), filter var(--t) var(--ease), opacity var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
+}
+button.primary{
+  background: color-mix(in oklab, rgba(37,99,235,.18) 90%, var(--panel2));
+  border-color: color-mix(in oklab, rgba(37,99,235,.35) 90%, var(--border));
+}
+button:hover:not(:disabled){
+  filter: brightness(0.99);
+  box-shadow: var(--shadow-sm);
+}
+button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+button:active:not(:disabled){
+  transform: translateY(1px) scale(.98);
+}
+button.busy{
+  opacity:.65;
+  filter: grayscale(1);
+}
+button.btn-flash{
+  box-shadow: var(--focus);
+}
+
+/* Inputs */
+textarea,
+input[type="text"]{
+  width:100%;
+  border-radius:14px;
+  border:1px solid var(--border);
+  padding:12px;
+  resize:vertical;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--t) var(--ease), border-color var(--t) var(--ease), background-color var(--t) var(--ease);
+}
+textarea::placeholder,
+input[type="text"]::placeholder{ color: color-mix(in oklab, var(--muted) 92%, transparent); }
+
+button:focus-visible,
+textarea:focus-visible,
+input[type="text"]:focus-visible{
+  outline:none;
+  box-shadow: var(--focus);
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border));
+}
+
+.small{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  color:var(--muted);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:4px 9px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+.badge.ok{ color: var(--ok); border-color: rgba(5,150,105,.35); background: rgba(5,150,105,.10); }
+.badge.warn{ color: var(--warn); border-color: rgba(180,83,9,.35); background: rgba(180,83,9,.10); }
+.badge.err{ color: var(--danger); border-color: rgba(220,38,38,.35); background: rgba(220,38,38,.10); }
+
+/* =====================
+   TOP BAR (Premium app header)
+===================== */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background: color-mix(in oklab, var(--panel) 86%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:700;
+}
+.brand span{
+  font-size:28px;
+  line-height:1;
+  letter-spacing:.2px;
+}
+
+.actions{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  position: relative;
+}
+/* Only icon buttons (direct children) are forced square */
+.actions > button{
+  width:44px;
+  height:44px;
+  padding:0;
+  border-radius:14px;
+  font-size:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+/* Theme popover */
+.popover{
+  position:absolute;
+  right:0;
+  top:54px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow: var(--shadow-lg);
+  padding:12px;
+  display:none;
+  z-index: 60;
+}
+:root[data-theme="dark"] .popover{ background: var(--panel); }
+.popover h4{
+  margin:0 0 10px 0;
+  font-size:13px;
+  font-weight:800;
+  color: var(--text);
+  letter-spacing:.2px;
+}
+.pop-row{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-bottom:10px;
+}
+.seg{
+  display:flex;
+  border:1px solid var(--border);
+  border-radius:14px;
+  overflow:hidden;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs);
+}
+.seg button{
+  flex:1;
+  border:none;
+  border-right:1px solid var(--border);
+  border-radius:0;
+  box-shadow:none;
+  background: transparent;
+  padding:10px 10px;
+  font-size:13px;
+  font-weight:750;
+}
+.seg button:last-child{ border-right:none; }
+.seg button.active{
+  background: color-mix(in oklab, rgba(37,99,235,.18) 92%, transparent);
+}
+.pop-help{
+  font-size:12px;
+  color: var(--muted);
+  line-height:1.4;
+}
+
+/* =====================
+   PANELS
+===================== */
+.panel-white{
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  overflow:auto;
+  white-space:pre-wrap;
+  box-shadow: var(--shadow-xs);
+}
+
+/* Readability clamp (measure) */
+#snapshot_panel,
+#coach_panel{
+  width:100%;
+  max-width: var(--measure);
+  margin: 0 auto;            /* centers in the panel */
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
+#snapshot_panel.summary-view{
+  white-space: normal;
+}
+
+/* Scrollbar polish (best-effort) */
+.panel-white::-webkit-scrollbar,
+.chatlog::-webkit-scrollbar,
+textarea::-webkit-scrollbar{
+  width:10px;
+}
+.panel-white::-webkit-scrollbar-thumb,
+.chatlog::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb{
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+  border-radius:999px;
+  border:3px solid transparent;
+  background-clip: padding-box;
+}
+.panel-white::-webkit-scrollbar-track,
+.chatlog::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track{
+  background: transparent;
+}
+
+/* =====================
+   3-COLUMN MAIN ROW
+===================== */
+.grid-main{
+  display:grid;
+  grid-template-columns: var(--colLeft) var(--colLeft) 1fr;
+  gap:var(--gap);
+  align-items:stretch;
+}
+.row-card{
+  height:var(--rowH);
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
+/* =====================
+   LEFT COLUMN: Transcript (top) + Snapshot (bottom)
+===================== */
+.left-stack{
+  display:flex;
+  flex-direction:column;
+  gap:var(--gap);
+  height:100%;
+  min-height:0;
+}
+.stack-top{
+  height: calc(var(--rowH) * var(--topFrac));
+  min-height: 170px;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+.stack-bot{
+  height: calc(var(--rowH) * var(--botFrac));
+  min-height: 220px;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
+/* =====================
+   LIVE TRANSCRIPT
+===================== */
+.rec-dot{
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  background:#9CA3AF;
+  box-shadow: 0 0 0 4px rgba(220,38,38,.0);
+  transition: box-shadow var(--t) var(--ease), background-color var(--t) var(--ease);
+}
+.timer{
+  font-size:inherit;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.2px;
+}
+
+.transcript-btnrow{
+  display:grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap:10px;
+  align-items:stretch;
+  margin-bottom:8px; /* tighter to increase transcript area */
+  margin-top:0;
+}
+.transcript-btnrow button{
+  width:100%;
+  padding:10px 10px;
+  min-height:42px;
+  border-radius:14px;
+  font-weight:800;
+}
+.transcript-btnrow button#record_btn{ font-weight:850; }
+
+/* Keep transcript stable; scroll inside */
+.transcript-box{
+  flex:1;
+  min-height:0;
+  resize:none;
+  overflow:auto;
+}
+
+/* =====================
+   SNAPSHOT
+===================== */
+.snapshot-box{
+  flex:1;
+  min-height:0;
+}
+.summary-section{
+  margin-bottom:12px;
+}
+.summary-title{
+  font-weight:700;
+  margin:8px 0 6px;
+}
+.summary-line{
+  margin:2px 0;
+}
+.summary-label{
+  font-weight:650;
+}
+.summary-list{
+  margin:4px 0 0 18px;
+  padding:0;
+}
+.summary-list li{
+  margin:0 0 4px;
+}
+.summary-issue{
+  color: var(--danger);
+  font-weight:700;
+}
+
+/* =====================
+   COACH
+===================== */
+.coach-panel{
+  flex:1;
+  min-height:0;
+}
+
+/* =====================
+   CLINICAL QUERY
+===================== */
+.query-card{
+  display:flex;
+  flex-direction:column;
+  height:var(--rowH);
+  min-height:0;
+}
+
+.chatlog{
+  flex:1;
+  overflow-y:auto;
+  padding:12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border-radius:14px;
+  border:1px solid var(--border);
+  box-shadow: var(--shadow-xs);
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  overscroll-behavior: contain;
+}
+
+.chatinput{
+  position: sticky;
+  bottom: 12px;
+  margin-top:12px;
+
+  background: color-mix(in oklab, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: var(--shadow-md);
+
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* reserve space on the right for '+' + Send */
+.chatinput textarea{
+  min-height:76px;
+  padding-left:12px;
+  padding-right:168px; /* space for + and Send */
+  box-shadow: var(--shadow-xs);
+}
+
+.send-btn{
+  position:absolute;
+  bottom:20px;
+  right:20px;
+  padding:9px 14px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, rgba(37,99,235,.22) 90%, var(--panel2));
+  min-width:72px;
+}
+
+.query-actions{
+  display:flex;
+  gap:12px;
+  justify-content:flex-end;
+  margin-top:12px;
+  flex-wrap:wrap;
+}
+.query-actions button.primary{
+  min-width:140px;
+  padding:12px 18px;
+}
+
+/* =====================
+   Attachments UI (ChatGPT-like)
+===================== */
+.cq-plus{
+  position:absolute;
+  bottom:20px;
+  right:102px;
+  left:auto;
+  width:36px;
+  height:36px;
+  padding:0;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:800;
+  font-size:18px;
+  line-height:1;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+
+.cq-menu{
+  position:absolute;
+  right:102px;
+  left:auto;
+  bottom:66px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:6px;
+  box-shadow: var(--shadow-lg);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:200px;
+  z-index:50;
+}
+
+/* solid menu background in dark mode */
+:root[data-theme="dark"] .cq-menu{ background: var(--panel); }
+
+.cq-menu-item{
+  width:100%;
+  text-align:left;
+  padding:10px 10px;
+  border-radius:12px;
+  background: transparent;
+  border:1px solid transparent;
+  box-shadow: none;
+}
+.cq-menu-item:hover{
+  background: color-mix(in oklab, var(--panel) 70%, transparent);
+  border-color:var(--border);
+}
+.cq-draft{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  padding:10px 0 10px 0;
+}
+.cq-draft-item{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:8px 10px;
+  max-width:100%;
+  box-shadow: var(--shadow-xs);
+}
+.cq-thumb{
+  width:46px;
+  height:46px;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid rgba(0,0,0,.06);
+  background: color-mix(in oklab, var(--panel) 85%, transparent);
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:12px;
+  color:var(--muted);
+}
+:root[data-theme="dark"] .cq-thumb{ border-color: rgba(255,255,255,.10); }
+.cq-thumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.cq-draft-meta{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.cq-draft-name{
+  font-size:13px;
+  font-weight:700;
+  max-width:360px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.cq-draft-sub{
+  font-size:12px;
+  color:var(--muted);
+}
+.cq-draft-actions{
+  margin-left:6px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.cq-pill{
+  font-size:12px;
+  color:var(--muted);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:4px 9px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+.cq-x{
+  border:none;
+  background:transparent;
+  padding:0 2px;
+  font-size:18px;
+  cursor:pointer;
+  color:var(--muted);
+  line-height:1;
+  box-shadow:none;
+}
+.cq-x:hover{ color: var(--danger); }
+.chatinput.dragover textarea{
+  outline:2px solid rgba(37,99,235,.35);
+  outline-offset:2px;
+}
+
+/* =====================
+   CHAT BUBBLES
+===================== */
+.msg{ display:flex; width:100%; }
+.msg.user{ justify-content:flex-end; }
+.msg.assistant{ justify-content:flex-start; }
+.msg.system{ justify-content:center; }
+
+.bubble{
+  max-width:78%;
+  padding:10px 12px;
+  border-radius:18px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs);
+  white-space:pre-wrap;
+  font-size: var(--fs-body);
+  line-height: 1.45;
+}
+
+/* Clamp assistant bubbles to a readable measure */
+.msg.assistant .bubble{
+  max-width: min(78%, var(--measure-chat));
+}
+
+.msg.user .bubble{
+  background: color-mix(in oklab, rgba(37,99,235,.18) 90%, var(--panel2));
+  border-color: color-mix(in oklab, rgba(37,99,235,.35) 85%, var(--border));
+}
+
+.msg.system .bubble{
+  background: color-mix(in oklab, var(--panel) 70%, transparent);
+  color:var(--muted);
+  border-style:dashed;
+  font-size:13px;
+  max-width:92%;
+}
+
+.bubble-meta{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:6px;
+}
+
+.bubble-attachments{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:8px;
+}
+.bubble-attach-img{
+  width:190px;
+  max-width:100%;
+  border-radius:16px;
+  overflow:hidden;
+  border:1px solid rgba(0,0,0,.10);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+:root[data-theme="dark"] .bubble-attach-img{ border-color: rgba(255,255,255,.12); }
+.bubble-attach-img img{
+  width:100%;
+  height:auto;
+  display:block;
+}
+.bubble-attach-file{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:10px 12px;
+  max-width:100%;
+}
+.bubble-attach-file .badge{
+  font-size:12px;
+  color:var(--muted);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:4px 9px;
+}
+.bubble-attach-file .fname{
+  max-width:360px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:13px;
+  font-weight:700;
+}
+.bubble-attach-file .fmeta{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+/* =====================
+   BILLING (SIMPLIFIED)
+===================== */
+.billing-text{
+  margin-top: 10px;
+  min-height: 260px;
+  resize: vertical;
+  white-space: pre-wrap;
+}
+
+.billing-date{
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.2px;
+}
+
+.billing-meta{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+}
+.billing-meta label{
+  font-size:12px;
+  color:var(--muted);
+  letter-spacing:.2px;
+}
+.billing-meta select{
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color:var(--text);
+  font-size:13px;
+}
+
+.billing-actions{
+  display:flex;
+  gap:10px;
+  justify-content:flex-end;
+  margin-top:10px;
+  flex-wrap:wrap;
+}
+.billing-actions button{ min-width: 120px; }
+.billing-actions .save-primary{ min-width: 140px; }
+
+@media (max-width: 980px){
+  .billing-actions{ justify-content:stretch; }
+  .billing-actions button{ flex:1; }
+}
+
+/* =====================
+   FOOTER
+===================== */
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:var(--muted);
+  padding:12px 0 4px;
+}
+
+/* =====================
+   RESPONSIVE
+===================== */
+@media (max-width: 1100px){
+  :root{
+    --rowH: 900px;
+    --colLeft: 1fr;
+  }
+  .grid-main{ grid-template-columns: 1fr; }
+  .row-card, .query-card{ height:auto; }
+  .transcript-box{ resize:vertical; }
+  .stack-top, .stack-bot{ height:auto; }
+  .transcript-btnrow{ grid-template-columns: 1fr; }
+  .timer{ font-size:inherit; }
+  .cq-draft-name{ max-width: 220px; }
+  .bubble-attach-img{ width: 100%; }
+  .bubble-attach-file .fname{ max-width: 220px; }
+  .chatinput{ position: relative; bottom: auto; }
+  .popover{ right:0; }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce){
+  *{ transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+  <!-- TOP BAR -->
+  <div class="card topbar">
+    <div class="brand">
+      <span>CentaurMD</span>
+    </div>
+    <div class="actions">
+      <button type="button" title="Menu" aria-label="Menu">☰</button>
+      <button type="button" title="Profile" aria-label="Profile">👤</button>
+    </div>
+  </div>
+
+  <!-- MAIN ROW: (LEFT STACK) | COACH | CLINICAL QUERY -->
+  <div class="grid-main">
+    <!-- LEFT STACK -->
+    <div class="card row-card">
+      <div class="left-stack">
+        <!-- TOP: LIVE TRANSCRIPT -->
+        <div class="stack-top">
+          <div class="card-head">
+            <div>
+              <div class="headline">Live Transcript</div>
+            </div>
+
+            <div class="eyebrow" aria-label="Recording status">
+              <span class="status-pill" id="tx_state">IDLE</span>
+              <span class="rec-dot" title="Recording status"></span>
+              <span class="timer">00:00</span>
+            </div>
+          </div>
+
+          <div class="transcript-btnrow">
+            <button id="record_btn" class="primary" type="button">Record</button>
+            <button id="new_patient_btn" type="button">New</button>
+          </div>
+
+          <textarea class="transcript-box" id="transcript_box" placeholder="Live transcript will appear here…" spellcheck="false"></textarea>
+        </div>
+
+        <!-- BOTTOM: PATIENT SNAPSHOT -->
+        <div class="stack-bot">
+          <div class="card-head" style="margin:0 0 10px 0;">
+            <div>
+              <div class="headline">Patient Summary</div>
+            </div>
+            <div class="eyebrow">
+              <span class="status-pill ok" id="snap_state" style="display:none">READY</span>
+            </div>
+          </div>
+          <div class="panel-white snapshot-box" id="snapshot_panel"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COACH -->
+    <div class="card row-card">
+      <div class="card-head">
+        <div>
+          <div class="headline">Coach</div>
+        </div>
+        <div class="eyebrow">
+          <span class="status-pill ok" id="coach_state" style="display:none">READY</span>
+        </div>
+      </div>
+      <div class="panel-white coach-panel" id="coach_panel"></div>
+    </div>
+
+    <!-- CLINICAL QUERY -->
+    <div class="card query-card" id="query_card">
+      <div class="card-head">
+        <div>
+          <div class="headline">Clinical Query</div>
+          <div class="subhead">Ask a clinical question or paste EMR/background.</div>
+        </div>
+        <div class="eyebrow">
+          <span class="status-pill" id="cq_state" style="display:none">READY</span>
+        </div>
+      </div>
+
+      <div class="chatlog" aria-live="polite"></div>
+
+      <div class="chatinput" id="cqChatInputWrap">
+        <button id="cqPlusBtn" class="cq-plus" type="button" title="Add attachment" aria-label="Add attachment">+</button>
+        <div id="cqPlusMenu" class="cq-menu" style="display:none">
+          <button id="cqUploadPdfBtn" class="cq-menu-item" type="button">Upload PDF</button>
+          <button id="cqUploadImageBtn" class="cq-menu-item" type="button">Upload image</button>
+        </div>
+
+        <!-- Draft attachments live inside composer (ChatGPT-style) -->
+        <div id="cqDraftAttachments" class="cq-draft" style="display:none"></div>
+
+        <textarea id="cqTextArea" placeholder="Ask a clinical question, or paste EMR/background…" spellcheck="false"></textarea>
+        <button class="send-btn" id="cqSendBtn" type="button">Send</button>
+
+        <input
+          id="cqFileInput"
+          type="file"
+          multiple
+          accept="application/pdf,image/png,image/jpeg,image/webp"
+          style="display:none"
+        />
+      </div>
+
+      <div class="query-actions">
+        <button class="primary" type="button">SOAP</button>
+        <button class="primary" type="button">Referral</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BILLING PANEL (SIMPLIFIED) -->
+  <div class="card" id="billingCard">
+    <div class="card-head" style="margin-bottom:0;">
+      <div>
+        <div class="headline">Billing</div>
+      </div>
+      <div class="billing-date" id="billingDate"></div>
+    </div>
+
+    <div class="billing-meta">
+      <label for="billingModelSelect">Funding model</label>
+      <select id="billingModelSelect">
+        <option value="FFS">Fee for Service (FFS)</option>
+        <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
+      </select>
+    </div>
+
+    <textarea id="dailyBillingText"
+              class="billing-text"
+              placeholder="Daily billing list (editable)"
+              spellcheck="false"></textarea>
+
+    <div class="billing-actions">
+      <button id="billBtn" type="button">Bill</button>
+      <button id="saveBillingBtn" class="primary save-primary" type="button">Save</button>
+      <button id="printBillingBtn" type="button">Print</button>
+    </div>
+  </div>
+
+  <div class="footer">
+    © 2026 Centaur Systems. All rights reserved.
+  </div>
+</div>
+
+<script>
+const API_BASE = "/api";
+const CHUNK_MS = 12000;
+
+// fetch hardening
+const FETCH_TIMEOUT_MS = 45000;
+function fetchWithTimeout(url, opts = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+
+  const merged = {
+    credentials: "same-origin",
+    cache: "no-store",
+    ...opts,
+    headers: {
+      "Accept": "application/json, text/plain, */*",
+      ...(opts.headers || {}),
+    },
+    signal: controller.signal,
+  };
+
+  return fetch(url, merged).finally(() => clearTimeout(id));
+}
+
+// -------------------------
+// Panel status helpers
+// -------------------------
+function setPill(el, text, cls){ // cls: "live"|"ok"|"warn"|"" (base)
+  if (!el) return;
+  el.className = "status-pill" + (cls ? ` ${cls}` : "");
+  el.textContent = text;
+}
+
+const panelUpdatedAt = {
+  transcript: 0,
+  snapshot: 0,
+  coach: 0,
+};
+
+function markUpdated(which){
+  panelUpdatedAt[which] = Date.now();
+}
+
+// Run every 5s to refresh staleness (no UPDATED x ago labels)
+setInterval(() => {
+  const now = Date.now();
+
+  // Snapshot stale threshold: 10 min
+  const snapPill = document.getElementById("snap_state");
+  const snapTime = document.getElementById("snap_time");
+  if (snapPill && snapTime) {
+    if (!panelUpdatedAt.snapshot) {
+      snapPill.style.display = "none";
+      snapTime.style.display = "none";
+    } else {
+      const snapAge = now - panelUpdatedAt.snapshot;
+      snapPill.style.display = "inline-flex";
+      if (snapAge > 10*60*1000) setPill(snapPill, "STALE", "warn");
+      else setPill(snapPill, "READY", "ok");
+    }
+  }
+
+  // Coach stale threshold: 5 min (no UPDATED x ago)
+  const coachPill = document.getElementById("coach_state");
+  if (coachPill) {
+    if (!panelUpdatedAt.coach) {
+      coachPill.style.display = "none";
+    } else {
+      const coachAge = now - panelUpdatedAt.coach;
+      coachPill.style.display = "inline-flex";
+      if (coachAge > 5*60*1000) setPill(coachPill, "STALE", "warn");
+      else setPill(coachPill, "READY", "ok");
+    }
+  }
+}, 5000);
+
+// -------------------------
+// State
+// -------------------------
+let sessionId = null;
+let recorder = null;
+let audioStream = null;
+let timerInterval = null;
+let secondsElapsed = 0;
+let isRecording = false;
+let recState = "idle"; // "idle" | "recording" | "paused"
+let chosenMime = "";
+let chosenExt = "webm";
+let chunkStopTimeout = null;
+let coachPollInterval = null;
+let snapshotDebounce = null;
+let lastSnapshotHash = "";
+let lastPatientSummaryHash = "";
+let hasAiSummary = false;
+let patientSummaryBusy = false;
+let lastCoachHash = "";
+const COACH_MIN_INTERVAL_MS = 60000;
+const COACH_MIN_DELTA_CHARS = 450;
+let lastCoachRunAt = 0;
+let lastCoachTranscriptLen = 0;
+let emrBackgroundText = "";
+
+// Patient anchor (best-effort)
+let patientName = "";
+let patientPHN = "";
+let patientAge = ""; // years as string, e.g. "27"
+
+// Draft attachments (Clinical Query)
+let cqDraft = []; // [{localId, file, kind, mime, filename, size, previewUrl, status, serverId, uploadPromise}]
+let cqPickKind = "all"; // "pdf" | "image" | "all"
+const uploadedAttachmentIdsEver = new Set(); // best-effort cleanup on New
+
+// -------------------------
+// DOM refs
+// -------------------------
+const transcriptBox = document.getElementById("transcript_box");
+const recDot = document.querySelector(".rec-dot");
+const timerEl = document.querySelector(".timer");
+const recordBtn = document.getElementById("record_btn");
+const newBtn    = document.getElementById("new_patient_btn");
+const snapshotPanel = document.getElementById("snapshot_panel");
+const coachPanel    = document.getElementById("coach_panel");
+
+const chatLog   = document.querySelector(".chatlog");
+const chatInput = document.getElementById("cqTextArea");
+const sendBtn   = document.getElementById("cqSendBtn");
+const soapBtn       = document.querySelector(".query-actions button:nth-child(1)");
+const referralBtn   = document.querySelector(".query-actions button:nth-child(2)");
+
+// Attachments UI refs
+const cqPlusBtn = document.getElementById("cqPlusBtn");
+const cqPlusMenu = document.getElementById("cqPlusMenu");
+const cqUploadPdfBtn = document.getElementById("cqUploadPdfBtn");
+const cqUploadImageBtn = document.getElementById("cqUploadImageBtn");
+const cqFileInput = document.getElementById("cqFileInput");
+const cqChatInputWrap = document.getElementById("cqChatInputWrap");
+const cqDraftEl = document.getElementById("cqDraftAttachments");
+
+// Billing UI refs (SIMPLIFIED)
+const dailyBillingText = document.getElementById("dailyBillingText");
+const billingModelSelect = document.getElementById("billingModelSelect");
+const billingDateEl = document.getElementById("billingDate");
+const billBtn = document.getElementById("billBtn");
+const saveBillingBtn = document.getElementById("saveBillingBtn");
+const printBillingBtn = document.getElementById("printBillingBtn");
+
+// -------------------------
+// Helpers
+// -------------------------
+function safeJsonStringify(obj) {
+  try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
+}
+
+/* never let UI render [object Object] */
+function asText(x) {
+  if (x === null || x === undefined) return "";
+  if (typeof x === "string") return x;
+  if (typeof x === "number" || typeof x === "boolean") return String(x);
+  return safeJsonStringify(x);
+}
+
+function uiError(where, err) {
+  console.error(where, err);
+  logChat("System", `${where}: ${err?.message || err}`);
+}
+window.addEventListener("error", (e) => {
+  try { uiError("Unhandled error", e?.error || new Error(e?.message || "Unhandled error")); } catch {}
+});
+window.addEventListener("unhandledrejection", (e) => {
+  try { uiError("Unhandled promise rejection", e?.reason || new Error("Unhandled promise rejection")); } catch {}
+});
+
+function setRecordingUI(active) {
+  recDot.style.background = active ? "#DC2626" : "#9CA3AF";
+  recDot.style.boxShadow = active ? "0 0 0 4px rgba(220,38,38,.15)" : "0 0 0 4px rgba(220,38,38,.0)";
+}
+function formatTime(totalSeconds) {
+  const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const s = String(totalSeconds % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+function startTimer(reset=true) {
+  if (reset) secondsElapsed = 0;
+  timerEl.textContent = formatTime(secondsElapsed);
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    secondsElapsed++;
+    timerEl.textContent = formatTime(secondsElapsed);
+  }, 1000);
+}
+function stopTimer(preserve=true) {
+  clearInterval(timerInterval);
+  if (!preserve) secondsElapsed = 0;
+  timerEl.textContent = formatTime(secondsElapsed);
+}
+function escapeHtml(s) {
+  return (s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+function stripPairedMarkdownEmphasis(text) {
+  const s0 = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  let s = s0
+    .replace(/\*\*([^\n*]+)\*\*/g, "$1")
+    .replace(/__([^\n_]+)__/g, "$1");
+  s = s.replace(/[ \t]+\n/g, "\n");
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s;
+}
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+function flashButton(btn){
+  if (!btn) return;
+  btn.classList.add("btn-flash");
+  setTimeout(() => btn.classList.remove("btn-flash"), 180);
+}
+async function runWithButtonBusy(btn, busyText, fn){
+  if (!btn) return await fn();
+  const wasDisabled = btn.disabled;
+  const originalText = btn.textContent;
+  flashButton(btn);
+  btn.disabled = true;
+  btn.classList.add("busy");
+  if (busyText) btn.textContent = busyText;
+  try {
+    return await fn();
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = wasDisabled;
+    btn.classList.remove("busy");
+  }
+}
+async function runWithButtonFeedback(btn, busyText, doneText, fn){
+  if (!btn) return await fn();
+  const wasDisabled = btn.disabled;
+  const originalText = btn.textContent;
+  flashButton(btn);
+  btn.disabled = true;
+  btn.classList.add("busy");
+  if (busyText) btn.textContent = busyText;
+  try {
+    const out = await fn();
+    btn.textContent = doneText || originalText;
+    await sleep(450);
+    return out;
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = wasDisabled;
+    btn.classList.remove("busy");
+  }
+}
+
+function plainToHtml(plain) {
+  const esc = (s) => String(s || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  const text = String(plain || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+  const blocks = text.split(/\n{2,}/g).map(b => b.trim()).filter(Boolean);
+  const htmlBlocks = blocks.map(block => {
+    const lines = block.split("\n");
+    const isBulletBlock = lines.length > 0 && lines.every(l => l.trim().startsWith("- "));
+    if (isBulletBlock) {
+      const items = lines.map(l => esc(l.trim().slice(2)));
+      return `<ul>${items.map(it => `<li>${it}</li>`).join("")}</ul>`;
+    }
+    if (lines.length === 1 && /:\s*$/.test(lines[0].trim())) {
+      return `<p><strong>${esc(lines[0].trim())}</strong></p>`;
+    }
+    return `<p>${esc(block).replaceAll("\n", "<br>")}</p>`;
+  });
+  return `<!doctype html><html><body>${htmlBlocks.join("")}</body></html>`;
+}
+async function copyRichText(plainText) {
+  const plain = String(plainText || "");
+  const html = plainToHtml(plain);
+  try {
+    if (navigator.clipboard?.write && window.ClipboardItem) {
+      const item = new ClipboardItem({
+        "text/plain": new Blob([plain], { type: "text/plain" }),
+        "text/html":  new Blob([html],  { type: "text/html"  }),
+      });
+      await navigator.clipboard.write([item]);
+      return true;
+    }
+  } catch (e) {}
+  const el = document.createElement("div");
+  el.contentEditable = "true";
+  el.style.position = "fixed";
+  el.style.left = "-9999px";
+  el.style.top = "0";
+  el.innerHTML = html;
+  document.body.appendChild(el);
+  const sel = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  sel.removeAllRanges();
+  sel.addRange(range);
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch {}
+  sel.removeAllRanges();
+  document.body.removeChild(el);
+  if (!ok) {
+    try { await navigator.clipboard.writeText(plain); return true; } catch {}
+  }
+  return ok;
+}
+
+let lastAssistantPlainText = "";
+
+function stripCodeFences(s){
+  s = (s || "").trim();
+  if (s.startsWith("```")) {
+    s = s.replace(/^```[a-zA-Z0-9]*\s*/,"").replace(/\s*```$/,"");
+  }
+  return s.trim();
+}
+
+function safeSubsetFormat(text) {
+  const raw = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const headingNames = [
+    "Issues","Subjective","Safety / red flags","Safety / Red flags","Safety / Red Flags",
+    "Objective","Assessment","Plan","Procedure","Med Review","Preventive Health Care Review",
+  ];
+  const isHeadingLine = (lineTrim) => {
+    let t = lineTrim;
+    const mm = t.match(/^\*\*(.+?)\*\*\s*:?\s*$/);
+    if (mm && mm[1]) t = mm[1].trim();
+    t = t.replace(/:\s*$/, "").trim();
+    t = t.replace(/\s*\/\s*/g, " / ");
+    return headingNames.some(h => h.toLowerCase() === t.toLowerCase());
+  };
+  const normalizeHeading = (lineTrim) => {
+    let t = lineTrim;
+    const mm = lineTrim.match(/^\*\*(.+?)\*\*\s*:?\s*$/);
+    if (mm && mm[1]) t = mm[1].trim();
+    t = t.replace(/:\s*$/, "").trim();
+    t = t.replace(/\s*\/\s*/g, " / ");
+    return t;
+  };
+  const lines = raw.split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (isHeadingLine(trimmed)) {
+      const heading = normalizeHeading(trimmed);
+      if (out.length > 0 && out[out.length - 1] !== "") out.push("");
+      out.push(heading);
+      continue;
+    }
+    out.push(line.replace(/[ \t]+$/g, ""));
+  }
+  let s = out.join("\n").replace(/\n{3,}/g, "\n\n");
+  s = escapeHtml(s);
+  const headingRe = /^(Issues|Subjective|Safety\s*\/\s*Red\s*Flags|Safety\s*\/\s*Red\s*flags|Objective|Assessment|Plan|Procedure|Med Review|Preventive Health Care Review)\s*$/gmi;
+  s = s.replace(headingRe, "<strong>$1</strong>");
+  s = s.replace(/\*\*([^\n*]+)\*\*/g, "$1").replace(/__([^\n_]+)__/g, "$1");
+  s = s.replace(/[ \t]+\n/g, "\n");
+  return s;
+}
+
+function bytesToHuman(n) {
+  const x = Number(n || 0);
+  if (!Number.isFinite(x) || x <= 0) return "0 B";
+  const units = ["B","KB","MB","GB"];
+  let v = x;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${(i === 0 ? v.toFixed(0) : v.toFixed(1))} ${units[i]}`;
+}
+
+function kindFromFile(file) {
+  const t = String(file?.type || "").toLowerCase();
+  if (t.includes("pdf") || String(file?.name || "").toLowerCase().endsWith(".pdf")) return "pdf";
+  if (t.startsWith("image/")) return "image";
+  return "file";
+}
+function isAllowedKind(file) {
+  const k = kindFromFile(file);
+  return (k === "pdf" || k === "image");
+}
+function closePlusMenu() { cqPlusMenu.style.display = "none"; }
+
+/* FIXED: restore previous + menu toggle behaviour */
+function togglePlusMenu() {
+  const open = cqPlusMenu.style.display !== "none";
+  cqPlusMenu.style.display = open ? "none" : "flex";
+}
+
+function makeLocalId() { return `loc_${Date.now()}_${Math.random().toString(16).slice(2)}`; }
+function normalizeAttachmentForDisplay(d) {
+  return {
+    kind: d.kind,
+    filename: d.filename,
+    size_bytes: d.size,
+    mime: d.mime,
+    previewUrl: d.previewUrl || "",
+    serverId: d.serverId || null,
+  };
+}
+
+// -------------------------
+// Recording UI state machine
+// -------------------------
+function updateRecUI(){
+  const txPill = document.getElementById("tx_state");
+
+  if (recState === "recording") {
+    recordBtn.textContent = "Pause";
+    setRecordingUI(true);
+    if (txPill) setPill(txPill, "LIVE", "live");
+  } else if (recState === "paused") {
+    recordBtn.textContent = "Resume";
+    setRecordingUI(false);
+    if (txPill) setPill(txPill, "PAUSED", "warn");
+  } else {
+    recordBtn.textContent = "Record";
+    setRecordingUI(false);
+    if (txPill) setPill(txPill, "IDLE", "");
+  }
+}
+
+// -------------------------
+// Patient anchor extraction (best-effort)
+// -------------------------
+function normalizeDigits(s) { return String(s || "").replace(/\D+/g, ""); }
+function sanitizePHNInput(v) {
+  const dig = normalizeDigits(v);
+  if (!dig) return "";
+  // AB PHN is typically 9 digits; some EMRs store 10. Keep up to 10 but allow 9.
+  if (dig.length < 9) return "";
+  return dig.slice(0, 10);
+}
+function sanitizeAgeYears(v) {
+  const n = parseInt(String(v ?? "").replace(/\D+/g, ""), 10);
+  if (!Number.isFinite(n) || n <= 0 || n >= 130) return "";
+  return String(n);
+}
+
+function titleCaseWord(w){
+  const s = String(w || "").trim();
+  if (!s) return "";
+  if (s.toUpperCase() === s && /[A-Z]/.test(s)) {
+    return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+  }
+  return s;
+}
+function titleCaseName(name){
+  const parts = String(name || "").trim().split(/\s+/g).filter(Boolean);
+  return parts.map(p => {
+    if (p.includes("-")) return p.split("-").map(titleCaseWord).join("-");
+    return titleCaseWord(p);
+  }).join(" ");
+}
+
+function extractPHNFromText(text) {
+  const t = String(text || "");
+
+  // JSON style
+  const mj = t.match(/"phn"\s*:\s*"?(?<phn>[0-9][0-9\s\-]{7,20})"?/i);
+  if (mj?.groups?.phn) {
+    const dig = sanitizePHNInput(mj.groups.phn);
+    if (dig) return dig;
+  }
+
+  // Explicit labels (common in Alberta EMRs): "PHN/ULI: 123456789"
+  const m0 = t.match(/(?:^|\n)\s*(?:PHN\s*\/\s*ULI|PHN|ULI)\s*[:#=\-]?\s*([0-9][0-9\s\-]{6,20})/i);
+  if (m0 && m0[1]) {
+    const dig = sanitizePHNInput(m0[1]);
+    if (dig) return dig;
+  }
+
+  // Header pattern: "(778389621 | AB)" or "778389621 | AB"
+  const mAB = t.match(/\b(\d{9,10})\s*\|\s*AB\b/i);
+  if (mAB && mAB[1]) {
+    const dig = sanitizePHNInput(mAB[1]);
+    if (dig) return dig;
+  }
+
+  // Other common label lines
+  const m1 = t.match(/(?:^|\n)\s*(?:PHN|Personal\s*Health\s*Number)\s*[:#=\-]?\s*([0-9][0-9\s\-]{7,20})/i);
+  if (m1 && m1[1]) {
+    const dig = sanitizePHNInput(m1[1]);
+    if (dig) return dig;
+  }
+
+  // Fallback: last 9-digit run anywhere (avoids 10-digit phone #s and 10-digit order #s)
+  const all9 = [];
+  const re9 = /\b(\d{9})\b/g;
+  let m;
+  while ((m = re9.exec(t)) !== null) all9.push(m[1]);
+  if (all9.length) {
+    const dig = sanitizePHNInput(all9[all9.length - 1]);
+    if (dig) return dig;
+  }
+
+  return "";
+}
+
+function extractNameFromText(text) {
+  const t = String(text || "");
+  const head = t.slice(0, 1400); // patient header is usually near top
+
+  // Prefer "LASTNAME, Firstname" near header
+  let m = head.match(/(?:^|\n)\s*([A-Z]{2,}),\s*([A-Z][A-Za-z'\-]+)\b/m);
+  if (m && m[1] && m[2]) {
+    const last = titleCaseWord(m[1]);
+    const first = titleCaseWord(m[2]);
+    const nm = `${first} ${last}`.trim();
+    if (nm && !/\bdr\b/i.test(nm)) return nm;
+  }
+
+  // Prefer "Lastname, Firstname" near header
+  m = head.match(/(?:^|\n)\s*([A-Z][A-Za-z'\-]{1,}),\s*([A-Z][A-Za-z'\-]+)\b/m);
+  if (m && m[1] && m[2]) {
+    const last = titleCaseWord(m[1]);
+    const first = titleCaseWord(m[2]);
+    const nm = `${first} ${last}`.trim();
+    if (nm && !/\bdr\b/i.test(nm)) return nm;
+  }
+
+  // JSON-style
+  const mj = t.match(/"patient_name"\s*:\s*"(?<name>[^"]{3,80})"/i) || t.match(/"name"\s*:\s*"(?<name>[^"]{3,80})"/i);
+  if (mj?.groups?.name) {
+    const name = mj.groups.name.trim();
+    if (name && /[A-Za-z]/.test(name)) return titleCaseName(name);
+  }
+
+  // Label-based (rare)
+  const m0 = t.match(/(?:^|\n)\s*(?:Name\s+of\s+patient|Patient\s+Name|Patient)\s*[:#=\-]\s*([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){0,5})/i);
+  if (m0 && m0[1]) return titleCaseName(m0[1].trim());
+
+  // Fallback: best-effort "Name:" line
+  const m1 = t.match(/(?:^|\n)\s*(?:Name|Pt)\s*[:#=\-]\s*([A-Z][A-Za-z'\-]+(?:\s+[A-Z][A-Za-z'\-]+){0,4})/m);
+  if (m1 && m1[1]) return titleCaseName(m1[1].trim());
+
+  return "";
+}
+
+const DOB_MONTH = {
+  jan:"01", january:"01",
+  feb:"02", february:"02",
+  mar:"03", march:"03",
+  apr:"04", april:"04",
+  may:"05",
+  jun:"06", june:"06",
+  jul:"07", july:"07",
+  aug:"08", august:"08",
+  sep:"09", sept:"09", september:"09",
+  oct:"10", october:"10",
+  nov:"11", november:"11",
+  dec:"12", december:"12",
+};
+
+function normalizeDobToISO(raw) {
+  const s0 = String(raw || "").trim();
+  if (!s0) return "";
+
+  // Remove spaces, keep separators
+  const s = s0.replace(/\s+/g, "");
+
+  // YYYY-MM-DD or YYYY/M/D
+  let m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+  if (m) {
+    const y = m[1];
+    const mo = String(parseInt(m[2], 10)).padStart(2, "0");
+    const d = String(parseInt(m[3], 10)).padStart(2, "0");
+    return `${y}-${mo}-${d}`;
+  }
+
+  // YYYY-Mon-DD
+  m = s.match(/^(\d{4})[-\/]([A-Za-z]{3,9})[-\/](\d{1,2})$/);
+  if (m) {
+    const y = m[1];
+    const mon = String(m[2] || "").toLowerCase();
+    const mo = DOB_MONTH[mon] || DOB_MONTH[mon.slice(0,3)] || "";
+    const d = String(parseInt(m[3], 10)).padStart(2, "0");
+    if (mo) return `${y}-${mo}-${d}`;
+  }
+
+  // DD-Mon-YYYY (e.g., 23-MAY-1984)
+  m = s.match(/^(\d{1,2})[-\/]([A-Za-z]{3,9})[-\/](\d{4})$/);
+  if (m) {
+    const d = String(parseInt(m[1], 10)).padStart(2, "0");
+    const mon = String(m[2] || "").toLowerCase();
+    const mo = DOB_MONTH[mon] || DOB_MONTH[mon.slice(0,3)] || "";
+    const y = m[3];
+    if (mo) return `${y}-${mo}-${d}`;
+  }
+
+  return "";
+}
+
+function computeAgeFromDOBISO(dobIso) {
+  const s = String(dobIso || "").trim().replaceAll("/", "-");
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const y = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10) - 1;
+  const d = parseInt(m[3], 10);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return "";
+  const today = new Date();
+  const dob = new Date(Date.UTC(y, mo, d));
+  if (isNaN(dob.getTime())) return "";
+  let age = today.getFullYear() - y;
+  const thisYearsBirthday = new Date(today.getFullYear(), mo, d);
+  if (today < thisYearsBirthday) age -= 1;
+  if (!Number.isFinite(age) || age <= 0 || age >= 130) return "";
+  return String(age);
+}
+
+function extractAgeFromText(text) {
+  const t = String(text || "");
+
+  const mj = t.match(/"age"\s*:\s*"?(?<age>\d{1,3})"?/i);
+  if (mj?.groups?.age) {
+    const a = sanitizeAgeYears(mj.groups.age);
+    if (a) return a;
+  }
+
+  const m1 = t.match(/(?:^|\n)\s*Age\s*[:#=\-]?\s*(\d{1,3})\b/i);
+  if (m1 && m1[1]) {
+    const a = sanitizeAgeYears(m1[1]);
+    if (a) return a;
+  }
+
+  // "22 yr old", "22 years old", "22 y/o"
+  const m2 =
+    t.match(/\b(\d{1,3})\s*(?:years?|yrs?|yr)\s*old\b/i) ||
+    t.match(/\b(\d{1,3})\s*(?:y\/o|yo)\b/i);
+  if (m2 && m2[1]) {
+    const a = sanitizeAgeYears(m2[1]);
+    if (a) return a;
+  }
+
+  // DOB labeled
+  const m3 = t.match(/(?:^|\n)\s*(?:DOB|Date\s*of\s*Birth)\s*[:#=\-]?\s*([0-9A-Za-z\/\-]{8,20})\b/i);
+  if (m3 && m3[1]) {
+    const iso = normalizeDobToISO(m3[1]);
+    if (iso) {
+      const a = computeAgeFromDOBISO(iso);
+      if (a) return a;
+    }
+  }
+
+  // Header-style DOB line: "2003-May-20" followed nearby by "22 yr old ..."
+  const m4 = t.match(/\b(\d{4}[-\/][A-Za-z]{3,9}[-\/]\d{1,2})\b[\s\S]{0,120}\b(\d{1,3})\s*(?:yr|yrs|years)\s*old\b/i);
+  if (m4 && m4[1]) {
+    const iso = normalizeDobToISO(m4[1]);
+    if (iso) {
+      const a = computeAgeFromDOBISO(iso);
+      if (a) return a;
+    }
+    const a2 = sanitizeAgeYears(m4[2]);
+    if (a2) return a2;
+  }
+
+  return "";
+}
+
+function parseAnchorFromSnapshot() {
+  const snap = String(snapshotPanel?.textContent || "").trim();
+  if (!snap) return { nm:"", phn:"", age:"" };
+  if (snap.startsWith("{") || snap.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(snap);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const nm = String(parsed.patient_name || parsed.name || "").trim();
+        const phn = sanitizePHNInput(parsed.phn || parsed.patient_phn || "");
+        const age = sanitizeAgeYears(parsed.age || "");
+        return { nm, phn, age };
+      }
+    } catch {}
+  }
+  return {
+    nm: extractNameFromText(snap),
+    phn: extractPHNFromText(snap),
+    age: extractAgeFromText(snap),
+  };
+}
+function setPatientAnchorFromTextBestEffort(text) {
+  const nm = extractNameFromText(text);
+  const phn = extractPHNFromText(text);
+  const age = extractAgeFromText(text);
+  if (nm && nm !== patientName) patientName = nm;
+  if (phn && phn !== patientPHN) patientPHN = phn;
+  if (age && age !== patientAge) patientAge = age;
+}
+function refreshPatientAnchorFromSnapshotPreferred() {
+  const { nm, phn, age } = parseAnchorFromSnapshot();
+  if (nm) patientName = nm;
+  if (phn) patientPHN = phn;
+  if (age) patientAge = age;
+}
+
+// -------------------------
+// Frontend Patient Summary (MINIMAL TEMPLATE + best-effort extraction)
+// -------------------------
+function lastMatch(re, text, groupIndex=1) {
+  const src = re instanceof RegExp ? re : new RegExp(String(re));
+  const flags = src.flags.includes("g") ? src.flags : (src.flags + "g");
+  const rg = new RegExp(src.source, flags);
+  let m = null;
+  let last = null;
+  while ((m = rg.exec(text)) !== null) last = m;
+  if (!last) return "";
+  if (last.groups && typeof last.groups.val === "string") return last.groups.val.trim();
+  return String(last[groupIndex] || "").trim();
+}
+function cleanInline(s) {
+  return String(s || "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*[|•]\s*/g, " | ")
+    .replace(/\s*,\s*$/g, "")
+    .trim();
+}
+function extractLineValue(label, text) {
+  const t = String(text || "");
+  const re = new RegExp(String.raw`(?:^|\n)\s*${label}\s*[:#=\-]\s*(?<val>[^\n]{0,220})`, "ig");
+  return lastMatch(re, t, 1);
+}
+
+function extractGenderFromText(text) {
+  const t = String(text || "");
+  let g = extractLineValue("(?:Sex|Gender)", t);
+
+  if (!g || !String(g).trim()) {
+    const m =
+      t.match(/\b(?:\d{1,3})\s*(?:yr|yrs|years)\s*old\s*(male|female)\b/i) ||
+      t.match(/\b(male|female)\b/i);
+    if (m && m[1]) g = m[1];
+    else if (m && m[0]) g = m[0];
+  }
+
+  g = cleanInline(g);
+  if (!g) return "";
+
+  const u = g.toUpperCase();
+  if (u === "M" || u === "MALE") return "M";
+  if (u === "F" || u === "FEMALE") return "F";
+  return g;
+}
+
+function extractDOBISO(text) {
+  const t = String(text || "").trim();
+
+  const labeled = lastMatch(/(?:^|\n)\s*(?:DOB|Date\s*of\s*Birth)\s*[:#=\-]?\s*(?<val>[0-9A-Za-z\/\-]{8,20})\b/ig, t, 1);
+  if (labeled) {
+    const iso = normalizeDobToISO(labeled);
+    if (iso) return iso;
+  }
+
+  const mHeader = t.match(/\b(\d{4}[-\/][A-Za-z]{3,9}[-\/]\d{1,2})\b[\s\S]{0,140}\b(\d{1,3})\s*(?:yr|yrs|years)\s*old\b/i);
+  if (mHeader && mHeader[1]) {
+    const iso = normalizeDobToISO(mHeader[1]);
+    if (iso) return iso;
+  }
+
+  return "";
+}
+
+function computeAgeDisplayFromDOB(dobIso) {
+  const s = String(dobIso || "").trim().replaceAll("/", "-");
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const y = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10) - 1;
+  const d = parseInt(m[3], 10);
+  if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return "";
+  const today = new Date();
+  const months = (today.getFullYear() - y) * 12 + (today.getMonth() - mo) - (today.getDate() < d ? 1 : 0);
+  if (!Number.isFinite(months) || months < 0) return "";
+  if (months < 24) return `${months} months`;
+  let years = today.getFullYear() - y;
+  const thisYearsBirthday = new Date(today.getFullYear(), mo, d);
+  if (today < thisYearsBirthday) years -= 1;
+  if (!Number.isFinite(years) || years <= 0 || years >= 130) return "";
+  return `${years} years`;
+}
+function extractAgeDisplay(text) {
+  const t = String(text || "");
+
+  const dob = extractDOBISO(t);
+  if (dob) {
+    const disp = computeAgeDisplayFromDOB(dob);
+    if (disp) return disp;
+  }
+
+  const mo = lastMatch(/(?:^|\n)\s*Age\s*[:#=\-]?\s*(?<val>\d{1,2})\s*(?:months?|mos?|mo)\b/ig, t, 1);
+  if (mo) {
+    const n = parseInt(mo.replace(/\D+/g, ""), 10);
+    if (Number.isFinite(n) && n >= 0 && n < 24) return `${n} months`;
+  }
+
+  const m2 =
+    t.match(/\b(\d{1,3})\s*(?:years?|yrs?|yr)\s*old\b/i) ||
+    t.match(/\bAge\s*[:#=\-]?\s*(\d{1,3})\b/i);
+  if (m2 && m2[1]) {
+    const n = parseInt(m2[1], 10);
+    if (Number.isFinite(n) && n > 0 && n < 130) return `${n} years`;
+  }
+
+  const yrs = extractAgeFromText(t);
+  if (yrs) {
+    const n = parseInt(yrs, 10);
+    if (Number.isFinite(n) && n > 0) return `${n} years`;
+  }
+  return "";
+}
+
+// --- Social-field sanity filtering (prevents “Occupation: Prediabetes …”)
+function looksClinicalValue(v) {
+  const s = String(v || "").trim();
+  if (!s) return false;
+  if (/\b\d+(\.\d+)?\s*(mg|mcg|g|units|iu|mmol\/l|mmol|umol\/l|g\/l|%|bpm)\b/i.test(s)) return true;
+  if (/\b(hba1c|a1c|bp|htn|dm|diabet|prediabet|copd|ckd|asthma|hypothy|hyperthy|hyperlip|dyslip|cad|cva|tia|afib|mi|angina)\b/i.test(s)) return true;
+  if (/\b(metformin|insulin|semaglutide|ozempic|wegovy|statin|atorvastatin|rosuvastatin|ramipril|lisinopril|amlodipine|losartan|valsartan|apixaban|rivaroxaban|warfarin|levothyroxine)\b/i.test(s)) return true;
+  if (/\b(problem|diagnos(?:is|es)|dx)\b\s*[:\-]/i.test(s)) return true;
+  return false;
+}
+function sanitizeSocialValue(v, maxLen=90) {
+  let s = cleanInline(v);
+  if (!s) return "";
+  if (s.length > maxLen) return "";
+  if (looksClinicalValue(s)) return "";
+  const digits = (s.match(/\d/g) || []).length;
+  if (digits >= 6) return "";
+  return s;
+}
+
+// Family member NAMES only (best-effort)
+const FAMILY_STOPWORDS = new Set([
+  "Dr","MD","CCFP","PhD",
+  "Husband","Wife","Partner","Spouse","Son","Daughter","Child","Children","Kids","Kid",
+  "Father","Mother","Dad","Mom","Brother","Sister","Grandfather","Grandmother","Grandpa","Grandma",
+  "Lives","With","And","Or","The","A","An","Of"
+].map(x => x.toLowerCase()));
+
+function extractNamesFromFreeText(v) {
+  const s = String(v || "").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  if (!s.trim()) return [];
+
+  // Drop parenthetical roles/ages: "(12yo)", "(daughter)", etc.
+  const cleaned = s
+    .replace(/$begin:math:text$\\s\*\[\^\)\]\*\\s\*$end:math:text$/g, " ")
+    .replace(/\b\d{1,3}\s*(?:yo|y\/o|yrs?|years?|months?|mos?)\b/ig, " ")
+    .replace(/[^\w'\-\s,]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Candidate names: Capitalized words sequences (1-3 tokens)
+  const re = /\b([A-Z][a-zA-Z'\-]{1,})(?:\s+([A-Z][a-zA-Z'\-]{1,}))?(?:\s+([A-Z][a-zA-Z'\-]{1,}))?\b/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(cleaned)) !== null) {
+    const parts = [m[1], m[2], m[3]].filter(Boolean);
+    if (!parts.length) continue;
+    const joined = parts.join(" ").trim();
+
+    const words = joined.split(/\s+/g);
+    if (words.every(w => FAMILY_STOPWORDS.has(w.toLowerCase()))) continue;
+    if (FAMILY_STOPWORDS.has(words[0].toLowerCase())) continue;
+
+    // reject obvious clinic/provider org strings
+    if (/\b(Clinic|Medical|Associate|Airdrie|Alberta|One\s*Health)\b/i.test(joined)) continue;
+
+    out.push(joined);
+  }
+
+  const seen = new Set();
+  const dedup = [];
+  for (const n of out) {
+    const key = n.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    dedup.push(n);
+  }
+  return dedup.slice(0, 12).map(titleCaseName);
+}
+
+function extractFamilyMembersNames(text) {
+  const t = String(text || "");
+  let v =
+    extractLineValue("Family\\s*members(?:\\s*names)?", t) ||
+    extractLineValue("Lives?\\s*with", t) ||
+    extractLineValue("Household", t) ||
+    extractLineValue("Spouse|Partner|Husband|Wife|Children|Kids", t) ||
+    "";
+  v = sanitizeSocialValue(v, 160);
+  if (!v) return "";
+  const names = extractNamesFromFreeText(v);
+  return names.length ? names.join(", ") : "";
+}
+
+function extractOccupation(text) {
+  const t = String(text || "");
+  let v = extractLineValue("Occupation|Job|Work", t);
+  if (!v) v = lastMatch(/(?:^|\n)\s*(?:Works?\s+as|Employed\s+as)\s*(?<val>[^\n]{0,220})/ig, t, 1);
+  return sanitizeSocialValue(v, 90);
+}
+function extractHobbies(text) {
+  const t = String(text || "");
+  let v = extractLineValue("Hobbies|Interests", t);
+  if (!v) v = lastMatch(/(?:^|\n)\s*(?:Enjoys?|Likes?)\s*(?<val>[^\n]{0,220})/ig, t, 1);
+  return sanitizeSocialValue(v, 110);
+}
+
+function buildPatientSummaryText(backgroundText, transcriptText) {
+  const bg = String(backgroundText || "");
+  const tx = String(transcriptText || "");
+  const src = (bg.trim().length ? bg : "") + (bg.trim().length && tx.trim().length ? "\n\n" : "") + (tx.trim().length ? tx : "");
+
+  const name = extractNameFromText(src) || patientName || "";
+  const phn = extractPHNFromText(src) || patientPHN || "";
+  const ageDisp = extractAgeDisplay(src) || (patientAge ? `${patientAge} years` : "");
+  const gender = extractGenderFromText(src) || "";
+
+  const famNames = extractFamilyMembersNames(src);
+  const occ = extractOccupation(src);
+  const hobbies = extractHobbies(src);
+
+  const lines = [];
+  lines.push(`Name: ${name}`);
+  lines.push(`PHN: ${phn}`);
+  lines.push(`Age: ${ageDisp}`);
+  lines.push(`Gender: ${gender}`);
+  if (famNames) lines.push(`Family members names: ${famNames}`);
+  if (occ) lines.push(`Occupation: ${occ}`);
+  if (hobbies) lines.push(`Hobbies: ${hobbies}`);
+
+  return lines.join("\n").trimEnd();
+}
+
+function normalizeSummaryArray(v) {
+  if (Array.isArray(v)) return v.map(x => String(x || "").trim()).filter(Boolean);
+  if (typeof v === "string") {
+    return v.split(/\n+/).map(x => String(x || "").trim()).filter(Boolean);
+  }
+  return [];
+}
+function renderSummaryList(items, emptyText="—") {
+  const clean = normalizeSummaryArray(items);
+  if (!clean.length) return `<div class="summary-line">${escapeHtml(emptyText)}</div>`;
+  return `<ul class="summary-list">${clean.map(i => `<li>${escapeHtml(i)}</li>`).join("")}</ul>`;
+}
+function renderPatientSummaryAI(summary) {
+  const s = (summary && typeof summary === "object") ? summary : {};
+  const name = String(s.patient_name || "").trim();
+  const phn = String(s.phn || "").trim();
+  const age = String(s.age_display || "").trim();
+  const gender = String(s.gender || "").trim();
+  const family = String(s.family_members || "").trim();
+  const occupation = String(s.occupation || "").trim();
+  const hobbies = String(s.hobbies_and_interests || "").trim();
+
+  const lastVisits = normalizeSummaryArray(s.last_three_visits);
+  const lifeEvents = normalizeSummaryArray(s.significant_life_events);
+  const diagnoses = normalizeSummaryArray(s.diagnoses);
+  const prevHealth = normalizeSummaryArray(s.preventative_health_review);
+
+  const smoking = String(s.smoking_history || "").trim();
+  const alcohol = String(s.alcohol_use_history || "").trim();
+  const substances = String(s.other_substance_use_history || "").trim();
+
+  const med = (s.medication_review && typeof s.medication_review === "object") ? s.medication_review : {};
+  const medIssues = normalizeSummaryArray(med.issues);
+  const medHasIssues = !!med.has_issues || medIssues.length > 0;
+
+  const parts = [];
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-line"><span class="summary-label">Patient Name:</span> ${escapeHtml(name || "—")}</div>` +
+      `<div class="summary-line"><span class="summary-label">PHN:</span> ${escapeHtml(phn || "—")}</div>` +
+      `<div class="summary-line"><span class="summary-label">Age:</span> ${escapeHtml(age || "—")}</div>` +
+      `<div class="summary-line"><span class="summary-label">Gender:</span> ${escapeHtml(gender || "—")}</div>` +
+    `</div>`
+  );
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-line"><span class="summary-label">Family members (incl. pets):</span> ${escapeHtml(family || "—")}</div>` +
+    `</div>`
+  );
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-line"><span class="summary-label">Occupation:</span> ${escapeHtml(occupation || "—")}</div>` +
+      `<div class="summary-line"><span class="summary-label">Hobbies and interests:</span> ${escapeHtml(hobbies || "—")}</div>` +
+    `</div>`
+  );
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-title">Summary of last 3 visits:</div>` +
+      `${renderSummaryList(lastVisits)}` +
+    `</div>`
+  );
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-title">Significant Life Events:</div>` +
+      `${renderSummaryList(lifeEvents)}` +
+    `</div>`
+  );
+
+  if (smoking) {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-line"><span class="summary-label">Smoking Hx:</span> ${escapeHtml(smoking)}</div>` +
+      `</div>`
+    );
+  }
+  if (alcohol) {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-line"><span class="summary-label">Alcohol Use Hx:</span> ${escapeHtml(alcohol)}</div>` +
+      `</div>`
+    );
+  }
+  if (substances) {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-line"><span class="summary-label">Other Substance Use Hx:</span> ${escapeHtml(substances)}</div>` +
+      `</div>`
+    );
+  }
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-title">Diagnoses:</div>` +
+      `${renderSummaryList(diagnoses)}` +
+    `</div>`
+  );
+
+  if (medHasIssues) {
+    const items = medIssues.length ? medIssues : ["Issue detected but details missing."];
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-title">Medication review:</div>` +
+        `<ul class="summary-list">` +
+          `${items.map(i => `<li class="summary-issue">${escapeHtml(i)}</li>`).join("")}` +
+        `</ul>` +
+      `</div>`
+    );
+  } else {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-title">Medication review:</div>` +
+        `<div class="summary-line">none</div>` +
+      `</div>`
+    );
+  }
+
+  parts.push(
+    `<div class="summary-section">` +
+      `<div class="summary-title">Preventative Health Review:</div>` +
+      `${renderSummaryList(prevHealth, "Insufficient data to determine due items.")}` +
+    `</div>`
+  );
+
+  snapshotPanel.classList.add("summary-view");
+  snapshotPanel.innerHTML = parts.join("").trim();
+  hasAiSummary = true;
+  markUpdated("snapshot");
+}
+
+function renderRapidSummary(force=false) {
+  if (!force && hasAiSummary) return;
+  snapshotPanel.classList.remove("summary-view");
+  const snap = buildPatientSummaryText(emrBackgroundText, transcriptBox.value || "");
+  snapshotPanel.textContent = snap;
+  lastSnapshotHash = hashLite(snap);
+  markUpdated("snapshot");
+}
+
+async function loadPatientSummaryAI(force=false) {
+  const emr = (emrBackgroundText || "").trim();
+  if (!emr) return;
+  const h = hashLite(emr);
+  if (!force && h === lastPatientSummaryHash) return;
+  if (patientSummaryBusy) return;
+
+  patientSummaryBusy = true;
+  lastPatientSummaryHash = h;
+  try {
+    await ensureSession();
+    const data = await apiPost(`/session/${sessionId}/patient_summary`);
+    const summary = (data && data.summary) ? data.summary : data;
+    const hasText = (v) => String(v || "").trim().length > 0;
+    const hasArr = (v) => Array.isArray(v) && v.length > 0;
+    const hasIssues =
+      summary && typeof summary === "object" &&
+      summary.medication_review &&
+      Array.isArray(summary.medication_review.issues) &&
+      summary.medication_review.issues.length > 0;
+    const hasContent = summary && typeof summary === "object" && (
+      hasText(summary.patient_name) ||
+      hasText(summary.phn) ||
+      hasText(summary.age_display) ||
+      hasText(summary.gender) ||
+      hasText(summary.family_members) ||
+      hasText(summary.occupation) ||
+      hasText(summary.hobbies_and_interests) ||
+      hasText(summary.smoking_history) ||
+      hasText(summary.alcohol_use_history) ||
+      hasText(summary.other_substance_use_history) ||
+      hasArr(summary.last_three_visits) ||
+      hasArr(summary.significant_life_events) ||
+      hasArr(summary.diagnoses) ||
+      hasArr(summary.preventative_health_review) ||
+      hasIssues
+    );
+    if (!hasContent) {
+      lastPatientSummaryHash = "";
+      return;
+    }
+    renderPatientSummaryAI(summary);
+  } catch (err) {
+    hasAiSummary = false;
+    uiError("Patient Summary", err);
+  } finally {
+    patientSummaryBusy = false;
+  }
+}
+
+// -------------------------
+// Chat message rendering (supports attachments inside bubble)
+// -------------------------
+function addMessage(role, text, attachments=[]) {
+  const r = String(role || "").toLowerCase();
+  const kind =
+    (r === "you" || r === "user") ? "user" :
+    (r === "system") ? "system" :
+    "assistant";
+
+  const row = document.createElement("div");
+  row.className = `msg ${kind}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+
+  if (kind !== "system") {
+    const meta = document.createElement("div");
+    meta.className = "bubble-meta";
+    meta.textContent = (kind === "user") ? "You" : "Centaur";
+    bubble.appendChild(meta);
+  }
+
+  if (kind === "user" && Array.isArray(attachments) && attachments.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "bubble-attachments";
+    for (const a of attachments) {
+      const ak = String(a?.kind || "").toLowerCase();
+      if (ak === "image" && a?.previewUrl) {
+        const tile = document.createElement("div");
+        tile.className = "bubble-attach-img";
+        const img = document.createElement("img");
+        img.src = a.previewUrl;
+        img.alt = a?.filename || "image";
+        tile.appendChild(img);
+        wrap.appendChild(tile);
+      } else {
+        const file = document.createElement("div");
+        file.className = "bubble-attach-file";
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = (ak === "pdf") ? "PDF" : "FILE";
+
+        const stack = document.createElement("div");
+        stack.style.display = "flex";
+        stack.style.flexDirection = "column";
+        stack.style.minWidth = "0";
+
+        const fn = document.createElement("div");
+        fn.className = "fname";
+        fn.textContent = a?.filename || "attachment";
+
+        const fm = document.createElement("div");
+        fm.className = "fmeta";
+        fm.textContent = bytesToHuman(a?.size_bytes || 0);
+
+        stack.appendChild(fn);
+        stack.appendChild(fm);
+
+        file.appendChild(badge);
+        file.appendChild(stack);
+        wrap.appendChild(file);
+      }
+    }
+    bubble.appendChild(wrap);
+  }
+
+  const content = document.createElement("div");
+  const textStr = asText(text);
+
+  if (kind === "assistant") {
+    const clean = stripPairedMarkdownEmphasis(textStr);
+    content.innerHTML = safeSubsetFormat(clean);
+  } else {
+    content.textContent = textStr;
+  }
+  bubble.appendChild(content);
+  row.appendChild(bubble);
+  const shouldScroll = isNearBottom(chatLog);
+  chatLog.appendChild(row);
+  if (shouldScroll) chatLog.scrollTop = chatLog.scrollHeight;
+
+  if (kind === "assistant") {
+    lastAssistantPlainText = stripPairedMarkdownEmphasis(textStr);
+  }
+  return content;
+}
+function logChat(role, text, attachments=[]) { addMessage(role, text, attachments); }
+
+function hashLite(text) {
+  const s = String(text || "");
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16);
+}
+
+function isNearBottom(el, threshold=140) {
+  if (!el) return true;
+  const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+  return gap < threshold;
+}
+
+let chatAutoScroll = true;
+chatLog.addEventListener("scroll", () => {
+  chatAutoScroll = isNearBottom(chatLog);
+});
+
+function looksLikeEmrPaste(text) {
+  const t = (text || "").trim();
+  if (t.length < 200) return false;
+  const k = ["phn", "dob", "med", "meds", "allerg", "pmhx", "hx", "history", "diagnos", "dx", "immun", "plan", "assessment", "problem list"];
+  const tl = t.toLowerCase();
+  return k.some(x => tl.includes(x));
+}
+
+// -------------------------
+// API wrappers
+// -------------------------
+async function apiGet(path) {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "GET" });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  return await res.json();
+}
+async function apiPost(path, bodyObj) {
+  const hasBody = !(bodyObj === undefined || bodyObj === null);
+  const opts = { method: "POST" };
+  if (hasBody) {
+    opts.headers = { "Content-Type": "application/json" };
+    opts.body = JSON.stringify(bodyObj);
+  }
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.detail ? ` — ${j.detail}` : ` — ${safeJsonStringify(j)}`;
+    } catch {
+      try {
+        const t = await res.text();
+        detail = t ? ` — ${t}` : "";
+      } catch {}
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail}`);
+  }
+  const txt = await res.text();
+  if (!txt) return {};
+  try { return JSON.parse(txt); } catch { return { raw: txt }; }
+}
+async function apiPostForm(path, formData) {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "POST", body: formData });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
+  }
+  return await res.json();
+}
+
+async function apiPostStreamNDJSON(path, bodyObj, onChunk) {
+  const hasBody = !(bodyObj === undefined || bodyObj === null);
+  const opts = { method: "POST" };
+  if (hasBody) {
+    opts.headers = { "Content-Type": "application/json" };
+    opts.body = JSON.stringify(bodyObj);
+  }
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const j = await res.json();
+      detail = j?.detail ? ` — ${j.detail}` : ` — ${safeJsonStringify(j)}`;
+    } catch {
+      try {
+        const t = await res.text();
+        detail = t ? ` — ${t}` : "";
+      } catch {}
+    }
+    throw new Error(`${res.status} ${res.statusText}${detail}`);
+  }
+  if (!res.body) throw new Error("Streaming not supported by browser.");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let meta = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, idx).trim();
+      buffer = buffer.slice(idx + 1);
+      if (!line) continue;
+      let msg = null;
+      try { msg = JSON.parse(line); } catch { msg = null; }
+      if (!msg || typeof msg !== "object") continue;
+      if (msg.type === "chunk") {
+        const data = (msg.data || "");
+        if (data) onChunk(String(data));
+      } else if (msg.type === "meta") {
+        meta = msg.data || {};
+      } else if (msg.type === "error") {
+        throw new Error(String(msg.data || "Stream error"));
+      }
+    }
+  }
+
+  return meta || {};
+}
+async function apiDelete(path) {
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "DELETE" });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
+  }
+  const txt = await res.text();
+  if (!txt) return {};
+  try { return JSON.parse(txt); } catch { return { raw: txt }; }
+}
+
+// -------------------------
+// Session lifecycle
+// -------------------------
+async function createSession() {
+  const data = await apiPost("/session/create"); // no body
+  sessionId = data.session_id;
+  console.log("Session created:", sessionId);
+  return sessionId;
+}
+async function ensureSession() { if (!sessionId) await createSession(); }
+
+// -------------------------
+// Attachments (Draft)
+// -------------------------
+function setDraftVisible() {
+  const has = Array.isArray(cqDraft) && cqDraft.length > 0;
+  cqDraftEl.style.display = has ? "flex" : "none";
+}
+function renderDraft() {
+  cqDraftEl.innerHTML = "";
+  if (!Array.isArray(cqDraft) || cqDraft.length === 0) { setDraftVisible(); return; }
+  for (const d of cqDraft) {
+    const item = document.createElement("div");
+    item.className = "cq-draft-item";
+
+    const thumb = document.createElement("div");
+    thumb.className = "cq-thumb";
+    if (d.kind === "image" && d.previewUrl) {
+      const img = document.createElement("img");
+      img.src = d.previewUrl;
+      img.alt = d.filename || "image";
+      thumb.appendChild(img);
+    } else {
+      thumb.textContent = (d.kind === "pdf") ? "PDF" : "FILE";
+    }
+
+    const meta = document.createElement("div");
+    meta.className = "cq-draft-meta";
+
+    const name = document.createElement("div");
+    name.className = "cq-draft-name";
+    name.textContent = d.filename || "attachment";
+
+    const sub = document.createElement("div");
+    sub.className = "cq-draft-sub";
+    const size = bytesToHuman(d.size || 0);
+    const st =
+      (d.status === "uploading") ? "Uploading…" :
+      (d.status === "ready") ? "Ready" :
+      (d.status === "error") ? "Upload failed" :
+      "Pending";
+    sub.textContent = `${size} • ${st}`;
+
+    meta.appendChild(name);
+    meta.appendChild(sub);
+
+    const actions = document.createElement("div");
+    actions.className = "cq-draft-actions";
+
+    const pill = document.createElement("span");
+    pill.className = "cq-pill";
+    pill.textContent = (d.kind === "pdf") ? "PDF" : (d.kind === "image") ? "IMG" : "FILE";
+
+    const x = document.createElement("button");
+    x.className = "cq-x";
+    x.type = "button";
+    x.textContent = "×";
+    x.title = "Remove";
+    x.addEventListener("click", async (e) => {
+      e.preventDefault(); e.stopPropagation();
+      await removeDraftItem(d.localId);
+    });
+
+    actions.appendChild(pill);
+    actions.appendChild(x);
+
+    item.appendChild(thumb);
+    item.appendChild(meta);
+    item.appendChild(actions);
+    cqDraftEl.appendChild(item);
+  }
+  setDraftVisible();
+}
+async function uploadDraftItem(d) {
+  await ensureSession();
+  d.status = "uploading";
+  renderDraft();
+
+  const fd = new FormData();
+  fd.append("file", d.file, d.filename || "upload");
+
+  const data = await apiPostForm(`/session/${sessionId}/attachments`, fd);
+  const att = data?.attachment || data || null;
+  const sid = String(att?.id || att?.attachment_id || att?.file_id || "").trim();
+  if (!sid) throw new Error("No attachment id returned from backend.");
+  d.serverId = sid;
+  uploadedAttachmentIdsEver.add(sid);
+  d.status = "ready";
+  renderDraft();
+}
+function shouldAcceptByPickKind(file) {
+  const k = kindFromFile(file);
+  if (cqPickKind === "pdf") return k === "pdf";
+  if (cqPickKind === "image") return k === "image";
+  return (k === "pdf" || k === "image");
+}
+async function addDraftFiles(files) {
+  const list = Array.from(files || []).filter(Boolean);
+  if (!list.length) return;
+
+  const accepted = [];
+  for (const f of list) {
+    if (!isAllowedKind(f)) continue;
+    if (!shouldAcceptByPickKind(f)) continue;
+    accepted.push(f);
+  }
+  if (!accepted.length) {
+    logChat("System", "No supported files detected. Supported: PDF, PNG/JPG/WEBP.");
+    return;
+  }
+
+  for (const file of accepted) {
+    const kind = kindFromFile(file);
+    const previewUrl = (kind === "image") ? URL.createObjectURL(file) : "";
+    const d = {
+      localId: makeLocalId(),
+      file,
+      kind,
+      mime: String(file.type || ""),
+      filename: String(file.name || "upload"),
+      size: Number(file.size || 0),
+      previewUrl,
+      status: "pending",
+      serverId: null,
+      uploadPromise: null
+    };
+    cqDraft.push(d);
+  }
+  renderDraft();
+
+  for (const d of cqDraft) {
+    if (d.status === "pending") {
+      d.uploadPromise = (async () => {
+        try { await uploadDraftItem(d); }
+        catch (err) { d.status = "error"; renderDraft(); console.error("Attachment upload failed:", err); }
+      })();
+    }
+  }
+}
+async function removeDraftItem(localId) {
+  const idx = cqDraft.findIndex(x => x.localId === localId);
+  if (idx < 0) return;
+  const d = cqDraft[idx];
+
+  try { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } catch {}
+
+  const aid = String(d.serverId || "").trim();
+  if (aid) {
+    try { await apiDelete(`/session/${sessionId}/attachments/${aid}`); } catch {}
+    uploadedAttachmentIdsEver.delete(aid);
+  }
+  cqDraft.splice(idx, 1);
+  renderDraft();
+}
+async function clearDraftAttachments() {
+  const items = [...cqDraft];
+  for (const d of items) { try { await removeDraftItem(d.localId); } catch {} }
+  cqDraft = [];
+  renderDraft();
+}
+async function ensureDraftUploadsComplete() {
+  const promises = cqDraft.map(d => d.uploadPromise).filter(Boolean);
+  if (promises.length) await Promise.allSettled(promises);
+  const ready = cqDraft.filter(d => d.status === "ready" && d.serverId);
+  const failed = cqDraft.filter(d => d.status === "error");
+  return { ready, failed };
+}
+
+// -------------------------
+// Audio transcription
+// -------------------------
+function pickBestMime() {
+  const candidates = [
+    { mime: "audio/webm;codecs=opus", ext: "webm" },
+    { mime: "audio/webm", ext: "webm" },
+    { mime: "audio/ogg;codecs=opus", ext: "ogg" },
+    { mime: "audio/ogg", ext: "ogg" },
+    { mime: "audio/mp4", ext: "mp4" },
+  ];
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(c.mime)) return c;
+  }
+  return { mime: "", ext: "webm" };
+}
+async function uploadAudioBlob(blob) {
+  if (!blob || blob.size < 3000) return;
+  const fd = new FormData();
+  const filename = `chunk_${Date.now()}.${chosenExt}`;
+  fd.append("file", blob, filename);
+
+  const res = await fetchWithTimeout(`${API_BASE}/transcribe_chunk?session_id=${sessionId}`, {
+    method: "POST",
+    body: fd
+  });
+
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`Transcribe failed: ${res.status} ${res.statusText} — ${t}`);
+  }
+  const data = await res.json();
+  const text = (data?.text || "").trim();
+  if (text) {
+    transcriptBox.value += (transcriptBox.value ? " " : "") + text;
+    transcriptBox.scrollTop = transcriptBox.scrollHeight;
+    scheduleCoachRefreshSoon();
+    setPatientAnchorFromTextBestEffort(text);
+    panelUpdatedAt.transcript = Date.now();
+
+    if ((emrBackgroundText || "").trim().length) {
+      renderRapidSummary();
+      refreshPatientAnchorFromSnapshotPreferred();
+    }
+  }
+}
+function scheduleChunkStop() {
+  clearTimeout(chunkStopTimeout);
+  chunkStopTimeout = setTimeout(() => {
+    try { if (recorder && recorder.state === "recording") recorder.stop(); } catch {}
+  }, CHUNK_MS);
+}
+async function startRecording() {
+  try {
+    await ensureSession();
+    const pick = pickBestMime();
+    chosenMime = pick.mime;
+    chosenExt = pick.ext;
+
+    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    isRecording = true;
+
+    const startNextChunk = () => {
+      if (!isRecording) return;
+      const chunks = [];
+      const options = {};
+      if (chosenMime) options.mimeType = chosenMime;
+
+      recorder = new MediaRecorder(audioStream, options);
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.push(e.data);
+      };
+      recorder.onstop = async () => {
+        try {
+          const blob = new Blob(chunks, { type: chosenMime || undefined });
+          await uploadAudioBlob(blob);
+        } catch (err) {
+          console.error("Transcription error:", err);
+        } finally {
+          if (isRecording) startNextChunk();
+        }
+      };
+
+      recorder.start();
+      scheduleChunkStop();
+    };
+
+    startNextChunk();
+  } catch (err) {
+    uiError("Start recording", err);
+    recState = "idle";
+    isRecording = false;
+    try { stopTimer(false); } catch {}
+    try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
+    try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+    recorder = null;
+    audioStream = null;
+    updateRecUI();
+  }
+}
+function stopRecording() {
+  isRecording = false;
+  clearTimeout(chunkStopTimeout);
+  try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
+  try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+  recorder = null;
+  audioStream = null;
+  setRecordingUI(false);
+  stopTimer(false);
+}
+
+// -------------------------
+// Patient Summary + Coach
+// -------------------------
+async function loadSnapshot(force=false) {
+  try {
+    if (hasAiSummary && !force) return;
+    const snap = buildPatientSummaryText(emrBackgroundText, transcriptBox.value || "");
+    const h = hashLite(snap);
+    if (!force && h === lastSnapshotHash) return;
+    lastSnapshotHash = h;
+    snapshotPanel.textContent = snap;
+    refreshPatientAnchorFromSnapshotPreferred();
+    markUpdated("snapshot");
+  } catch (err) {
+    snapshotPanel.textContent = "";
+    panelUpdatedAt.snapshot = 0;
+    uiError("Patient Summary", err);
+  }
+}
+async function loadCoach(force=false) {
+  const transcript = (transcriptBox.value || "").trim();
+  if (transcript.length <= 20) {
+    coachPanel.textContent = "";
+    panelUpdatedAt.coach = 0;
+    return;
+  }
+
+  if (!force) {
+    const now = Date.now();
+    const deltaChars = transcript.length - lastCoachTranscriptLen;
+    const timeOk = (now - lastCoachRunAt) >= COACH_MIN_INTERVAL_MS;
+    const growthOk = deltaChars >= COACH_MIN_DELTA_CHARS;
+    if (!timeOk && !growthOk) return;
+  }
+  try {
+    await ensureSession();
+    const data = await apiPost(`/session/${sessionId}/differential`);
+    const diffText = (typeof data?.differential === "string") ? data.differential : safeJsonStringify(data);
+    const h = hashLite(diffText);
+    if (!force && h === lastCoachHash) {
+      lastCoachRunAt = Date.now();
+      lastCoachTranscriptLen = transcript.length;
+      return;
+    }
+    lastCoachHash = h;
+    coachPanel.textContent = diffText;
+    lastCoachRunAt = Date.now();
+    lastCoachTranscriptLen = transcript.length;
+    markUpdated("coach");
+  } catch (err) {
+    coachPanel.textContent = "";
+    panelUpdatedAt.coach = 0;
+    uiError("Clinical Coach", err);
+  }
+}
+function startCoachPolling() {
+  stopCoachPolling();
+  coachPollInterval = setInterval(() => {
+    const hasTranscript = (transcriptBox.value || "").trim().length > 20;
+    if (hasTranscript) loadCoach(false);
+  }, 60000);
+}
+function stopCoachPolling() { if (coachPollInterval) clearInterval(coachPollInterval); coachPollInterval = null; }
+let coachSoonTimer = null;
+function scheduleCoachRefreshSoon() {
+  const transcript = (transcriptBox.value || "").trim();
+  if (transcript.length <= 20) return;
+  clearTimeout(coachSoonTimer);
+  coachSoonTimer = setTimeout(() => { loadCoach(false); }, 1200);
+}
+
+// -------------------------
+// EMR/background paste handling (no backend answer)
+// -------------------------
+async function handleEmrBackgroundPasteOnly(emrText) {
+  await ensureSession();
+  const clean = (emrText || "").trim();
+  if (clean) {
+    if (!emrBackgroundText.includes(clean)) {
+      emrBackgroundText = (emrBackgroundText ? (emrBackgroundText + "\n\n") : "") + clean;
+    }
+  }
+
+  setPatientAnchorFromTextBestEffort(emrBackgroundText);
+
+  hasAiSummary = false;
+  renderRapidSummary(true);
+  refreshPatientAnchorFromSnapshotPreferred();
+
+  const sid = sessionId;
+  try {
+    await apiPost(`/session/${sid}/clinical_background`, { background_text: emrBackgroundText });
+  } catch (err) {
+    // fallback (best-effort storage) without generating an answer
+    try { await apiPost(`/session/${sid}/clinical_query`, { query: emrBackgroundText, mode: "background" }); } catch {}
+  }
+
+  loadPatientSummaryAI(false);
+}
+
+// -------------------------
+// Clinical Query
+// -------------------------
+function readableFromMaybeJson(content) {
+  let parsed = null;
+  if (content && typeof content === "object") {
+    parsed = content;
+  } else if (typeof content === "string") {
+    const t = stripCodeFences(content).trim();
+    if (t.startsWith("{") || t.startsWith("[")) { try { parsed = JSON.parse(t); } catch {} }
+    if (!parsed && t) {
+      const i0 = t.indexOf("{");
+      const i1 = t.lastIndexOf("}");
+      if (i0 >= 0 && i1 > i0) {
+        const sub = t.slice(i0, i1 + 1);
+        try { parsed = JSON.parse(sub); } catch {}
+      }
+    }
+    if (!parsed && t) {
+      const j0 = t.indexOf("[");
+      const j1 = t.lastIndexOf("]");
+      if (j0 >= 0 && j1 > j0) {
+        const sub = t.slice(j0, j1 + 1);
+        try { parsed = JSON.parse(sub); } catch {}
+      }
+    }
+  }
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    let da = "";
+    if (typeof parsed.direct_answer === "string") {
+      da = parsed.direct_answer.trim();
+    } else if (Array.isArray(parsed.direct_answer)) {
+      const items = parsed.direct_answer.map(x => String(x || "").trim()).filter(Boolean);
+      if (items.length) da = `- ${items.join("\n- ")}`;
+    }
+    if (da) {
+      const parts = [da];
+      const addList = (label, arr) => {
+        if (Array.isArray(arr) && arr.length) {
+          parts.push(`${label}:\n- ${arr.map(x => String(x || "").trim()).filter(Boolean).join("\n- ")}`);
+        }
+      };
+      addList("Red flags", parsed.red_flags);
+      addList("Missing critical info", parsed.missing_critical_info);
+      addList("Uncertainties", parsed.uncertainties);
+      addList("Follow up", parsed.follow_up);
+      return parts.join("\n\n").trim();
+    }
+  }
+  return (typeof content === "string") ? content : safeJsonStringify(content);
+}
+
+function createDirectAnswerStreamParser() {
+  const keyRe = /"direct_answer"\s*:\s*/;
+  let buffer = "";
+  let capturing = false;
+  let mode = "";
+  let done = false;
+  let value = "";
+  let escape = false;
+  let inString = false;
+  let arrayDepth = 0;
+  let items = [];
+  let current = "";
+
+  return {
+    push(chunk) {
+      if (done) return value;
+      buffer += String(chunk || "");
+
+      if (!capturing) {
+        const m = buffer.match(keyRe);
+        if (!m) {
+          if (buffer.length > 4000) buffer = buffer.slice(-4000);
+          return value;
+        }
+        const start = (m.index || 0) + m[0].length;
+        buffer = buffer.slice(start);
+        capturing = true;
+      }
+
+      if (!mode) {
+        const m = buffer.match(/^\s*([\[\"])/);
+        if (!m) return value;
+        mode = (m[1] === "[") ? "array" : "string";
+        buffer = buffer.replace(/^\s*/, "");
+      }
+
+      let i = 0;
+      while (i < buffer.length) {
+        const ch = buffer[i];
+        if (mode === "string") {
+          if (ch === "\"" && !escape) {
+            done = true;
+            buffer = buffer.slice(i + 1);
+            return value;
+          }
+          if (escape) {
+            if (ch === "n") value += "\n";
+            else if (ch === "t") value += "\t";
+            else if (ch === "r") value += "\r";
+            else value += ch;
+            escape = false;
+            i += 1;
+            continue;
+          }
+          if (ch === "\\") {
+            escape = true;
+            i += 1;
+            continue;
+          }
+          value += ch;
+          i += 1;
+          continue;
+        }
+
+        // array mode
+        if (arrayDepth === 0) {
+          if (ch === "[") {
+            arrayDepth = 1;
+            i += 1;
+            continue;
+          }
+        }
+
+        if (inString) {
+          if (escape) {
+            if (ch === "n") current += "\n";
+            else if (ch === "t") current += "\t";
+            else if (ch === "r") current += "\r";
+            else current += ch;
+            escape = false;
+            i += 1;
+            continue;
+          }
+          if (ch === "\\") {
+            escape = true;
+            i += 1;
+            continue;
+          }
+          if (ch === "\"") {
+            inString = false;
+            if (current.trim()) items.push(current);
+            current = "";
+            i += 1;
+            continue;
+          }
+          current += ch;
+          i += 1;
+          continue;
+        }
+
+        if (ch === "\"") {
+          inString = true;
+          i += 1;
+          continue;
+        }
+        if (ch === "[") {
+          arrayDepth += 1;
+          i += 1;
+          continue;
+        }
+        if (ch === "]") {
+          arrayDepth -= 1;
+          i += 1;
+          if (arrayDepth <= 0) {
+            done = true;
+            buffer = buffer.slice(i);
+            return value;
+          }
+          continue;
+        }
+        i += 1;
+      }
+      buffer = "";
+      if (mode === "array") {
+        const all = items.concat(current ? [current] : []).slice(0, 20);
+        if (all.length) value = `- ${all.join("\n- ")}`.trim();
+      }
+      return value;
+    },
+    get value() { return value; },
+    get done() { return done; },
+  };
+}
+
+async function sendClinicalQueryWithDraft(queryText, mode="brief") {
+  await ensureSession();
+  const q = (queryText || "").trim();
+  if (!q && cqDraft.length === 0) return;
+
+  // If EMR/background paste: display only and do not generate an answer
+  if (looksLikeEmrPaste(q) && cqDraft.length === 0) {
+    await handleEmrBackgroundPasteOnly(q);
+    logChat("You", "[EMR/Background pasted]");
+    return;
+  }
+
+  const { ready, failed } = await ensureDraftUploadsComplete();
+  const displayAtt = ready.map(normalizeAttachmentForDisplay);
+
+  if (!q && displayAtt.length) logChat("You", "", displayAtt);
+  else logChat("You", q, displayAtt);
+
+  if (failed.length) logChat("System", `Note: ${failed.length} attachment(s) failed to upload and were not sent.`);
+
+  const attachment_ids = ready.map(d => d.serverId).filter(Boolean);
+  const payload = { query: q, mode };
+  if (attachment_ids.length) payload.attachment_ids = attachment_ids;
+
+  cqDraft = [];
+  renderDraft();
+
+  const contentEl = addMessage("Centaur", "…");
+  let streamedText = "";
+  let meta = null;
+  const parser = createDirectAnswerStreamParser();
+
+  try {
+    meta = await apiPostStreamNDJSON(
+      `/session/${sessionId}/clinical_query_stream`,
+      payload,
+      (chunk) => {
+        streamedText += chunk;
+        const preview = parser.push(chunk);
+        if (preview) {
+          contentEl.textContent = stripPairedMarkdownEmphasis(preview);
+        }
+        if (chatAutoScroll) chatLog.scrollTop = chatLog.scrollHeight;
+      }
+    );
+  } catch (err) {
+    // Fallback to non-streaming if needed
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, payload);
+    const rawContent = (data?.response !== undefined) ? data.response : data;
+    const readable = readableFromMaybeJson(rawContent);
+    const clean = stripPairedMarkdownEmphasis(readable);
+    contentEl.innerHTML = safeSubsetFormat(clean);
+    lastAssistantPlainText = clean;
+
+    if (data?.promoted_to_background) {
+      if (q && !emrBackgroundText.includes(q)) {
+        emrBackgroundText = (emrBackgroundText ? (emrBackgroundText + "\n\n") : "") + q;
+      }
+      clearTimeout(snapshotDebounce);
+      snapshotDebounce = setTimeout(() => loadSnapshot(false), 400);
+      scheduleCoachRefreshSoon();
+      setPatientAnchorFromTextBestEffort(readable);
+      hasAiSummary = false;
+      loadPatientSummaryAI(false);
+    }
+    return;
+  }
+
+  const readable = readableFromMaybeJson(streamedText);
+  const clean = stripPairedMarkdownEmphasis(readable);
+  contentEl.innerHTML = safeSubsetFormat(clean);
+  lastAssistantPlainText = clean;
+  if (isNearBottom(chatLog)) chatLog.scrollTop = chatLog.scrollHeight;
+
+  if (meta && meta.promoted_to_background) {
+    if (q && !emrBackgroundText.includes(q)) {
+      emrBackgroundText = (emrBackgroundText ? (emrBackgroundText + "\n\n") : "") + q;
+    }
+    clearTimeout(snapshotDebounce);
+    snapshotDebounce = setTimeout(() => loadSnapshot(false), 400);
+    scheduleCoachRefreshSoon();
+    setPatientAnchorFromTextBestEffort(readable);
+    hasAiSummary = false;
+    loadPatientSummaryAI(false);
+  }
+}
+
+async function generateSoapToChat() {
+  try {
+    await ensureSession();
+    logChat("System", "Generating SOAP…");
+    const data = await apiPost(`/session/${sessionId}/make_soap`);
+    const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
+    const soapText = stripPairedMarkdownEmphasis(soapTextRaw);
+    logChat("SOAP", soapText);
+    await copyRichText(soapText);
+    logChat("System", "SOAP copied (rich formatting).");
+  } catch (err) {
+    uiError("SOAP", err);
+  }
+}
+
+async function generateReferralToChat() {
+  try {
+    await ensureSession();
+    const extra = (chatInput.value || "").trim();
+    chatInput.value = "";
+    const transcript = (transcriptBox.value || "").trim();
+    const bg = (emrBackgroundText || "").trim();
+
+    if (!transcript && !bg) {
+      logChat("System", "No transcript/background detected yet. Record audio or paste EMR/background, then click Referral again.");
+      return;
+    }
+
+    logChat("System", "Generating referral letter…");
+    const instruction =
+`Write a referral letter in Canadian/Alberta style.
+Mandatory formatting:
+- Start the letter body with: "Dear Colleague,"
+- Use clear headings and short paragraphs.
+- End the letter with exactly:
+  Sincerely,
+  (and DO NOT include any clinician name or credentials after Sincerely.)
+Content requirements:
+- Include: reason for referral, focused HPI, pertinent PMHx, meds/allergies if available, relevant exam/labs/imaging, what has been tried, specific question(s) for the consultant, urgency, and follow-up plan.
+- If key details are missing, leave placeholders like [Consultant Name], [Clinic], [Fax], [Patient Name], [DOB], [PHN].
+Extra instructions (if any):
+${extra || "[none]"}
+Background/EMR (if any):
+${bg || "[none]"}
+Live transcript:
+${transcript || "[none]"}`;
+
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: instruction, mode: "brief" });
+    let content = data?.response ?? "";
+    let letter = "";
+    try {
+      const parsed = (typeof content === "string") ? JSON.parse(stripCodeFences(content)) : content;
+      if (parsed && typeof parsed === "object" && parsed.direct_answer) letter = String(parsed.direct_answer || "").trim();
+    } catch {}
+    if (!letter) letter = String(content || "").trim();
+    const cleanLetter = stripPairedMarkdownEmphasis(letter);
+    logChat("Referral", cleanLetter);
+    await copyRichText(cleanLetter);
+    logChat("System", "Referral copied (rich formatting).");
+    setPatientAnchorFromTextBestEffort(cleanLetter);
+  } catch (err) {
+    uiError("Referral", err);
+  }
+}
+
+// -------------------------
+// BILLING (SIMPLIFIED)
+// -------------------------
+const DAILY_BILLING_TEXT_LS_PREFIX = "centaur_daily_billing_text_v1:";
+const BILLING_MODEL_KEY = "centaur_billing_model_v1";
+
+function todayStrLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function billingTextKeyToday(){ return `${DAILY_BILLING_TEXT_LS_PREFIX}${todayStrLocal()}`; }
+
+function normalizeBillingModel(val){
+  return (String(val || "").toUpperCase() === "PCPCM") ? "PCPCM" : "FFS";
+}
+function syncBillingDate(){
+  if (billingDateEl) billingDateEl.textContent = todayStrLocal();
+}
+function getBillingModelPref(){
+  return normalizeBillingModel(localStorage.getItem(BILLING_MODEL_KEY) || "FFS");
+}
+function setBillingModelPref(val){
+  const norm = normalizeBillingModel(val);
+  localStorage.setItem(BILLING_MODEL_KEY, norm);
+  if (billingModelSelect) billingModelSelect.value = norm;
+  return norm;
+}
+function getSelectedBillingModel(){
+  if (billingModelSelect) return normalizeBillingModel(billingModelSelect.value);
+  return getBillingModelPref();
+}
+
+function countPatientsFromText(t) {
+  const lines = (t || "").split("\n").map(s => s.trim()).filter(Boolean);
+  let c = 0;
+  for (const ln of lines) {
+    const lower = ln.toLowerCase();
+    if (lower.startsWith("icd-9:")) continue;
+    if (lower.startsWith("billing:")) continue;
+    if (ln.includes(" | ")) c++;
+  }
+  return c;
+}
+
+function scrollBillingToEnd() {
+  dailyBillingText.scrollTop = dailyBillingText.scrollHeight;
+}
+
+async function loadBillingFromLocal() {
+  const key = billingTextKeyToday();
+  const saved = localStorage.getItem(key);
+  if (saved != null) dailyBillingText.value = saved;
+  setBillingModelPref(getBillingModelPref());
+  syncBillingDate();
+  scrollBillingToEnd();
+}
+
+async function loadBillingFromServer() {
+  try {
+    const data = await apiGet(`/billing/today`);
+    const serverText = String(data?.billing_text || "");
+    dailyBillingText.value = serverText;
+    try { localStorage.setItem(billingTextKeyToday(), serverText); } catch {}
+    const serverModel = normalizeBillingModel(data?.billing_model || "");
+    setBillingModelPref(serverModel);
+    syncBillingDate();
+    scrollBillingToEnd();
+  } catch {
+    setBillingModelPref(getBillingModelPref());
+    await loadBillingFromLocal();
+  }
+}
+
+async function saveBillingToLocal() {
+  localStorage.setItem(billingTextKeyToday(), dailyBillingText.value || "");
+}
+
+async function saveBillingToServer() {
+  const billing_text = dailyBillingText.value || "";
+  await apiPost(`/billing/save`, { billing_text, billing_model: getSelectedBillingModel() });
+}
+
+async function billNow() {
+  await ensureSession();
+
+  const data = await apiPost(`/session/${sessionId}/billing/bill`, { billing_model: getSelectedBillingModel() });
+
+  const billingText = String(data?.billing_text || "").trim();
+  if (!billingText) {
+    logChat("System", "Billing generator returned empty entry.");
+    return;
+  }
+
+  dailyBillingText.value = billingText + "\n";
+
+  await saveBillingToLocal();
+  scrollBillingToEnd();
+
+  try { await saveBillingToServer(); } catch {}
+}
+
+async function saveBillingEdits() {
+  await saveBillingToLocal();
+  await saveBillingToServer();
+}
+
+async function printBillingList() {
+  const resp = await apiPost(`/billing/print`);
+  const printable = String(resp?.print_text || "").trim();
+  const w = window.open("", "_blank");
+  if (!w) { logChat("System", "Pop-up blocked. Allow pop-ups to print."); return; }
+
+  const metaDate = String(resp?.date || todayStrLocal());
+  const metaCount = String(resp?.total_patient_count ?? countPatientsFromText(dailyBillingText.value || ""));
+  const physicianName = "Dr. Thapa";
+
+  w.document.open();
+  w.document.write(`
+    <html>
+    <head>
+      <title>Physician: ${escapeHtml(physicianName)}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+        h1 { font-size: 18px; margin: 0 0 10px 0; }
+        .meta { font-size: 12px; margin-bottom: 16px; color: #444; }
+        pre { white-space: pre-wrap; font-size: 12px; line-height: 1.35; }
+      </style>
+    </head>
+    <body>
+      <h1>Physician: ${escapeHtml(physicianName)}</h1>
+      <div class="meta">
+        Date: ${metaDate} &nbsp;|&nbsp;
+        Total: ${metaCount}
+      </div>
+      <pre>${printable.replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</pre>
+    </body>
+    </html>
+  `);
+  w.document.close();
+
+  try {
+    w.focus();
+    w.print();
+  } catch {}
+
+  setTimeout(() => {
+    try { localStorage.removeItem(billingTextKeyToday()); } catch {}
+    dailyBillingText.value = "";
+  }, 250);
+}
+
+// -------------------------
+// UI wiring
+// -------------------------
+recordBtn.addEventListener("click", async () => {
+  if (recState === "idle") {
+    recState = "recording";
+    updateRecUI();
+    try {
+      await startRecording();
+      startTimer(true);
+    } catch {
+      recState = "idle";
+      updateRecUI();
+    }
+  } else if (recState === "recording") {
+    recState = "paused";
+    updateRecUI();
+    isRecording = false;
+    clearTimeout(chunkStopTimeout);
+    try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
+    try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+    recorder = null;
+    audioStream = null;
+    stopTimer(true);
+  } else {
+    recState = "recording";
+    updateRecUI();
+    try {
+      await startRecording();
+      startTimer(false);
+    } catch {
+      recState = "paused";
+      updateRecUI();
+    }
+  }
+});
+
+snapshotPanel.addEventListener("dblclick", () => loadPatientSummaryAI(true));
+coachPanel.addEventListener("dblclick", () => loadCoach(true));
+
+async function deleteAllUploadedAttachmentsBestEffort(oldSid) {
+  const ids = Array.from(uploadedAttachmentIdsEver);
+  for (const id of ids) { try { await apiDelete(`/session/${oldSid}/attachments/${id}`); } catch {} }
+  uploadedAttachmentIdsEver.clear();
+}
+
+newBtn.addEventListener("click", async () => {
+  try { stopRecording(); } catch {}
+  recState = "idle";
+  updateRecUI();
+
+  const oldSid = sessionId;
+  if (oldSid) { try { await deleteAllUploadedAttachmentsBestEffort(oldSid); } catch {} }
+
+  transcriptBox.value = "";
+  chatLog.innerHTML = "";
+  snapshotPanel.textContent = "";
+  coachPanel.textContent = "";
+
+  panelUpdatedAt.snapshot = 0;
+  panelUpdatedAt.coach = 0;
+  panelUpdatedAt.transcript = 0;
+
+  lastSnapshotHash = "";
+  lastPatientSummaryHash = "";
+  hasAiSummary = false;
+  patientSummaryBusy = false;
+  lastCoachHash = "";
+  emrBackgroundText = "";
+  lastCoachRunAt = 0;
+  lastCoachTranscriptLen = 0;
+  lastAssistantPlainText = "";
+
+  patientName = "";
+  patientPHN = "";
+  patientAge = "";
+
+  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
+  cqDraft = [];
+  renderDraft();
+  closePlusMenu();
+
+  await createSession();
+  logChat("System", "New patient session created.");
+});
+
+sendBtn.addEventListener("click", async () => {
+  const q = chatInput.value;
+  chatInput.value = "";
+  flashButton(sendBtn);
+  await sendClinicalQueryWithDraft(q, "brief");
+});
+
+// EMR paste: show only, do not generate any answer
+chatInput.addEventListener("paste", async (e) => {
+  try {
+    const pasted = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+    if (!looksLikeEmrPaste(pasted)) return;
+
+    e.preventDefault();
+    chatInput.value = "";
+
+    await handleEmrBackgroundPasteOnly(pasted);
+    logChat("You", "[EMR/Background pasted]");
+  } catch {}
+});
+
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+
+// Attachments: + menu open/close
+cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
+document.addEventListener("click", () => closePlusMenu());
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePlusMenu(); });
+cqPlusMenu.addEventListener("click", (e) => { e.stopPropagation(); });
+
+cqUploadPdfBtn.addEventListener("click", (e) => {
+  e.preventDefault(); e.stopPropagation();
+  cqPickKind = "pdf";
+  cqFileInput.accept = "application/pdf";
+  cqFileInput.click();
+  closePlusMenu();
+});
+cqUploadImageBtn.addEventListener("click", (e) => {
+  e.preventDefault(); e.stopPropagation();
+  cqPickKind = "image";
+  cqFileInput.accept = "image/png,image/jpeg,image/webp";
+  cqFileInput.click();
+  closePlusMenu();
+});
+
+cqFileInput.addEventListener("change", async () => {
+  try {
+    const files = Array.from(cqFileInput.files || []);
+    if (!files.length) return;
+    await runWithButtonBusy(cqPlusBtn, "…", async () => { await addDraftFiles(files); });
+  } catch (err) {
+    uiError("Attachment add", err);
+  } finally {
+    cqFileInput.value = "";
+    cqPickKind = "all";
+    cqFileInput.accept = "application/pdf,image/png,image/jpeg,image/webp";
+  }
+});
+
+// Drag/drop into composer
+cqChatInputWrap.addEventListener("dragover", (e) => {
+  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
+    e.preventDefault();
+    cqChatInputWrap.classList.add("dragover");
+  }
+});
+cqChatInputWrap.addEventListener("dragleave", () => cqChatInputWrap.classList.remove("dragover"));
+cqChatInputWrap.addEventListener("drop", async (e) => {
+  cqChatInputWrap.classList.remove("dragover");
+  if (!e.dataTransfer) return;
+  const files = Array.from(e.dataTransfer.files || []).filter(isAllowedKind);
+  if (!files.length) return;
+  e.preventDefault();
+  try {
+    await runWithButtonBusy(cqPlusBtn, "…", async () => {
+      const prevPick = cqPickKind;
+      cqPickKind = "all";
+      await addDraftFiles(files);
+      cqPickKind = prevPick;
+    });
+  } catch (err) {
+    uiError("Attachment drop", err);
+  }
+});
+
+// Add Copy button left of SOAP
+(function addCopyButtonLeft(){
+  const actions = document.querySelector(".query-actions");
+  if (!actions) return;
+  const copyBtn = document.createElement("button");
+  copyBtn.className = "primary";
+  copyBtn.type = "button";
+  copyBtn.textContent = "Copy";
+  actions.insertBefore(copyBtn, soapBtn);
+  copyBtn.addEventListener("click", async () => {
+    await runWithButtonFeedback(copyBtn, "Copying…", "Copied", async () => {
+      const text = (lastAssistantPlainText || "").trim();
+      if (!text) { logChat("System", "Nothing to copy yet. Generate SOAP or Referral first."); return; }
+      await copyRichText(text);
+      logChat("System", "Last output copied (rich formatting).");
+    });
+  });
+})();
+
+soapBtn.addEventListener("click", async () => { await runWithButtonBusy(soapBtn, "Working…", generateSoapToChat); });
+referralBtn.addEventListener("click", async () => { await runWithButtonBusy(referralBtn, "Working…", generateReferralToChat); });
+
+// -------------------------
+// Billing wiring (SIMPLIFIED)
+// -------------------------
+dailyBillingText.addEventListener("input", () => {
+  try { localStorage.setItem(billingTextKeyToday(), dailyBillingText.value || ""); } catch {}
+});
+
+billingModelSelect?.addEventListener("change", async () => {
+  const model = setBillingModelPref(getSelectedBillingModel());
+  try {
+    await apiPost(`/billing/model`, { billing_model: model });
+    logChat("System", `Billing model set to ${model}.`);
+  } catch (err) {
+    uiError("Billing model", err);
+  }
+});
+
+billBtn.addEventListener("click", async () => {
+  await runWithButtonBusy(billBtn, "Billing…", async () => {
+    try { await billNow(); }
+    catch (err) { uiError("Bill", err); }
+  });
+});
+
+saveBillingBtn.addEventListener("click", async () => {
+  await runWithButtonFeedback(saveBillingBtn, "Saving…", "Saved", async () => {
+    try {
+      await saveBillingEdits();
+      logChat("System", "Billing list saved.");
+    } catch (err) {
+      uiError("Save billing", err);
+    }
+  });
+});
+
+printBillingBtn.addEventListener("click", async () => {
+  await runWithButtonBusy(printBillingBtn, "Printing…", async () => {
+    try { await printBillingList(); }
+    catch (err) { uiError("Print billing", err); }
+  });
+});
+
+// Best-effort cleanup
+window.addEventListener("beforeunload", () => {
+  try { stopRecording(); } catch {}
+  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
+});
+
+// -------------------------
+// Init
+// -------------------------
+(async function init() {
+  try {
+    updateRecUI();
+    stopTimer(false);
+
+    await createSession();
+    startCoachPolling();
+    renderDraft();
+
+    snapshotPanel.textContent = snapshotPanel.textContent || "";
+    coachPanel.textContent = coachPanel.textContent || "";
+
+    await loadBillingFromServer();
+
+    logChat("System", "Centaur Web ready.");
+  } catch (err) {
+    uiError("Init", err);
+  }
+})();
+</script>
+</body>
+</html>
