@@ -1022,17 +1022,20 @@ def clinical_query_stream(session_id: str, payload: ClinicalQueryPayload):
     context = _get_context_or_404(session_id)
     _ensure_anchor_hydrated_from_emr(context)
 
-    query = (payload.query or "").strip()
-    if not query:
+    query_raw = (payload.query or "").strip()
+    macro = (payload.macro or "").strip()
+    if not query_raw and not macro:
         raise HTTPException(status_code=400, detail="Query must not be empty")
+    query = _merge_macro_and_query(query_raw, macro)
 
     promoted = False
-    try:
-        promoted = promote_factual_text_to_background(context, query)
-        if promoted:
-            logger.info(f"Promoted factual text into EMR background for {session_id}")
-    except Exception as e:
-        logger.warning(f"Promotion failed for {session_id}: {e}")
+    if query_raw:
+        try:
+            promoted = promote_factual_text_to_background(context, query_raw)
+            if promoted:
+                logger.info(f"Promoted factual text into EMR background for {session_id}")
+        except Exception as e:
+            logger.warning(f"Promotion failed for {session_id}: {e}")
 
     attachments_text = ""
     try:
