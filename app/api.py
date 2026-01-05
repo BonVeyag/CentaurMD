@@ -36,6 +36,11 @@ from app.attachment_store import (
     add_attachment as store_add_attachment,
     delete_attachment as store_delete_attachment,
 )
+from app.macro_store import (
+    list_macros as store_list_macros,
+    save_macro as store_save_macro,
+    delete_macro as store_delete_macro,
+)
 from app.models import (
     SessionContext,
     SessionMeta,

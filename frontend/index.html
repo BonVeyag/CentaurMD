@@ -383,6 +383,23 @@ input[type="text"]:focus-visible{
   color: var(--text);
   letter-spacing:.2px;
 }
+.menu-popover{
+  width:220px;
+}
+.menu-item{
+  width:100%;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs);
+  font-size:13px;
+  font-weight:700;
+}
+.menu-item:hover{
+  background: color-mix(in oklab, var(--panel) 70%, transparent);
+}
 .pop-row{
   display:flex;
   flex-direction:column;
@@ -657,6 +674,138 @@ textarea::-webkit-scrollbar-track{
 .query-actions button.primary{
   min-width:140px;
   padding:12px 18px;
+}
+.macro-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-top:10px;
+}
+.macro-row label{
+  font-size:12px;
+  color:var(--muted);
+}
+.macro-row select{
+  flex:1;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+
+.macro-overlay{
+  position:fixed;
+  inset:0;
+  background: rgba(10,16,24,.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  z-index:80;
+}
+.macro-panel{
+  position:fixed;
+  top:20px;
+  right:20px;
+  width:min(520px, 92vw);
+  height:calc(100vh - 40px);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  overflow:auto;
+  padding:16px;
+  border-radius:20px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel) 96%, transparent);
+  box-shadow: var(--shadow-lg);
+  z-index:90;
+}
+.macro-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.macro-head button{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  padding:0;
+}
+.macro-section{
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+}
+.macro-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-bottom:10px;
+}
+.macro-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:180px;
+  overflow:auto;
+}
+.macro-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  box-shadow: var(--shadow-xs);
+  cursor:pointer;
+}
+.macro-item.active{
+  border-color: rgba(37,99,235,.6);
+  box-shadow: 0 0 0 1px rgba(37,99,235,.25);
+}
+.macro-item-name{
+  font-weight:700;
+  font-size:13px;
+}
+.macro-item-tag{
+  font-size:11px;
+  color:var(--muted);
+  border:1px solid var(--border);
+  border-radius:999px;
+  padding:2px 8px;
+}
+.macro-empty{
+  font-size:12px;
+  color:var(--muted);
+  text-align:center;
+  padding:10px 0;
+}
+.macro-label{
+  display:block;
+  margin-top:8px;
+  font-size:12px;
+  color:var(--muted);
+}
+.macro-section input,
+.macro-section textarea{
+  width:100%;
+}
+.macro-section textarea{
+  min-height:180px;
+  resize:vertical;
+}
+.macro-editor-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+.macro-status{
+  min-height:16px;
+  margin-top:6px;
+  font-size:12px;
+  color:var(--muted);
+}
+.macro-status.error{
+  color:var(--danger);
 }
 
 /* =====================
@@ -993,8 +1142,14 @@ textarea::-webkit-scrollbar-track{
       <span>CentaurMD</span>
     </div>
     <div class="actions">
-      <button type="button" title="Menu" aria-label="Menu">☰</button>
+      <button id="menuBtn" type="button" title="Menu" aria-label="Menu">☰</button>
       <button type="button" title="Profile" aria-label="Profile">👤</button>
+
+      <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
+        <div class="pop-row" style="margin-bottom:0;">
+          <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1092,6 +1247,11 @@ textarea::-webkit-scrollbar-track{
         <button class="primary" type="button">SOAP</button>
         <button class="primary" type="button">Referral</button>
       </div>
+
+      <div class="macro-row">
+        <label for="macroSelect">Macro</label>
+        <select id="macroSelect"></select>
+      </div>
     </div>
   </div>
 
@@ -1126,6 +1286,34 @@ textarea::-webkit-scrollbar-track{
 
   <div class="footer">
     © 2026 Centaur Systems. All rights reserved.
+  </div>
+</div>
+
+<div id="macroOverlay" class="macro-overlay" style="display:none"></div>
+<div id="macroPanel" class="macro-panel" style="display:none" aria-label="Macro builder">
+  <div class="macro-head">
+    <div class="headline">Macro builder</div>
+    <button id="macroCloseBtn" type="button">✕</button>
+  </div>
+
+  <div class="macro-section">
+    <div class="macro-actions">
+      <button id="macroAddBtn" class="primary" type="button">+ New macro</button>
+    </div>
+    <div id="macroList" class="macro-list"></div>
+  </div>
+
+  <div class="macro-section">
+    <div class="summary-title">Editor</div>
+    <label class="macro-label" for="macroNameInput">Name</label>
+    <input id="macroNameInput" type="text" placeholder="Macro name" />
+    <label class="macro-label" for="macroContentInput">Content</label>
+    <textarea id="macroContentInput" placeholder="Paste macro content"></textarea>
+    <div class="macro-editor-actions">
+      <button id="macroSaveBtn" class="primary" type="button">Save</button>
+      <button id="macroCancelBtn" type="button">Cancel</button>
+    </div>
+    <div id="macroStatus" class="macro-status"></div>
   </div>
 </div>
 
@@ -1230,6 +1418,8 @@ const COACH_MIN_DELTA_CHARS = 450;
 let lastCoachRunAt = 0;
 let lastCoachTranscriptLen = 0;
 let emrBackgroundText = "";
+let macros = [];
+let editingMacroId = "";
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1274,6 +1464,22 @@ const billingDateEl = document.getElementById("billingDate");
 const billBtn = document.getElementById("billBtn");
 const saveBillingBtn = document.getElementById("saveBillingBtn");
 const printBillingBtn = document.getElementById("printBillingBtn");
+
+// Menu + Macro UI refs
+const menuBtn = document.getElementById("menuBtn");
+const menuPopover = document.getElementById("menuPopover");
+const macroBuilderBtn = document.getElementById("macroBuilderBtn");
+const macroSelect = document.getElementById("macroSelect");
+const macroOverlay = document.getElementById("macroOverlay");
+const macroPanel = document.getElementById("macroPanel");
+const macroCloseBtn = document.getElementById("macroCloseBtn");
+const macroAddBtn = document.getElementById("macroAddBtn");
+const macroList = document.getElementById("macroList");
+const macroNameInput = document.getElementById("macroNameInput");
+const macroContentInput = document.getElementById("macroContentInput");
+const macroSaveBtn = document.getElementById("macroSaveBtn");
+const macroCancelBtn = document.getElementById("macroCancelBtn");
+const macroStatus = document.getElementById("macroStatus");
 
 // -------------------------
 // Helpers
@@ -1531,6 +1737,204 @@ function normalizeAttachmentForDisplay(d) {
     previewUrl: d.previewUrl || "",
     serverId: d.serverId || null,
   };
+}
+
+// -------------------------
+// Macros
+// -------------------------
+const MACROS_LS_KEY = "centaur_macros_v1";
+const MACRO_SELECTED_KEY = "centaur_macro_selected_v1";
+
+function loadMacrosFromStorage() {
+  try {
+    const raw = localStorage.getItem(MACROS_LS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) { macros = []; return; }
+    macros = parsed.map((m) => {
+      const id = String(m?.id || "").trim();
+      const name = String(m?.name || "").trim();
+      const content = String(m?.content || "").trim();
+      const updatedAt = Number(m?.updatedAt) || Date.now();
+      if (!id || !name || !content) return null;
+      return { id, name, content, updatedAt };
+    }).filter(Boolean);
+  } catch {
+    macros = [];
+  }
+}
+
+function saveMacrosToStorage() {
+  try { localStorage.setItem(MACROS_LS_KEY, JSON.stringify(macros)); } catch {}
+}
+
+function getSelectedMacroId() {
+  return String(localStorage.getItem(MACRO_SELECTED_KEY) || "");
+}
+
+function setSelectedMacroId(id) {
+  const valid = macros.some(m => m.id === id) ? id : "";
+  try { localStorage.setItem(MACRO_SELECTED_KEY, valid); } catch {}
+  if (macroSelect) macroSelect.value = valid;
+  return valid;
+}
+
+function getSelectedMacro() {
+  const id = getSelectedMacroId();
+  return macros.find(m => m.id === id) || null;
+}
+
+function refreshMacroDropdown() {
+  if (!macroSelect) return;
+  const selectedId = getSelectedMacroId();
+  macroSelect.innerHTML = "";
+  const optNone = document.createElement("option");
+  optNone.value = "";
+  optNone.textContent = "None";
+  macroSelect.appendChild(optNone);
+  for (const m of macros) {
+    const opt = document.createElement("option");
+    opt.value = m.id;
+    opt.textContent = m.name;
+    macroSelect.appendChild(opt);
+  }
+  const valid = macros.some(m => m.id === selectedId) ? selectedId : "";
+  macroSelect.value = valid;
+  if (selectedId !== valid) {
+    try { localStorage.setItem(MACRO_SELECTED_KEY, valid); } catch {}
+  }
+}
+
+function setMacroStatus(message, isError=false) {
+  if (!macroStatus) return;
+  macroStatus.textContent = message || "";
+  macroStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setEditorValues(macro) {
+  if (!macroNameInput || !macroContentInput) return;
+  macroNameInput.value = macro?.name || "";
+  macroContentInput.value = macro?.content || "";
+}
+
+function renderMacroList() {
+  if (!macroList) return;
+  macroList.innerHTML = "";
+  if (!macros.length) {
+    const empty = document.createElement("div");
+    empty.className = "macro-empty";
+    empty.textContent = "No macros yet.";
+    macroList.appendChild(empty);
+    return;
+  }
+  const selectedId = getSelectedMacroId();
+  for (const m of macros) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "macro-item" + (m.id === editingMacroId ? " active" : "");
+    const name = document.createElement("span");
+    name.className = "macro-item-name";
+    name.textContent = m.name;
+    const tag = document.createElement("span");
+    tag.className = "macro-item-tag";
+    tag.textContent = (m.id === selectedId) ? "Selected" : "Edit";
+    btn.appendChild(name);
+    btn.appendChild(tag);
+    btn.addEventListener("click", () => {
+      editingMacroId = m.id;
+      setEditorValues(m);
+      setMacroStatus(`Editing: ${m.name}`);
+      renderMacroList();
+    });
+    macroList.appendChild(btn);
+  }
+}
+
+function startNewMacro() {
+  editingMacroId = "";
+  setEditorValues(null);
+  setMacroStatus("New macro");
+  renderMacroList();
+}
+
+function saveMacroFromEditor() {
+  const name = String(macroNameInput?.value || "").trim();
+  const content = String(macroContentInput?.value || "").trim();
+  if (!name || !content) {
+    setMacroStatus("Name and content are required.", true);
+    return;
+  }
+  const now = Date.now();
+  if (editingMacroId) {
+    const idx = macros.findIndex(m => m.id === editingMacroId);
+    if (idx >= 0) {
+      macros[idx] = { ...macros[idx], name, content, updatedAt: now };
+    } else {
+      macros.unshift({ id: editingMacroId, name, content, updatedAt: now });
+    }
+  } else {
+    const id = `macro_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    macros.unshift({ id, name, content, updatedAt: now });
+    editingMacroId = id;
+  }
+  saveMacrosToStorage();
+  refreshMacroDropdown();
+  setSelectedMacroId(editingMacroId);
+  renderMacroList();
+  setMacroStatus("Saved.");
+}
+
+function cancelMacroEdit() {
+  if (editingMacroId) {
+    const current = macros.find(m => m.id === editingMacroId);
+    if (current) setEditorValues(current);
+    setMacroStatus(current ? `Editing: ${current.name}` : "");
+  } else {
+    setEditorValues(null);
+    setMacroStatus("");
+  }
+}
+
+function openMacroPanel() {
+  if (!macroPanel || !macroOverlay) return;
+  macroOverlay.style.display = "block";
+  macroPanel.style.display = "flex";
+  document.body.style.overflow = "hidden";
+  renderMacroList();
+  if (!editingMacroId && macros.length) {
+    const selectedId = getSelectedMacroId();
+    const target = macros.find(m => m.id === selectedId) || macros[0];
+    if (target) {
+      editingMacroId = target.id;
+      setEditorValues(target);
+      setMacroStatus(`Editing: ${target.name}`);
+      renderMacroList();
+    }
+  }
+}
+
+function closeMacroPanel() {
+  if (!macroPanel || !macroOverlay) return;
+  macroOverlay.style.display = "none";
+  macroPanel.style.display = "none";
+  document.body.style.overflow = "";
+  setMacroStatus("");
+}
+
+function initMacros() {
+  loadMacrosFromStorage();
+  refreshMacroDropdown();
+  renderMacroList();
+  cancelMacroEdit();
+}
+
+function closeMenuPopover() {
+  if (menuPopover) menuPopover.style.display = "none";
+}
+
+function toggleMenuPopover() {
+  if (!menuPopover) return;
+  const open = menuPopover.style.display !== "none";
+  menuPopover.style.display = open ? "none" : "block";
 }
 
 // -------------------------
@@ -3061,7 +3465,10 @@ function createDirectAnswerStreamParser() {
 async function sendClinicalQueryWithDraft(queryText, mode="brief") {
   await ensureSession();
   const q = (queryText || "").trim();
-  if (!q && cqDraft.length === 0) return;
+  const selectedMacro = getSelectedMacro();
+  const macroText = (selectedMacro?.content || "").trim();
+  const macroLabel = selectedMacro?.name ? `[Macro: ${selectedMacro.name}]` : (macroText ? "[Macro]" : "");
+  if (!q && cqDraft.length === 0 && !macroText) return;
 
   // If EMR/background paste: display only and do not generate an answer
   if (looksLikeEmrPaste(q) && cqDraft.length === 0) {
@@ -3073,13 +3480,14 @@ async function sendClinicalQueryWithDraft(queryText, mode="brief") {
   const { ready, failed } = await ensureDraftUploadsComplete();
   const displayAtt = ready.map(normalizeAttachmentForDisplay);
 
-  if (!q && displayAtt.length) logChat("You", "", displayAtt);
-  else logChat("You", q, displayAtt);
+  const logText = q ? (macroLabel ? `${q}\n${macroLabel}` : q) : (macroLabel || "");
+  logChat("You", logText, displayAtt);
 
   if (failed.length) logChat("System", `Note: ${failed.length} attachment(s) failed to upload and were not sent.`);
 
   const attachment_ids = ready.map(d => d.serverId).filter(Boolean);
   const payload = { query: q, mode };
+  if (macroText) payload.macro = macroText;
   if (attachment_ids.length) payload.attachment_ids = attachment_ids;
 
   cqDraft = [];
@@ -3368,6 +3776,24 @@ async function printBillingList() {
 // -------------------------
 // UI wiring
 // -------------------------
+menuBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleMenuPopover();
+});
+menuPopover?.addEventListener("click", (e) => e.stopPropagation());
+macroBuilderBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  closeMenuPopover();
+  openMacroPanel();
+});
+macroCloseBtn?.addEventListener("click", () => closeMacroPanel());
+macroOverlay?.addEventListener("click", () => closeMacroPanel());
+macroAddBtn?.addEventListener("click", () => startNewMacro());
+macroSaveBtn?.addEventListener("click", () => saveMacroFromEditor());
+macroCancelBtn?.addEventListener("click", () => cancelMacroEdit());
+macroSelect?.addEventListener("change", () => setSelectedMacroId(macroSelect.value));
+
 recordBtn.addEventListener("click", async () => {
   if (recState === "idle") {
     recState = "recording";
@@ -3481,8 +3907,14 @@ chatInput.addEventListener("keydown", (e) => {
 
 // Attachments: + menu open/close
 cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
-document.addEventListener("click", () => closePlusMenu());
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePlusMenu(); });
+document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    closePlusMenu();
+    closeMenuPopover();
+    closeMacroPanel();
+  }
+});
 cqPlusMenu.addEventListener("click", (e) => { e.stopPropagation(); });
 
 cqUploadPdfBtn.addEventListener("click", (e) => {
@@ -3621,6 +4053,7 @@ window.addEventListener("beforeunload", () => {
     await createSession();
     startCoachPolling();
     renderDraft();
+    initMacros();
 
     snapshotPanel.textContent = snapshotPanel.textContent || "";
     coachPanel.textContent = coachPanel.textContent || "";
