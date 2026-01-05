@@ -571,6 +571,19 @@ def _augment_query_with_attachments_text(query: str, attachments_text: str) -> s
     ).strip()
 
 
+def _merge_macro_and_query(query: str, macro: str) -> str:
+    """
+    Combine macro instructions with user query for model context.
+    """
+    q = (query or "").strip()
+    m = (macro or "").strip()
+    if m and q:
+        return f"{m}\n\n---\nUSER QUESTION:\n{q}".strip()
+    if m:
+        return m
+    return q
+
+
 def format_differential_output(output) -> str:
     if output is None:
         return "— no differential —"
