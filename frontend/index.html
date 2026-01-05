@@ -734,20 +734,24 @@ textarea::-webkit-scrollbar-track{
   display:flex;
   gap:8px;
   align-items:center;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
 }
 .macro-picker select{
-  flex:1;
-  min-width:220px;
+  flex:1 1 auto;
+  min-width:0;
   background: color-mix(in oklab, var(--panel) 92%, transparent);
   color: var(--text);
 }
 .macro-picker button{
+  flex:0 0 auto;
   min-width:86px;
 }
 .macro-picker select option{
   color: var(--text);
   background: var(--panel);
+}
+.macro-section:first-of-type{
+  padding-bottom:0;
 }
 .macro-label{
   display:block;
@@ -760,12 +764,12 @@ textarea::-webkit-scrollbar-track{
   width:100%;
 }
 .macro-section textarea{
-  min-height:180px;
+  min-height:240px;
   resize:vertical;
 }
 .macro-editor textarea{
   flex:1;
-  min-height:240px;
+  min-height:340px;
 }
 .macro-editor-actions{
   display:flex;
