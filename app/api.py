@@ -917,6 +917,7 @@ def referral_letter(session_id: str):
 class ClinicalQueryPayload(BaseModel):
     query: str
     mode: str = "brief"
+    macro: Optional[str] = None
 
 
 @router.post("/session/{session_id}/clinical_query")
