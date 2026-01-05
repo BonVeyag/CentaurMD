@@ -929,6 +929,58 @@ def referral_letter(session_id: str):
 
 
 # =========================
+# Macro Store
+# =========================
+
+class MacroPayload(BaseModel):
+    name: str
+    content: str
+
+
+@router.get("/macros")
+def list_macros():
+    return {"macros": store_list_macros()}
+
+
+@router.post("/macros")
+def create_macro(payload: MacroPayload):
+    name = (payload.name or "").strip()
+    content = (payload.content or "").strip()
+    if not name or not content:
+        raise HTTPException(status_code=400, detail="Macro name and content are required")
+    try:
+        macro = store_save_macro(None, name, content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"macro": macro}
+
+
+@router.put("/macros/{macro_id}")
+def update_macro(macro_id: str, payload: MacroPayload):
+    name = (payload.name or "").strip()
+    content = (payload.content or "").strip()
+    if not macro_id:
+        raise HTTPException(status_code=400, detail="Macro id is required")
+    if not name or not content:
+        raise HTTPException(status_code=400, detail="Macro name and content are required")
+    try:
+        macro = store_save_macro(macro_id, name, content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"macro": macro}
+
+
+@router.delete("/macros/{macro_id}")
+def delete_macro(macro_id: str):
+    if not macro_id:
+        raise HTTPException(status_code=400, detail="Macro id is required")
+    ok = store_delete_macro(macro_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Macro not found")
+    return {"deleted": True}
+
+
+# =========================
 # Clinical Query Console
 # =========================
 
