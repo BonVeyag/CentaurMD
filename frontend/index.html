@@ -76,10 +76,10 @@
   --measure-chat: 84ch;
 
   /* Button sizing (matches billing controls) */
-  --btn-min: 96px;
-  --btn-primary-min: 112px;
-  --btn-height: 34px;
-  --btn-pad: 8px 11px;
+  --btn-min: 86px;
+  --btn-primary-min: 101px;
+  --btn-height: 31px;
+  --btn-pad: 7px 10px;
 }
 
 /* Dark theme (explicit) */
@@ -215,7 +215,7 @@ body{
 
 /* Premium controls */
 button{
-  padding:8px 11px;
+  padding:7px 10px;
   border-radius:12px;
   border:1px solid var(--border);
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
@@ -323,11 +323,11 @@ input[type="text"]:focus-visible{
 }
 /* Only icon buttons (direct children) are forced square */
 .actions > button{
-  width:35px;
-  height:35px;
+  width:32px;
+  height:32px;
   padding:0;
   border-radius:14px;
-  font-size:14px;
+  font-size:13px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -664,11 +664,11 @@ textarea::-webkit-scrollbar-track{
   position:absolute;
   bottom:20px;
   right:20px;
-  padding:7px 11px;
+  padding:6px 10px;
   border-radius:12px;
   border:1px solid var(--border);
   background: color-mix(in oklab, rgba(37,99,235,.22) 90%, var(--panel2));
-  min-width:58px;
+  min-width:52px;
 }
 
 .query-actions{
@@ -732,8 +732,8 @@ textarea::-webkit-scrollbar-track{
   justify-content:space-between;
 }
 .macro-head button{
-  width:29px;
-  height:29px;
+  width:26px;
+  height:26px;
   border-radius:12px;
   padding:0;
 }
@@ -796,11 +796,19 @@ textarea::-webkit-scrollbar-track{
   flex:1;
   min-height:340px;
 }
+.macro-editor .summary-title{
+  margin-top:2px;
+  margin-bottom:4px;
+}
+#macroContentInput{
+  margin-top:10px;
+  resize:none;
+}
 .macro-editor-actions{
   display:flex;
   justify-content:flex-end;
   gap:8px;
-  margin-top:10px;
+  margin-top:6px;
 }
 .macro-editor-actions button{
   min-width: var(--btn-min);
@@ -811,8 +819,8 @@ textarea::-webkit-scrollbar-track{
   min-width: var(--btn-primary-min);
 }
 .macro-status{
-  min-height:16px;
-  margin-top:6px;
+  min-height:0;
+  margin-top:4px;
   font-size:12px;
   color:var(--muted);
 }
@@ -828,10 +836,10 @@ textarea::-webkit-scrollbar-track{
   bottom:20px;
   right:102px;
   left:auto;
-  width:29px;
-  height:29px;
+  width:26px;
+  height:26px;
   padding:0;
-  border-radius:10px;
+  border-radius:9px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1230,9 +1238,7 @@ textarea::-webkit-scrollbar-track{
         <div>
           <div class="headline">Coach</div>
         </div>
-        <div class="eyebrow">
-          <span class="status-pill ok" id="coach_state" style="display:none">READY</span>
-        </div>
+        <div class="eyebrow"></div>
       </div>
       <div class="panel-white coach-panel" id="coach_panel"></div>
     </div>
@@ -1409,16 +1415,7 @@ setInterval(() => {
 
   // Coach stale threshold: 5 min (no UPDATED x ago)
   const coachPill = document.getElementById("coach_state");
-  if (coachPill) {
-    if (!panelUpdatedAt.coach) {
-      coachPill.style.display = "none";
-    } else {
-      const coachAge = now - panelUpdatedAt.coach;
-      coachPill.style.display = "inline-flex";
-      if (coachAge > 5*60*1000) setPill(coachPill, "STALE", "warn");
-      else setPill(coachPill, "READY", "ok");
-    }
-  }
+  if (coachPill) coachPill.style.display = "none";
 }, 5000);
 
 // -------------------------
@@ -1837,7 +1834,7 @@ function refreshMacroDropdown() {
   macroSelect.innerHTML = "";
   const optNone = document.createElement("option");
   optNone.value = "";
-  optNone.textContent = "Macro";
+  optNone.textContent = "Macros";
   macroSelect.appendChild(optNone);
   for (const m of macros) {
     const opt = document.createElement("option");
