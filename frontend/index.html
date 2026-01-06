@@ -76,10 +76,10 @@
   --measure-chat: 84ch;
 
   /* Button sizing (matches billing controls) */
-  --btn-min: 120px;
-  --btn-primary-min: 140px;
-  --btn-height: 42px;
-  --btn-pad: 10px 14px;
+  --btn-min: 96px;
+  --btn-primary-min: 112px;
+  --btn-height: 34px;
+  --btn-pad: 8px 11px;
 }
 
 /* Dark theme (explicit) */
@@ -215,7 +215,7 @@ body{
 
 /* Premium controls */
 button{
-  padding:10px 14px;
+  padding:8px 11px;
   border-radius:12px;
   border:1px solid var(--border);
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
@@ -323,11 +323,11 @@ input[type="text"]:focus-visible{
 }
 /* Only icon buttons (direct children) are forced square */
 .actions > button{
-  width:44px;
-  height:44px;
+  width:35px;
+  height:35px;
   padding:0;
   border-radius:14px;
-  font-size:18px;
+  font-size:14px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -385,20 +385,15 @@ input[type="text"]:focus-visible{
   right:0;
   background:#0F172A;
 }
-.plane-icon{
+.globe-icon{
   width:18px;
   height:18px;
   display:block;
-  stroke-width:2;
+  stroke-width:1.8;
   stroke-linecap:round;
   stroke-linejoin:round;
   fill:none;
-}
-.plane-icon .plane-stroke{
   stroke: var(--text);
-}
-.plane-icon .plane-speed{
-  stroke: color-mix(in oklab, var(--accent) 70%, #6DB5FF);
 }
 .menu-item{
   width:100%;
@@ -669,11 +664,11 @@ textarea::-webkit-scrollbar-track{
   position:absolute;
   bottom:20px;
   right:20px;
-  padding:9px 14px;
+  padding:7px 11px;
   border-radius:12px;
   border:1px solid var(--border);
   background: color-mix(in oklab, rgba(37,99,235,.22) 90%, var(--panel2));
-  min-width:72px;
+  min-width:58px;
 }
 
 .query-actions{
@@ -737,8 +732,8 @@ textarea::-webkit-scrollbar-track{
   justify-content:space-between;
 }
 .macro-head button{
-  width:36px;
-  height:36px;
+  width:29px;
+  height:29px;
   border-radius:12px;
   padding:0;
 }
@@ -833,10 +828,10 @@ textarea::-webkit-scrollbar-track{
   bottom:20px;
   right:102px;
   left:auto;
-  width:36px;
-  height:36px;
+  width:29px;
+  height:29px;
   padding:0;
-  border-radius:12px;
+  border-radius:10px;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -1164,10 +1159,13 @@ textarea::-webkit-scrollbar-track{
     </div>
     <div class="actions">
       <button id="globalCopyBtn" type="button" title="Copy full context" aria-label="Copy full context">
-        <svg class="plane-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path class="plane-stroke" d="M3 12L21 4L14 12L21 20L3 12Z"></path>
-          <path class="plane-speed" d="M2 8.5L6.5 7.2"></path>
-          <path class="plane-speed" d="M2 15L6.2 13.8"></path>
+        <svg class="globe-icon" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"></circle>
+          <path d="M3 12h18"></path>
+          <path d="M12 3a9 9 0 0 0 0 18"></path>
+          <path d="M12 3a9 9 0 0 1 0 18"></path>
+          <path d="M5.2 7.5c2.2 1.1 4.6 1.7 6.8 1.7 2.2 0 4.6-.6 6.8-1.7"></path>
+          <path d="M5.2 16.5c2.2-1.1 4.6-1.7 6.8-1.7 2.2 0 4.6.6 6.8 1.7"></path>
         </svg>
       </button>
       <button id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">
@@ -1337,9 +1335,7 @@ textarea::-webkit-scrollbar-track{
 
   <div class="macro-section macro-editor">
     <div class="summary-title">Editor</div>
-    <label class="macro-label" for="macroNameInput">Name</label>
     <input id="macroNameInput" type="text" placeholder="Macro name" />
-    <label class="macro-label" for="macroContentInput">Content</label>
     <textarea id="macroContentInput" placeholder="Paste macro content"></textarea>
     <div id="macroStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
@@ -4013,7 +4009,9 @@ macroSelect?.addEventListener("change", async () => {
   setSelectedMacroId(id);
   if (id) {
     await sendClinicalQueryWithDraft("", "brief");
+    setSelectedMacroId("");
   }
+  if (macroSelect) macroSelect.value = "";
 });
 
 recordBtn.addEventListener("click", async () => {
