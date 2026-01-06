@@ -84,6 +84,11 @@
   /* Soft edge treatment */
   --edge-soft: color-mix(in oklab, var(--border) 22%, transparent);
   --edge-hi: color-mix(in oklab, #ffffff 6%, transparent);
+
+  /* Primary button tones (neutral, theme-aligned) */
+  --primary-bg: color-mix(in oklab, var(--panel2) 92%, #D8DEE8);
+  --primary-border: color-mix(in oklab, var(--border) 50%, transparent);
+  --primary-text: var(--text);
 }
 
 /* Dark theme (explicit) */
@@ -104,6 +109,10 @@
 
   --edge-soft: color-mix(in oklab, var(--border) 58%, transparent);
   --edge-hi: color-mix(in oklab, #ffffff 8%, transparent);
+
+  --primary-bg: color-mix(in oklab, var(--panel2) 88%, #4A4A4A);
+  --primary-border: color-mix(in oklab, #ffffff 10%, transparent);
+  --primary-text: var(--text);
 }
 
 /* Auto theme: default light, but follow OS preference */
@@ -237,9 +246,10 @@ button{
   transition: transform .06s var(--ease), box-shadow var(--t) var(--ease), filter var(--t) var(--ease), opacity var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
 }
 button.primary{
-  background: color-mix(in oklab, rgba(37,99,235,.18) 90%, var(--panel2));
+  background: var(--primary-bg);
+  color: var(--primary-text);
   box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px color-mix(in oklab, rgba(37,99,235,.25) 70%, var(--edge-soft)),
+              inset 0 0 0 1px var(--primary-border),
               inset 0 1px 0 var(--edge-hi);
 }
 button:hover:not(:disabled){
@@ -686,6 +696,7 @@ textarea::-webkit-scrollbar-track{
   padding-left:12px;
   padding-right:168px; /* space for + and Send */
   box-shadow: var(--shadow-xs);
+  resize:none;
 }
 
 .send-btn{
@@ -694,9 +705,13 @@ textarea::-webkit-scrollbar-track{
   right:20px;
   padding:6px 10px;
   border-radius:12px;
-  border:1px solid var(--border);
-  background: color-mix(in oklab, rgba(37,99,235,.22) 90%, var(--panel2));
+  border:none;
+  background: var(--primary-bg);
+  color: var(--primary-text);
   min-width:52px;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
 }
 
 .query-actions{
@@ -1122,7 +1137,7 @@ textarea::-webkit-scrollbar-track{
 .billing-text{
   margin-top: 10px;
   min-height: 260px;
-  resize: vertical;
+  resize: none;
   white-space: pre-wrap;
 }
 
