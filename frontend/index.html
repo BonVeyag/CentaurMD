@@ -389,7 +389,16 @@ input[type="text"]:focus-visible{
   width:18px;
   height:18px;
   display:block;
-  fill: var(--text);
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  fill:none;
+}
+.plane-icon .plane-stroke{
+  stroke: var(--text);
+}
+.plane-icon .plane-speed{
+  stroke: color-mix(in oklab, var(--accent) 70%, #6DB5FF);
 }
 .menu-item{
   width:100%;
@@ -1156,7 +1165,9 @@ textarea::-webkit-scrollbar-track{
     <div class="actions">
       <button id="globalCopyBtn" type="button" title="Copy full context" aria-label="Copy full context">
         <svg class="plane-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M2.5 12L21.5 3.5L14.2 12L21.5 20.5L2.5 12Z"></path>
+          <path class="plane-stroke" d="M3 12L21 4L14 12L21 20L3 12Z"></path>
+          <path class="plane-speed" d="M2 8.5L6.5 7.2"></path>
+          <path class="plane-speed" d="M2 15L6.2 13.8"></path>
         </svg>
       </button>
       <button id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme">
