@@ -1,4 +1,5 @@
 import os
+import re
 import tempfile
 import logging
 from typing import Optional
@@ -21,6 +22,9 @@ LANGUAGE_HINT = (os.getenv("TRANSCRIBE_LANGUAGE") or "").strip() or None
 
 # If true, we will return English-only text (best effort) by translating non-English.
 TRANSLATE_TO_EN = (os.getenv("TRANSCRIBE_TRANSLATE_TO_EN", "0").strip() == "1")
+
+# If true, suppress obvious non-speech junk (repeat syllables, subtitle artifacts).
+SUPPRESS_NOISE = (os.getenv("TRANSCRIBE_NOISE_FILTER", "1").strip() == "1")
 
 # Commonly accepted extensions by OpenAI STT
 _ALLOWED_EXTS = {".webm", ".mp4", ".m4a", ".wav", ".mp3", ".mpeg", ".mpga", ".ogg"}
@@ -75,6 +79,47 @@ def _translate_to_english(text: str) -> str:
         return text
 
 
+_BRACKETED_NOISE_RE = re.compile(r"\[(music|applause|laughter|noise|silence|background|inaudible)\]", re.I)
+_NOISE_PHRASES = (
+    "amara.org",
+    "sottotitoli creati",
+    "subtitles created",
+    "subtitles by",
+)
+
+
+def _is_repeated_unit(token: str, max_unit: int = 3, min_repeats: int = 5) -> bool:
+    clean = re.sub(r"[^A-Za-z]", "", token or "")
+    if len(clean) < max_unit * min_repeats:
+        return False
+    if len(set(clean)) <= 2:
+        return True
+    for unit_len in range(1, max_unit + 1):
+        if len(clean) % unit_len != 0:
+            continue
+        unit = clean[:unit_len]
+        repeats = len(clean) // unit_len
+        if repeats >= min_repeats and unit * repeats == clean:
+            return True
+    return False
+
+
+def _suppress_nonsense(text: str) -> str:
+    if not text:
+        return text
+    t = _BRACKETED_NOISE_RE.sub("", text)
+    for phrase in _NOISE_PHRASES:
+        t = re.sub(re.escape(phrase), "", t, flags=re.I)
+    tokens = t.split()
+    kept = []
+    for tok in tokens:
+        if _is_repeated_unit(tok):
+            continue
+        kept.append(tok)
+    t = " ".join(kept).strip()
+    return _normalize_whitespace(t)
+
+
 def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
     """
     Transcribe audio bytes using OpenAI Speech-to-Text.
@@ -127,6 +172,12 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
 
         if TRANSLATE_TO_EN:
             text = _translate_to_english(text)
+
+        if SUPPRESS_NOISE:
+            text = _suppress_nonsense(text)
+
+        if not text:
+            return ""
 
         return text
 
