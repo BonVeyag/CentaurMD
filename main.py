@@ -67,7 +67,10 @@ app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend"
 
 @app.get("/")
 def serve_index():
-    return FileResponse(str(FRONTEND_DIR / "index.html"))
+    return FileResponse(
+        str(FRONTEND_DIR / "index.html"),
+        headers={"Cache-Control": "no-store"},
+    )
 
 # Back-compat: if anything still references /static/*
 app.mount(
