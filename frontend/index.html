@@ -82,8 +82,8 @@
   --btn-pad: 7px 10px;
 
   /* Soft edge treatment */
-  --edge-soft: color-mix(in oklab, var(--border) 70%, transparent);
-  --edge-hi: color-mix(in oklab, #ffffff 35%, transparent);
+  --edge-soft: color-mix(in oklab, var(--border) 22%, transparent);
+  --edge-hi: color-mix(in oklab, #ffffff 6%, transparent);
 }
 
 /* Dark theme (explicit) */
@@ -102,6 +102,7 @@
   --shadow-lg: 0 20px 50px rgba(0,0,0,.65);
   --focus: 0 0 0 3px rgba(59,130,246,.35);
 
+  --edge-soft: color-mix(in oklab, var(--border) 70%, transparent);
   --edge-hi: color-mix(in oklab, #ffffff 12%, transparent);
 }
 
@@ -225,17 +226,21 @@ body{
 button{
   padding:7px 10px;
   border-radius:12px;
-  border:1px solid var(--border);
+  border:none;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
   color: var(--text);
   font-size:14px;
   cursor:pointer;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
   transition: transform .06s var(--ease), box-shadow var(--t) var(--ease), filter var(--t) var(--ease), opacity var(--t) var(--ease), background-color var(--t) var(--ease), border-color var(--t) var(--ease);
 }
 button.primary{
   background: color-mix(in oklab, rgba(37,99,235,.18) 90%, var(--panel2));
-  border-color: color-mix(in oklab, rgba(37,99,235,.35) 90%, var(--border));
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px color-mix(in oklab, rgba(37,99,235,.25) 70%, var(--edge-soft)),
+              inset 0 1px 0 var(--edge-hi);
 }
 button:hover:not(:disabled){
   filter: brightness(0.99);
@@ -697,7 +702,7 @@ textarea::-webkit-scrollbar-track{
 .query-actions{
   display:flex;
   gap:12px;
-  justify-content:center;
+  justify-content:flex-start;
   margin-top:12px;
   flex-wrap:wrap;
 }
@@ -866,7 +871,7 @@ textarea::-webkit-scrollbar-track{
 .cq-plus{
   position:absolute;
   bottom:20px;
-  right:102px;
+  right:80px;
   left:auto;
   width:26px;
   height:26px;
@@ -883,7 +888,7 @@ textarea::-webkit-scrollbar-track{
 
 .cq-menu{
   position:absolute;
-  right:102px;
+  right:80px;
   left:auto;
   bottom:66px;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
