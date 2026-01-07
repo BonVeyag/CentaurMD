@@ -745,6 +745,30 @@ textarea::-webkit-scrollbar-track{
 .coach-panel{
   flex:1;
   min-height:0;
+  white-space: normal;
+}
+:root[data-theme="dark"] .coach-panel{
+  color:#F8FAFC;
+}
+.coach-section{
+  margin-bottom:12px;
+}
+.coach-title{
+  font-weight:700;
+  margin:8px 0 6px;
+}
+.coach-list{
+  margin:4px 0 0 18px;
+  padding:0;
+}
+.coach-list li{
+  margin:0 0 4px;
+}
+.coach-cant-miss,
+.coach-cant-miss .coach-title,
+.coach-cant-miss li{
+  color: var(--danger);
+  font-weight:700;
 }
 
 /* =====================
@@ -1703,6 +1727,8 @@ let appBootstrapped = false;
 let billingArchiveItems = [];
 let billingArchiveCurrent = "";
 let billingArchiveCurrentMeta = null;
+let hasBilledCurrentPatient = false;
+let wakeLockSentinel = null;
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -2530,6 +2556,30 @@ function updateRecUI(){
     if (txPill) setPill(txPill, "IDLE", "");
   }
 }
+
+// -------------------------
+// Wake Lock
+// -------------------------
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request("screen");
+    wakeLockSentinel.addEventListener("release", () => {
+      wakeLockSentinel = null;
+    });
+  } catch (err) {
+    console.warn("Wake lock failed:", err);
+  }
+}
+async function releaseWakeLock() {
+  try { await wakeLockSentinel?.release(); } catch {}
+  wakeLockSentinel = null;
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && isRecording) {
+    requestWakeLock();
+  }
+});
 
 // -------------------------
 // Patient anchor extraction (best-effort)
@@ -3368,6 +3418,14 @@ function extractClinicalQueryText() {
   return parts.join("\n\n").trim();
 }
 
+function hasCurrentPatientData() {
+  const hasTranscript = (transcriptBox?.value || "").trim().length > 0;
+  const hasEmr = (emrBackgroundText || "").trim().length > 0;
+  const hasChat = (chatLog?.querySelectorAll(".msg.user, .msg.assistant") || []).length > 0;
+  const hasDraft = Array.isArray(cqDraft) && cqDraft.length > 0;
+  return hasTranscript || hasEmr || hasChat || hasDraft;
+}
+
 async function copyFullContextToClipboard() {
   const transcript = (transcriptBox?.value || "").trim();
   const emr = (emrBackgroundText || "").trim();
@@ -4012,6 +4070,7 @@ async function startRecording() {
     try { lastAudioInputKey = await getAudioInputKey(); } catch {}
     try { await refreshAudioInputs(); } catch {}
     isRecording = true;
+    await requestWakeLock();
 
     const startNextChunk = () => {
       if (!isRecording) return;
@@ -4061,6 +4120,7 @@ function stopRecording() {
   audioStream = null;
   setRecordingUI(false);
   stopTimer(false);
+  releaseWakeLock();
 }
 
 // -------------------------
@@ -4108,7 +4168,7 @@ async function loadCoach(force=false) {
       return;
     }
     lastCoachHash = h;
-    coachPanel.textContent = diffText;
+    renderCoachOutput(diffText);
     lastCoachRunAt = Date.now();
     lastCoachTranscriptLen = transcript.length;
     markUpdated("coach");
@@ -4132,6 +4192,72 @@ function scheduleCoachRefreshSoon() {
   if (transcript.length <= 20) return;
   clearTimeout(coachSoonTimer);
   coachSoonTimer = setTimeout(() => { loadCoach(false); }, 1200);
+}
+
+function renderCoachOutput(rawText) {
+  const t = (rawText || "").trim();
+  if (!t) {
+    coachPanel.textContent = "";
+    return;
+  }
+
+  let parsed = null;
+  if (typeof t === "string") {
+    const cleaned = stripCodeFences(t).trim();
+    if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
+      try { parsed = JSON.parse(cleaned); } catch {}
+    }
+  } else if (typeof rawText === "object") {
+    parsed = rawText;
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    coachPanel.textContent = t;
+    return;
+  }
+
+  const listHtml = (items) => {
+    if (!Array.isArray(items) || !items.length) return "";
+    const li = items
+      .map(i => String(i || "").trim())
+      .filter(Boolean)
+      .map(i => `<li>${escapeHtml(i)}</li>`)
+      .join("");
+    return li ? `<ul class="coach-list">${li}</ul>` : "";
+  };
+
+  const sections = [];
+  const addSection = (title, items, extraClass="") => {
+    const list = listHtml(items);
+    if (!list) return;
+    sections.push(`
+      <div class="coach-section ${extraClass}">
+        <div class="coach-title">${escapeHtml(title)}</div>
+        ${list}
+      </div>
+    `.trim());
+  };
+
+  addSection("Can't miss questions", parsed.cant_miss_questions, "coach-cant-miss");
+  addSection("Key questions to refine ddx", parsed.key_questions_to_refine_ddx);
+  addSection("Suggested plan", parsed.suggested_plan);
+  addSection("Differential", parsed.ddx);
+
+  const confidence = String(parsed.confidence || "").trim();
+  if (confidence) {
+    sections.push(`
+      <div class="coach-section">
+        <div class="coach-title">Confidence</div>
+        <div>${escapeHtml(confidence)}</div>
+      </div>
+    `.trim());
+  }
+
+  if (!sections.length) {
+    coachPanel.textContent = t;
+    return;
+  }
+  coachPanel.innerHTML = sections.join("");
 }
 
 // -------------------------
@@ -4167,6 +4293,67 @@ async function handleEmrBackgroundPasteOnly(emrText) {
 // Clinical Query
 // -------------------------
 function readableFromMaybeJson(content) {
+  const formatObjectLines = (obj, indent=0) => {
+    if (!obj || typeof obj !== "object") return [];
+    const pad = "  ".repeat(indent);
+    const lines = [];
+    for (const [key, val] of Object.entries(obj)) {
+      if (val === null || val === undefined || val === "") continue;
+      if (Array.isArray(val) && val.length === 0) continue;
+      if (typeof val === "object" && !Array.isArray(val)) {
+        lines.push(`${pad}${key}:`);
+        const sub = formatObjectLines(val, indent + 1);
+        if (sub.length) lines.push(...sub);
+      } else if (Array.isArray(val)) {
+        lines.push(`${pad}${key}:`);
+        const sub = formatListLines(val, indent + 1);
+        if (sub.length) lines.push(...sub);
+      } else {
+        lines.push(`${pad}${key}: ${String(val)}`);
+      }
+    }
+    return lines;
+  };
+  const formatListLines = (arr, indent=0) => {
+    if (!Array.isArray(arr)) return [];
+    const pad = "  ".repeat(indent);
+    const lines = [];
+    for (const item of arr) {
+      if (item === null || item === undefined || item === "") continue;
+      if (typeof item === "object" && !Array.isArray(item)) {
+        const sub = formatObjectLines(item, indent + 1);
+        if (sub.length) {
+          lines.push(`${pad}-`);
+          lines.push(...sub.map(l => `${pad}  ${l}`));
+        }
+      } else if (Array.isArray(item)) {
+        const sub = formatListLines(item, indent + 1);
+        if (sub.length) {
+          lines.push(`${pad}-`);
+          lines.push(...sub.map(l => `${pad}  ${l}`));
+        }
+      } else {
+        lines.push(`${pad}- ${String(item)}`);
+      }
+    }
+    return lines;
+  };
+  const formatDirectAnswer = (val) => {
+    if (typeof val === "string") return val.trim();
+    if (Array.isArray(val)) return formatListLines(val, 0).join("\n").trim();
+    if (val && typeof val === "object") return formatObjectLines(val, 0).join("\n").trim();
+    return "";
+  };
+  const formatSection = (label, val) => {
+    let lines = [];
+    if (Array.isArray(val)) lines = formatListLines(val, 0);
+    else if (val && typeof val === "object") lines = formatObjectLines(val, 0);
+    else if (val !== null && val !== undefined && String(val).trim()) lines = [String(val).trim()];
+    if (!lines.length) return "";
+    const withBullets = lines.map(l => (l.trim().startsWith("-") ? l : `- ${l}`));
+    return `${label}:\n${withBullets.join("\n")}`.trim();
+  };
+
   let parsed = null;
   if (content && typeof content === "object") {
     parsed = content;
@@ -4191,26 +4378,23 @@ function readableFromMaybeJson(content) {
     }
   }
   if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    let da = "";
-    if (typeof parsed.direct_answer === "string") {
-      da = parsed.direct_answer.trim();
-    } else if (Array.isArray(parsed.direct_answer)) {
-      const items = parsed.direct_answer.map(x => String(x || "").trim()).filter(Boolean);
-      if (items.length) da = `- ${items.join("\n- ")}`;
+    const da = formatDirectAnswer(parsed.direct_answer);
+    const parts = [];
+    if (da) parts.push(da);
+    const sections = [
+      ["Recommended regimens", parsed.recommended_regimens],
+      ["Interactions / contraindications", parsed.interactions_and_contraindications],
+      ["Tests / workup", parsed.tests_or_workup],
+      ["Red flags", parsed.red_flags],
+      ["Missing critical info", parsed.missing_critical_info],
+      ["Uncertainties", parsed.uncertainties],
+      ["Follow up", parsed.follow_up],
+    ];
+    for (const [label, val] of sections) {
+      const block = formatSection(label, val);
+      if (block) parts.push(block);
     }
-    if (da) {
-      const parts = [da];
-      const addList = (label, arr) => {
-        if (Array.isArray(arr) && arr.length) {
-          parts.push(`${label}:\n- ${arr.map(x => String(x || "").trim()).filter(Boolean).join("\n- ")}`);
-        }
-      };
-      addList("Red flags", parsed.red_flags);
-      addList("Missing critical info", parsed.missing_critical_info);
-      addList("Uncertainties", parsed.uncertainties);
-      addList("Follow up", parsed.follow_up);
-      return parts.join("\n\n").trim();
-    }
+    if (parts.length) return parts.join("\n\n").trim();
   }
   return (typeof content === "string") ? content : safeJsonStringify(content);
 }
@@ -4628,6 +4812,7 @@ async function billNow() {
   }
 
   dailyBillingText.value = billingText + "\n";
+  hasBilledCurrentPatient = true;
 
   await saveBillingToLocal();
   scrollBillingToEnd();
@@ -4823,6 +5008,7 @@ recordBtn.addEventListener("click", async () => {
     recorder = null;
     audioStream = null;
     stopTimer(true);
+    releaseWakeLock();
   } else {
     recState = "recording";
     updateRecUI();
@@ -4846,6 +5032,10 @@ async function deleteAllUploadedAttachmentsBestEffort(oldSid) {
 }
 
 newBtn.addEventListener("click", async () => {
+  if (hasCurrentPatientData() && !hasBilledCurrentPatient) {
+    alert("Please generate billing for the current patient before starting a new one.");
+    return;
+  }
   try { stopRecording(); } catch {}
   recState = "idle";
   updateRecUI();
@@ -4871,6 +5061,7 @@ newBtn.addEventListener("click", async () => {
   lastCoachRunAt = 0;
   lastCoachTranscriptLen = 0;
   lastAssistantPlainText = "";
+  hasBilledCurrentPatient = false;
 
   patientName = "";
   patientPHN = "";
