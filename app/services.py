@@ -1636,9 +1636,9 @@ def is_descriptive_query(query: str) -> bool:
     return any(re.search(p, q) for p in DESCRIPTIVE_PATTERNS)
 
 
-CLINICAL_QUERY_MAX_BACKGROUND_CHARS = 5200
-CLINICAL_QUERY_MAX_TRANSCRIPT_CHARS = 5200
-CLINICAL_QUERY_MAX_ATTACHMENTS_CHARS = 9000
+CLINICAL_QUERY_MAX_BACKGROUND_CHARS = 12000
+CLINICAL_QUERY_MAX_TRANSCRIPT_CHARS = 9000
+CLINICAL_QUERY_MAX_ATTACHMENTS_CHARS = 12000
 
 
 def _format_attachments_block(attachments_text: str) -> str:
@@ -1722,6 +1722,14 @@ red_flags
 missing_critical_info
 uncertainties
 follow_up
+
+DIRECT_ANSWER FORMAT:
+- Use clear section headings and spacing for readability.
+- Required headings:
+  1) What we know
+  2) Plan moving forward
+- Use bullet points under each heading.
+- Keep it concise and chart-auditable.
 
 If DESCRIPTIVE:
 - recommended_regimens = []
