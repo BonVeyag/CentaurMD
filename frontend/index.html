@@ -4533,7 +4533,7 @@ function createDirectAnswerStreamParser() {
   };
 }
 
-async function sendClinicalQueryWithDraft(queryText, mode="brief", macroOverride="") {
+async function sendClinicalQueryWithDraft(queryText, mode="expand", macroOverride="") {
   await ensureSession();
   const q = (queryText || "").trim();
   const overrideText = String(macroOverride || "").trim();
