@@ -2064,7 +2064,7 @@ def bill_current_session_into_daily_list(session_id: str, payload: BillingBillPa
 
 
 @router.post("/billing/print")
-def print_and_clear_billing_today():
+def print_and_clear_billing_today(user: AuthUser = Depends(require_user)):
     """
     PRINT action:
     - Returns a print-ready text version of the billing list that strips:
@@ -2076,6 +2076,10 @@ def print_and_clear_billing_today():
     day_key = _today_key_edmonton()
     st = _init_daily_billing_state_if_missing(day_key)
 
+    archive_name = ""
+    saved_at_local = ""
+    saved_at_utc = ""
+
     with BILLING_LOCK:
         raw_text = (st.get("billing_text") or "").strip()
         printable = _strip_descriptions_for_print(raw_text)
@@ -2085,6 +2089,19 @@ def print_and_clear_billing_today():
         st["billing_text"] = ""
         _touch_billing_state(st)
 
+    if printable:
+        dt_local = _now_edmonton()
+        saved_at_local = dt_local.isoformat()
+        saved_at_utc = _utcnow().isoformat()
+        archive_dir = _billing_archive_dir(user.username)
+        archive_name = _make_billing_archive_filename(archive_dir, dt_local)
+        archive_path = os.path.join(archive_dir, archive_name)
+        try:
+            with open(archive_path, "w", encoding="utf-8") as f:
+                f.write(printable)
+        except Exception as e:
+            logger.warning(f"Failed to save billing archive for {user.username}: {e}")
+
     return {
         "ok": True,
         "date": day_key,
@@ -2093,5 +2110,8 @@ def print_and_clear_billing_today():
         "print_text": printable,
         "total_patient_count": total,
         "cleared": True,
+        "archive_filename": archive_name,
+        "archive_saved_at_local": saved_at_local,
+        "archive_saved_at_utc": saved_at_utc,
         "last_updated_at": st.get("last_updated_at"),
     }
