@@ -2563,6 +2563,33 @@ function toggleTheme() {
 }
 
 // -------------------------
+// Clinical Query mode
+// -------------------------
+function normalizeCqMode(mode) {
+  const v = String(mode || "").toLowerCase().trim();
+  if (v === "think" || v === "thinking") return "think";
+  return "fast";
+}
+
+function applyCqMode(mode) {
+  const m = normalizeCqMode(mode);
+  cqMode = m;
+  if (cqModeFastBtn) cqModeFastBtn.classList.toggle("active", m === "fast");
+  if (cqModeThinkBtn) cqModeThinkBtn.classList.toggle("active", m === "think");
+}
+
+function setCqMode(mode) {
+  const m = normalizeCqMode(mode);
+  try { localStorage.setItem(CQ_MODE_KEY, m); } catch {}
+  applyCqMode(m);
+  return m;
+}
+
+function initCqMode() {
+  applyCqMode(cqMode);
+}
+
+// -------------------------
 // Recording UI state machine
 // -------------------------
 function updateRecUI(){
@@ -4558,9 +4585,10 @@ function createDirectAnswerStreamParser() {
   };
 }
 
-async function sendClinicalQueryWithDraft(queryText, mode="expand", macroOverride="") {
+async function sendClinicalQueryWithDraft(queryText, modeOverride="", macroOverride="") {
   await ensureSession();
   const q = (queryText || "").trim();
+  const mode = normalizeCqMode(modeOverride || cqMode);
   const overrideText = String(macroOverride || "").trim();
   const selectedMacro = overrideText ? null : getSelectedMacro();
   const macroText = overrideText || (selectedMacro?.content || "").trim();
@@ -4925,6 +4953,16 @@ themeBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   toggleTheme();
 });
+cqModeFastBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setCqMode("fast");
+});
+cqModeThinkBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  setCqMode("think");
+});
 globalCopyBtn?.addEventListener("click", async (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -4995,7 +5033,7 @@ macroSelect?.addEventListener("change", async () => {
       TRANSCRIPT: transcriptBox.value || "[none]",
       EXTRA: "",
     });
-    await sendClinicalQueryWithDraft("", "brief", expanded);
+    await sendClinicalQueryWithDraft("", cqMode, expanded);
   }
 });
 macroPickerSelect?.addEventListener("change", () => {
@@ -5105,7 +5143,7 @@ sendBtn.addEventListener("click", async () => {
   const q = chatInput.value;
   chatInput.value = "";
   flashButton(sendBtn);
-  await sendClinicalQueryWithDraft(q, "brief");
+  await sendClinicalQueryWithDraft(q, cqMode);
 });
 
 // EMR paste: show only, do not generate any answer
@@ -5276,6 +5314,7 @@ window.addEventListener("beforeunload", () => {
     updateRecUI();
     stopTimer(false);
     initTheme();
+    initCqMode();
     try { await refreshAudioInputs(); } catch {}
 
     const authed = await ensureAuth();
