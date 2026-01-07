@@ -1971,7 +1971,7 @@ class BillingArchiveUpdatePayload(BaseModel):
 
 
 @router.get("/billing/today")
-def get_billing_today():
+def get_billing_today(user: AuthUser = Depends(require_user)):
     """
     Returns the daily billing state for Edmonton-local "today".
     Frontend can render:
@@ -1982,7 +1982,7 @@ def get_billing_today():
       - billing_text (editable area)
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key)
 
     with BILLING_LOCK:
         billing_text = (st.get("billing_text") or "")
@@ -2004,14 +2004,14 @@ def get_billing_today():
 
 
 @router.post("/billing/model")
-def set_billing_model_today(payload: BillingModelPayload):
+def set_billing_model_today(payload: BillingModelPayload, user: AuthUser = Depends(require_user)):
     """
     Sticky per day (Edmonton local):
     - Default: FFS
     - If set to PCPCM, keep for the rest of the day (in-memory).
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key)
 
     model = (payload.billing_model or "").strip().upper()
     if model not in ("FFS", "PCPCM"):
@@ -2019,20 +2019,20 @@ def set_billing_model_today(payload: BillingModelPayload):
 
     with BILLING_LOCK:
         st["billing_model"] = model
-        _touch_billing_state(st)
+        _touch_billing_state(user.username, st)
 
     return {"ok": True, "date": day_key, "billing_model": model, "last_updated_at": st.get("last_updated_at")}
 
 
 @router.post("/billing/save")
-def save_billing_today(payload: BillingSavePayload):
+def save_billing_today(payload: BillingSavePayload, user: AuthUser = Depends(require_user)):
     """
     Primary action:
     - Save the current editable billing display.
     - Optionally update physician and billing_model in the same save.
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key)
 
     billing_text = (payload.billing_text or "").rstrip()
 
@@ -2044,7 +2044,7 @@ def save_billing_today(payload: BillingSavePayload):
             bm = (payload.billing_model or "").strip().upper()
             if bm in ("FFS", "PCPCM"):
                 st["billing_model"] = bm
-        _touch_billing_state(st)
+        _touch_billing_state(user.username, st)
 
         total = _count_patients_in_billing_text(st.get("billing_text") or "")
 
