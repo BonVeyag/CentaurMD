@@ -1838,7 +1838,9 @@ def run_clinical_query(
     model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
     system_msg = (
+        "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
         "Conservative Alberta-appropriate advice. "
+        "Do not reveal chain-of-thought. "
         "If PDF extracted text is provided, use it; otherwise say it is missing. "
         "If image(s) are provided in the message payload, you may describe their visible features."
     )
@@ -1944,7 +1946,9 @@ def run_clinical_query_stream(
     model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
     system_msg = (
+        "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
         "Conservative Alberta-appropriate advice. "
+        "Do not reveal chain-of-thought. "
         "If PDF extracted text is provided, use it; otherwise say it is missing. "
         "If image(s) are provided in the message payload, you may describe their visible features."
     )
