@@ -1845,14 +1845,20 @@ def run_clinical_query(
         "If image(s) are provided in the message payload, you may describe their visible features."
     )
 
+    temperature = None if fast_mode else 0.2
+    base_kwargs = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    if temperature is not None:
+        base_kwargs["temperature"] = temperature
+
     try:
         response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.2,
+            **base_kwargs,
             response_format={"type": "json_object"},
         )
         return (response.choices[0].message.content or "").strip()
@@ -1861,12 +1867,7 @@ def run_clinical_query(
 
     try:
         response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.2,
+            **base_kwargs,
         )
         return (response.choices[0].message.content or "").strip()
     except Exception as e:
