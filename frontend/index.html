@@ -601,6 +601,28 @@ textarea::-webkit-scrollbar-track{
 }
 .transcript-btnrow button#record_btn{ font-weight:850; }
 
+.audio-input-row{
+  display:flex;
+  margin-bottom:8px;
+}
+.audio-input-row select{
+  width:100%;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  border:none;
+  border-radius:12px;
+  min-height: var(--btn-height);
+  padding: var(--btn-pad);
+  font-size: var(--fs-body);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.audio-input-row select option{
+  color: var(--text);
+  background: var(--panel);
+}
+
 /* Keep transcript stable; scroll inside */
 .transcript-box{
   flex:1;
@@ -1277,6 +1299,11 @@ textarea::-webkit-scrollbar-track{
             <button id="record_btn" class="primary" type="button">Record</button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
+          <div class="audio-input-row">
+            <select id="audioInputSelect" aria-label="Audio input">
+              <option value="">Mic: System Default</option>
+            </select>
+          </div>
 
           <textarea class="transcript-box" id="transcript_box" placeholder="Live transcript will appear here…" spellcheck="false"></textarea>
         </div>
@@ -1508,6 +1535,11 @@ let lastCoachTranscriptLen = 0;
 let emrBackgroundText = "";
 let macros = [];
 let editingMacroId = "";
+let lastAudioInputKey = "";
+let audioDeviceChangeTimer = null;
+let lastAudioDeviceId = "";
+const AUDIO_INPUT_PREF_KEY = "centaur_audio_input_v1";
+let preferredAudioInputId = String(localStorage.getItem(AUDIO_INPUT_PREF_KEY) || "");
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1527,6 +1559,7 @@ const recDot = document.querySelector(".rec-dot");
 const timerEl = document.querySelector(".timer");
 const recordBtn = document.getElementById("record_btn");
 const newBtn    = document.getElementById("new_patient_btn");
+const audioInputSelect = document.getElementById("audioInputSelect");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
 
@@ -3349,6 +3382,102 @@ async function ensureDraftUploadsComplete() {
 // -------------------------
 // Audio transcription
 // -------------------------
+function getStreamDeviceId(stream) {
+  try {
+    const track = stream?.getAudioTracks?.()[0];
+    const settings = track?.getSettings?.() || {};
+    return settings.deviceId || "";
+  } catch {
+    return "";
+  }
+}
+async function getAudioInputKey() {
+  if (!navigator.mediaDevices?.enumerateDevices) return "";
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  return devices
+    .filter(d => d.kind === "audioinput")
+    .map(d => `${d.deviceId}:${d.label}`)
+    .join("|");
+}
+function setPreferredAudioInput(id) {
+  preferredAudioInputId = String(id || "");
+  try {
+    if (preferredAudioInputId) localStorage.setItem(AUDIO_INPUT_PREF_KEY, preferredAudioInputId);
+    else localStorage.removeItem(AUDIO_INPUT_PREF_KEY);
+  } catch {}
+}
+async function refreshAudioInputs() {
+  if (!audioInputSelect || !navigator.mediaDevices?.enumerateDevices) return false;
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const inputs = devices.filter(d => d.kind === "audioinput");
+
+  const prev = preferredAudioInputId;
+  const hasPrev = prev && inputs.some(d => d.deviceId === prev);
+  if (!hasPrev && prev) setPreferredAudioInput("");
+
+  audioInputSelect.innerHTML = "";
+  const defOpt = document.createElement("option");
+  defOpt.value = "";
+  defOpt.textContent = "Mic: System Default";
+  audioInputSelect.appendChild(defOpt);
+
+  inputs.forEach((d, idx) => {
+    const opt = document.createElement("option");
+    const label = d.label || `Microphone ${idx + 1}`;
+    opt.value = d.deviceId;
+    opt.textContent = `Mic: ${label}`;
+    audioInputSelect.appendChild(opt);
+  });
+
+  audioInputSelect.value = preferredAudioInputId || "";
+  return preferredAudioInputId !== prev;
+}
+async function getPreferredAudioStream() {
+  if (!navigator.mediaDevices?.getUserMedia) throw new Error("Audio capture not supported.");
+  try {
+    if (preferredAudioInputId) {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: preferredAudioInputId } }
+      });
+    }
+    return await navigator.mediaDevices.getUserMedia({ audio: { deviceId: "default" } });
+  } catch {
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+async function restartRecordingForDeviceChange() {
+  if (!isRecording) return;
+  let newStream = null;
+  try {
+    newStream = await getPreferredAudioStream();
+  } catch (err) {
+    console.warn("Audio device switch failed:", err);
+    return;
+  }
+  const oldStream = audioStream;
+  audioStream = newStream;
+  lastAudioDeviceId = getStreamDeviceId(newStream);
+  try { oldStream?.getTracks().forEach(t => t.stop()); } catch {}
+  try { if (recorder && recorder.state === "recording") recorder.stop(); } catch {}
+}
+async function handleDeviceChange() {
+  clearTimeout(audioDeviceChangeTimer);
+  audioDeviceChangeTimer = setTimeout(async () => {
+    let key = "";
+    let selectedChanged = false;
+    try { selectedChanged = await refreshAudioInputs(); } catch {}
+    try { key = await getAudioInputKey(); } catch {}
+    if (!selectedChanged && key && key === lastAudioInputKey) return;
+    lastAudioInputKey = key;
+    if (isRecording) await restartRecordingForDeviceChange();
+  }, 400);
+}
+if (navigator.mediaDevices?.addEventListener) {
+  navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
+} else if (navigator.mediaDevices) {
+  navigator.mediaDevices.ondevicechange = handleDeviceChange;
+}
+
 function pickBestMime() {
   const candidates = [
     { mime: "audio/webm;codecs=opus", ext: "webm" },
@@ -3405,7 +3534,10 @@ async function startRecording() {
     chosenMime = pick.mime;
     chosenExt = pick.ext;
 
-    audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioStream = await getPreferredAudioStream();
+    lastAudioDeviceId = getStreamDeviceId(audioStream);
+    try { lastAudioInputKey = await getAudioInputKey(); } catch {}
+    try { await refreshAudioInputs(); } catch {}
     isRecording = true;
 
     const startNextChunk = () => {
@@ -4139,6 +4271,11 @@ macroPickerSelect?.addEventListener("change", () => {
     macroDeleteBtn.textContent = locked ? "Locked" : "Delete";
   }
 });
+audioInputSelect?.addEventListener("change", async () => {
+  setPreferredAudioInput(audioInputSelect.value || "");
+  try { await refreshAudioInputs(); } catch {}
+  await restartRecordingForDeviceChange();
+});
 
 recordBtn.addEventListener("click", async () => {
   if (recState === "idle") {
@@ -4396,6 +4533,7 @@ window.addEventListener("beforeunload", () => {
     updateRecUI();
     stopTimer(false);
     initTheme();
+    try { await refreshAudioInputs(); } catch {}
 
     await createSession();
     startCoachPolling();
