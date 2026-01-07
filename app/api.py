@@ -1656,7 +1656,11 @@ NOTES:
     one_line = ""
     if isinstance(billing, dict):
         one_line = str(billing.get("one_line") or "").strip()
-    if model_norm == "PCPCM":
+
+    virtual_call = bool(transcript_ok and _is_virtual_call(transcript))
+    if virtual_call:
+        one_line = _normalize_billing_for_virtual(one_line, model_norm)
+    elif model_norm == "PCPCM":
         one_line = _strip_cmgp_modifiers(one_line)
 
     line3 = f"Billing: {one_line}" if one_line else ""
