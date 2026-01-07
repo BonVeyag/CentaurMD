@@ -2115,3 +2115,76 @@ def print_and_clear_billing_today(user: AuthUser = Depends(require_user)):
         "archive_saved_at_utc": saved_at_utc,
         "last_updated_at": st.get("last_updated_at"),
     }
+
+
+@router.get("/billing/archives")
+def list_billing_archives(user: AuthUser = Depends(require_user)):
+    base = _billing_archive_dir(user.username)
+    items: List[Dict[str, Any]] = []
+    try:
+        names = [n for n in os.listdir(base) if n.endswith(".txt")]
+    except FileNotFoundError:
+        names = []
+    for name in names:
+        path = os.path.join(base, name)
+        try:
+            st = os.stat(path)
+        except Exception:
+            continue
+        dt_local = datetime.fromtimestamp(st.st_mtime, EDMONTON_TZ)
+        dt_utc = datetime.fromtimestamp(st.st_mtime, timezone.utc)
+        items.append({
+            "filename": name,
+            "size_bytes": st.st_size,
+            "saved_at_local": dt_local.isoformat(),
+            "saved_at_utc": dt_utc.isoformat(),
+        })
+    items.sort(key=lambda x: x.get("saved_at_local", ""), reverse=True)
+    return {"items": items}
+
+
+@router.get("/billing/archives/{filename}")
+def get_billing_archive(filename: str, user: AuthUser = Depends(require_user)):
+    path = _safe_billing_archive_path(user.username, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Billing archive not found.")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            text = f.read()
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to read billing archive.")
+    total = _count_patients_in_billing_text(text)
+    st = os.stat(path)
+    dt_local = datetime.fromtimestamp(st.st_mtime, EDMONTON_TZ)
+    dt_utc = datetime.fromtimestamp(st.st_mtime, timezone.utc)
+    return {
+        "filename": filename,
+        "text": text,
+        "total_patient_count": total,
+        "saved_at_local": dt_local.isoformat(),
+        "saved_at_utc": dt_utc.isoformat(),
+    }
+
+
+@router.put("/billing/archives/{filename}")
+def update_billing_archive(filename: str, payload: BillingArchiveUpdatePayload, user: AuthUser = Depends(require_user)):
+    path = _safe_billing_archive_path(user.username, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Billing archive not found.")
+    text = (payload.text or "").rstrip()
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to update billing archive.")
+    total = _count_patients_in_billing_text(text)
+    st = os.stat(path)
+    dt_local = datetime.fromtimestamp(st.st_mtime, EDMONTON_TZ)
+    dt_utc = datetime.fromtimestamp(st.st_mtime, timezone.utc)
+    return {
+        "ok": True,
+        "filename": filename,
+        "total_patient_count": total,
+        "saved_at_local": dt_local.isoformat(),
+        "saved_at_utc": dt_utc.isoformat(),
+    }
