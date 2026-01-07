@@ -1709,6 +1709,7 @@ _ICD9_CODE_RE = re.compile(r"\b(\d{3}(?:\.\d{1,2})?)\b")
 _BILL_CODE_RE = re.compile(
     r"\b(?:"
     r"\d{2}\.\d{2}[A-Z]{0,2}"      # 03.03A, 93.91A
+    r"|03\.03CV"                  # explicit virtual visit
     r"|CMGP\d{2}"                  # CMGP01
     r"|CMXC\d{2}"                  # CMXC30
     r"|G75GP"                      # G75GP
@@ -1717,6 +1718,97 @@ _BILL_CODE_RE = re.compile(
     r")\b",
     flags=re.IGNORECASE,
 )
+
+_VIRTUAL_CALL_RE = re.compile(
+    r"\b("
+    r"phone call|telephone|phone visit|by phone|over the phone|on the phone"
+    r"|telehealth|telemedicine|telemed|televisit|virtual visit|video visit|video call"
+    r"|zoom|teams|facetime|google meet|meet\.google|whatsapp call"
+    r"|phone ringing|ringtone|call connected|call ended|called patient|called pt"
+    r")\b",
+    flags=re.IGNORECASE,
+)
+
+
+def _normalize_bill_code(code: str) -> str:
+    c = (code or "").strip()
+    if not c:
+        return ""
+    if re.match(r"(?i)^cmgp\d{2}$", c):
+        return c.upper()
+    if re.match(r"(?i)^cmxc\d{2}$", c):
+        return c.upper()
+    if c.lower() in ("g75gp", "bmipro", "nbrser"):
+        return c.upper()
+    return c
+
+
+def _is_virtual_call(transcript_text: str) -> bool:
+    t = (transcript_text or "").strip()
+    if not t:
+        return False
+    low = t.lower()
+    if _VIRTUAL_CALL_RE.search(low):
+        return True
+    if "ringing" in low and ("phone" in low or "call" in low):
+        return True
+    if re.search(r"\bhello\b", low) and re.search(r"\b(call|calling|phone|telephone|virtual|video)\b", low):
+        return True
+    return False
+
+
+def _normalize_billing_for_virtual(one_line: str, billing_model: str) -> str:
+    raw = (one_line or "").strip()
+    codes = [_normalize_bill_code(c) for c in _BILL_CODE_RE.findall(raw)]
+    # dedupe while preserving order
+    seen = set()
+    codes_norm: List[str] = []
+    for c in codes:
+        if not c or c in seen:
+            continue
+        seen.add(c)
+        codes_norm.append(c)
+
+    # Map descriptors (keep only for non-03.03/CMGP)
+    desc_map: Dict[str, str] = {}
+    for m in re.finditer(r"\b([A-Z0-9\.]+)\s*\(([^)]+)\)", raw):
+        code = _normalize_bill_code(m.group(1))
+        desc = (m.group(2) or "").strip()
+        if code and desc:
+            desc_map[code] = desc
+
+    if "03.03CV" not in codes_norm:
+        if "03.03A" in codes_norm:
+            codes_norm = ["03.03CV" if c == "03.03A" else c for c in codes_norm]
+            codes_norm = [c for c in codes_norm if c]
+        else:
+            codes_norm = ["03.03CV"] + codes_norm
+    codes_norm = [c for c in codes_norm if c != "03.03A"]
+
+    bm = (billing_model or "FFS").strip().upper()
+    if bm == "FFS":
+        if not any(c.upper().startswith("CMGP") for c in codes_norm):
+            try:
+                idx = codes_norm.index("03.03CV")
+                codes_norm.insert(idx + 1, "CMGP01")
+            except ValueError:
+                codes_norm.append("CMGP01")
+    else:
+        codes_norm = [c for c in codes_norm if not c.upper().startswith("CMGP")]
+
+    base = " + ".join(codes_norm).strip()
+    if not base:
+        return ""
+
+    descriptors: List[str] = []
+    for code, desc in desc_map.items():
+        if code.startswith("CMGP") or code in ("03.03A", "03.03CV"):
+            continue
+        if code in codes_norm:
+            descriptors.append(f"{code} ({desc})")
+    if descriptors:
+        base = base + "  " + "; ".join(dict.fromkeys(descriptors))
+    return base.strip()
 
 
 def _strip_descriptions_for_print(text: str) -> str:
