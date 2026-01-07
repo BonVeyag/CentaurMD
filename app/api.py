@@ -1756,6 +1756,8 @@ def _is_virtual_call(transcript_text: str) -> bool:
         return True
     if "ringing" in low and ("phone" in low or "call" in low):
         return True
+    if re.match(r"^\s*(hello|hi|good (morning|afternoon|evening))\b", low):
+        return True
     if re.search(r"\bhello\b", low) and re.search(r"\b(call|calling|phone|telephone|virtual|video)\b", low):
         return True
     return False
