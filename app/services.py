@@ -1780,7 +1780,6 @@ def run_clinical_query(
     q_lower = (query or "").lower()
     mode_norm = (mode or "").strip().lower()
     fast_mode = mode_norm == "fast"
-    think_mode = mode_norm in ("think", "thinking")
     expand = ("expand" in q_lower) or (mode_norm in ("expand", "think", "thinking"))
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
@@ -1887,7 +1886,6 @@ def run_clinical_query_stream(
     q_lower = (query or "").lower()
     mode_norm = (mode or "").strip().lower()
     fast_mode = mode_norm == "fast"
-    think_mode = mode_norm in ("think", "thinking")
     expand = ("expand" in q_lower) or (mode_norm in ("expand", "think", "thinking"))
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
