@@ -137,6 +137,19 @@ def _ensure_user_dir(username: str) -> None:
     os.makedirs(path, exist_ok=True)
 
 
+def user_storage_dir(username: str) -> str:
+    _ensure_dirs()
+    _ensure_user_dir(username)
+    return os.path.join(USER_ROOT_DIR, username)
+
+
+def user_billing_dir(username: str) -> str:
+    base = user_storage_dir(username)
+    path = os.path.join(base, "billing")
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
 def _create_session(username: str) -> str:
     token = secrets.token_urlsafe(32)
     now = int(time.time())
@@ -238,3 +251,12 @@ def login(payload: LoginPayload):
 @router.get("/auth/me")
 def me(user: AuthUser = Depends(require_user)):
     return {"user": user}
+
+
+@router.post("/auth/logout")
+def logout(request: Request):
+    token = _extract_token(request)
+    if token:
+        with SESSIONS_LOCK:
+            SESSIONS.pop(token, None)
+    return {"ok": True}
