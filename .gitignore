@@ -11,6 +11,7 @@ frontend_backup_*/
 # Local runtime/output data (likely PHI)
 data/*.json
 data/billing/*.json
+data/users/
 
 # OS files
 .DS_Store

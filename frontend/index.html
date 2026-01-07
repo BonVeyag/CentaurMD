@@ -157,6 +157,82 @@ body{
   gap:16px;
 }
 
+/* Auth overlay */
+.auth-overlay{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: color-mix(in oklab, var(--bg) 82%, #000000);
+  z-index:200;
+}
+.auth-card{
+  width:min(420px, 92vw);
+  background: color-mix(in oklab, var(--panel2) 94%, transparent);
+  border-radius:18px;
+  padding:22px;
+  box-shadow: var(--shadow-lg),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.auth-brand{
+  font-size:20px;
+  font-weight:800;
+  letter-spacing:.2px;
+}
+.auth-tabs{
+  display:flex;
+  gap:8px;
+}
+.auth-tabs button{
+  flex:1;
+  min-height: var(--btn-height);
+  padding: var(--btn-pad);
+  border-radius:12px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 88%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  font-weight:700;
+}
+.auth-tabs button.active{
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
+.auth-form{
+  display:none;
+  flex-direction:column;
+  gap:10px;
+}
+.auth-form.active{
+  display:flex;
+}
+.auth-form input{
+  width:100%;
+  min-height:36px;
+  border-radius:12px;
+  border:none;
+  padding:10px 12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.auth-error{
+  color: #DC2626;
+  font-size:13px;
+}
+
 /* Premium cards */
 .card{
   background: color-mix(in oklab, var(--panel) 92%, transparent);
@@ -1245,6 +1321,27 @@ textarea::-webkit-scrollbar-track{
 </head>
 
 <body>
+<div id="authOverlay" class="auth-overlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-brand">CentaurMD</div>
+    <div class="auth-tabs">
+      <button id="authTabLogin" type="button" class="active">Login</button>
+      <button id="authTabSignup" type="button">Sign up</button>
+    </div>
+    <div id="authError" class="auth-error" style="display:none"></div>
+    <form id="authLoginForm" class="auth-form active" autocomplete="on">
+      <input id="authLoginUsername" type="text" placeholder="Username" autocomplete="username" />
+      <input id="authLoginPassword" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="authLoginBtn" type="submit" class="primary">Login</button>
+    </form>
+    <form id="authSignupForm" class="auth-form" autocomplete="on">
+      <input id="authSignupUsername" type="text" placeholder="Username" autocomplete="username" />
+      <input id="authSignupEmail" type="email" placeholder="Email" autocomplete="email" />
+      <input id="authSignupPassword" type="password" placeholder="Password (min 8 chars)" autocomplete="new-password" />
+      <button id="authSignupBtn" type="submit" class="primary">Create account</button>
+    </form>
+  </div>
+</div>
 <div class="page">
   <!-- TOP BAR -->
   <div class="card topbar">
@@ -1540,6 +1637,10 @@ let audioDeviceChangeTimer = null;
 let lastAudioDeviceId = "";
 const AUDIO_INPUT_PREF_KEY = "centaur_audio_input_v1";
 let preferredAudioInputId = String(localStorage.getItem(AUDIO_INPUT_PREF_KEY) || "");
+const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
+let authToken = String(localStorage.getItem(AUTH_TOKEN_KEY) || "");
+let authUser = null;
+let appBootstrapped = false;
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1596,6 +1697,19 @@ const macroPanel = document.getElementById("macroPanel");
 const macroCloseBtn = document.getElementById("macroCloseBtn");
 const macroAddBtn = document.getElementById("macroAddBtn");
 const macroPickerSelect = document.getElementById("macroPickerSelect");
+
+// Auth UI refs
+const authOverlay = document.getElementById("authOverlay");
+const authTabLogin = document.getElementById("authTabLogin");
+const authTabSignup = document.getElementById("authTabSignup");
+const authLoginForm = document.getElementById("authLoginForm");
+const authSignupForm = document.getElementById("authSignupForm");
+const authLoginUsername = document.getElementById("authLoginUsername");
+const authLoginPassword = document.getElementById("authLoginPassword");
+const authSignupUsername = document.getElementById("authSignupUsername");
+const authSignupEmail = document.getElementById("authSignupEmail");
+const authSignupPassword = document.getElementById("authSignupPassword");
+const authError = document.getElementById("authError");
 const macroEditBtn = document.getElementById("macroEditBtn");
 const macroDeleteBtn = document.getElementById("macroDeleteBtn");
 const macroNameInput = document.getElementById("macroNameInput");
@@ -3100,10 +3214,89 @@ function looksLikeEmrPaste(text) {
 }
 
 // -------------------------
+// Auth
+// -------------------------
+function authHeaders() {
+  return authToken ? { "Authorization": `Bearer ${authToken}` } : {};
+}
+function setAuthToken(token) {
+  authToken = String(token || "");
+  if (authToken) localStorage.setItem(AUTH_TOKEN_KEY, authToken);
+  else localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+function clearAuthToken() {
+  setAuthToken("");
+  authUser = null;
+}
+function showAuthError(msg) {
+  if (!authError) return;
+  authError.textContent = msg || "Login failed.";
+  authError.style.display = msg ? "block" : "none";
+}
+function setAuthMode(mode) {
+  const isLogin = mode === "login";
+  authTabLogin?.classList.toggle("active", isLogin);
+  authTabSignup?.classList.toggle("active", !isLogin);
+  authLoginForm?.classList.toggle("active", isLogin);
+  authSignupForm?.classList.toggle("active", !isLogin);
+  showAuthError("");
+  if (isLogin) authLoginUsername?.focus();
+  else authSignupUsername?.focus();
+}
+function showAuthOverlay(mode="login") {
+  if (authOverlay) authOverlay.style.display = "flex";
+  setAuthMode(mode);
+}
+function hideAuthOverlay() {
+  if (authOverlay) authOverlay.style.display = "none";
+  showAuthError("");
+}
+function handleAuthRequired() {
+  clearAuthToken();
+  showAuthOverlay("login");
+}
+async function ensureAuth() {
+  if (!authToken) {
+    showAuthOverlay("login");
+    return false;
+  }
+  try {
+    const me = await apiGet("/auth/me");
+    authUser = me?.user || null;
+    if (!authUser) throw new Error("No user.");
+    hideAuthOverlay();
+    return true;
+  } catch {
+    handleAuthRequired();
+    return false;
+  }
+}
+async function bootstrapApp() {
+  if (appBootstrapped) return;
+  appBootstrapped = true;
+
+  await createSession();
+  startCoachPolling();
+  renderDraft();
+  await initMacros();
+
+  snapshotPanel.textContent = snapshotPanel.textContent || "";
+  coachPanel.textContent = coachPanel.textContent || "";
+
+  await loadBillingFromServer();
+
+  logChat("System", "Centaur Web ready.");
+}
+
+// -------------------------
 // API wrappers
 // -------------------------
 async function apiGet(path) {
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "GET" });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "GET", headers: { ...authHeaders() } });
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return await res.json();
 }
@@ -3111,10 +3304,16 @@ async function apiPost(path, bodyObj) {
   const hasBody = !(bodyObj === undefined || bodyObj === null);
   const opts = { method: "POST" };
   if (hasBody) {
-    opts.headers = { "Content-Type": "application/json" };
+    opts.headers = { "Content-Type": "application/json", ...authHeaders() };
     opts.body = JSON.stringify(bodyObj);
+  } else {
+    opts.headers = { ...authHeaders() };
   }
   const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) {
     let detail = "";
     try {
@@ -3136,10 +3335,16 @@ async function apiPut(path, bodyObj) {
   const hasBody = !(bodyObj === undefined || bodyObj === null);
   const opts = { method: "PUT" };
   if (hasBody) {
-    opts.headers = { "Content-Type": "application/json" };
+    opts.headers = { "Content-Type": "application/json", ...authHeaders() };
     opts.body = JSON.stringify(bodyObj);
+  } else {
+    opts.headers = { ...authHeaders() };
   }
   const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) {
     let detail = "";
     try {
@@ -3158,7 +3363,11 @@ async function apiPut(path, bodyObj) {
   try { return JSON.parse(txt); } catch { return { raw: txt }; }
 }
 async function apiPostForm(path, formData) {
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "POST", body: formData });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "POST", body: formData, headers: { ...authHeaders() } });
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) {
     const t = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
@@ -3170,10 +3379,16 @@ async function apiPostStreamNDJSON(path, bodyObj, onChunk) {
   const hasBody = !(bodyObj === undefined || bodyObj === null);
   const opts = { method: "POST" };
   if (hasBody) {
-    opts.headers = { "Content-Type": "application/json" };
+    opts.headers = { "Content-Type": "application/json", ...authHeaders() };
     opts.body = JSON.stringify(bodyObj);
+  } else {
+    opts.headers = { ...authHeaders() };
   }
   const res = await fetchWithTimeout(`${API_BASE}${path}`, opts);
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) {
     let detail = "";
     try {
@@ -3220,7 +3435,11 @@ async function apiPostStreamNDJSON(path, bodyObj, onChunk) {
   return meta || {};
 }
 async function apiDelete(path) {
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "DELETE" });
+  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "DELETE", headers: { ...authHeaders() } });
+  if (res.status === 401) {
+    handleAuthRequired();
+    throw new Error("401 Unauthorized");
+  }
   if (!res.ok) {
     const t = await res.text().catch(() => "");
     throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
@@ -3528,7 +3747,8 @@ async function uploadAudioBlob(blob) {
 
   const res = await fetchWithTimeout(`${API_BASE}/transcribe_chunk?session_id=${sessionId}`, {
     method: "POST",
-    body: fd
+    body: fd,
+    headers: { ...authHeaders() }
   });
 
   if (!res.ok) {
@@ -4245,6 +4465,48 @@ async function printBillingList() {
 // -------------------------
 // UI wiring
 // -------------------------
+authTabLogin?.addEventListener("click", () => setAuthMode("login"));
+authTabSignup?.addEventListener("click", () => setAuthMode("signup"));
+authLoginForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = (authLoginUsername?.value || "").trim();
+  const password = authLoginPassword?.value || "";
+  if (!username || !password) {
+    showAuthError("Enter username and password.");
+    return;
+  }
+  try {
+    const data = await apiPost("/auth/login", { username, password });
+    setAuthToken(data?.token || "");
+    authUser = data?.user || null;
+    if (authLoginPassword) authLoginPassword.value = "";
+    hideAuthOverlay();
+    await bootstrapApp();
+  } catch (err) {
+    showAuthError(err?.message || "Login failed.");
+  }
+});
+authSignupForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const username = (authSignupUsername?.value || "").trim();
+  const email = (authSignupEmail?.value || "").trim();
+  const password = authSignupPassword?.value || "";
+  if (!username || !email || !password) {
+    showAuthError("Enter username, email, and password.");
+    return;
+  }
+  try {
+    const data = await apiPost("/auth/signup", { username, email, password });
+    setAuthToken(data?.token || "");
+    authUser = data?.user || null;
+    if (authSignupPassword) authSignupPassword.value = "";
+    hideAuthOverlay();
+    await bootstrapApp();
+  } catch (err) {
+    showAuthError(err?.message || "Sign up failed.");
+  }
+});
+
 menuBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -4564,17 +4826,10 @@ window.addEventListener("beforeunload", () => {
     initTheme();
     try { await refreshAudioInputs(); } catch {}
 
-    await createSession();
-    startCoachPolling();
-    renderDraft();
-    await initMacros();
-
-    snapshotPanel.textContent = snapshotPanel.textContent || "";
-    coachPanel.textContent = coachPanel.textContent || "";
-
-    await loadBillingFromServer();
-
-    logChat("System", "Centaur Web ready.");
+    const authed = await ensureAuth();
+    if (authed) {
+      await bootstrapApp();
+    }
   } catch (err) {
     uiError("Init", err);
   }
