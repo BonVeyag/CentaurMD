@@ -546,6 +546,23 @@ input[type="text"]:focus-visible{
 .seg button.active{
   background: color-mix(in oklab, rgba(37,99,235,.18) 92%, transparent);
 }
+.cq-mode{
+  display:flex;
+  gap:6px;
+  padding:2px;
+}
+.cq-mode button{
+  font-size:12px;
+  min-height:26px;
+  padding:4px 10px;
+}
+.cq-mode button.active{
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
 .pop-help{
   font-size:12px;
   color: var(--muted);
@@ -1497,7 +1514,10 @@ textarea::-webkit-scrollbar-track{
           <div class="headline">Clinical Query</div>
         </div>
         <div class="eyebrow">
-          <span class="status-pill" id="cq_state" style="display:none">READY</span>
+          <div class="seg cq-mode" role="group" aria-label="Clinical Query mode">
+            <button id="cqModeFastBtn" type="button">Fast</button>
+            <button id="cqModeThinkBtn" type="button">Thinking</button>
+          </div>
         </div>
       </div>
 
@@ -1729,6 +1749,8 @@ let billingArchiveCurrent = "";
 let billingArchiveCurrentMeta = null;
 let hasBilledCurrentPatient = false;
 let wakeLockSentinel = null;
+const CQ_MODE_KEY = "centaur_cq_mode_v1";
+let cqMode = String(localStorage.getItem(CQ_MODE_KEY) || "fast").toLowerCase();
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1806,6 +1828,10 @@ const signOutBtn = document.getElementById("signOutBtn");
 const reviewBillingBtn = document.getElementById("reviewBillingBtn");
 const personalizationBtn = document.getElementById("personalizationBtn");
 const coachReportBtn = document.getElementById("coachReportBtn");
+
+// Clinical Query mode refs
+const cqModeFastBtn = document.getElementById("cqModeFastBtn");
+const cqModeThinkBtn = document.getElementById("cqModeThinkBtn");
 
 // Billing archive refs
 const billingArchiveOverlay = document.getElementById("billingArchiveOverlay");
