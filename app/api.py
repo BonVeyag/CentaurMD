@@ -1582,14 +1582,12 @@ def _generate_icd9_and_billing_lines(
     """
     transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
     transcript_ok = _has_meaningful_transcript_for_billing(context)
-    fallback_used = False
 
     fallback_source = ""
     if not transcript_ok:
         fallback_source = _extract_last_dated_emr_entry(context)
         if not fallback_source:
-            return "", ""
-        fallback_used = True
+            return "ICD-9: ", ""
 
     source_text = transcript if transcript_ok else fallback_source
     source_clip = _clip_text(source_text, 5200)
@@ -1663,26 +1661,23 @@ NOTES:
         raw = (resp.choices[0].message.content or "").strip()
     except Exception as e:
         logger.warning(f"Billing OpenAI call failed: {e}")
-        return "", ""
+        raw = ""
 
     try:
         data = json.loads(_strip_code_fences(raw))
         if not isinstance(data, dict):
-            return "", ""
+            data = {}
     except Exception:
-        return "", ""
+        data = {}
 
     # ICD-9 line
-    icd_parts = _extract_icd9_parts(data.get("icd9") or [])
-    if not icd_parts:
-        icd_parts = _extract_icd9_from_text_direct(source_text)
-    if not icd_parts and fallback_used:
-        icd_parts = _fetch_icd9_parts_from_source(source_clip, source_label, ref_text)
-    if not icd_parts and fallback_used:
-        emr_full = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
-        icd_parts = _extract_icd9_from_text_direct(emr_full)
+    icd_parts: List[str] = []
+    if transcript_ok:
+        icd_parts = _extract_icd9_parts(data.get("icd9") or [])
+        if not icd_parts:
+            icd_parts = _extract_icd9_from_text_direct(transcript)
 
-    line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else ""
+    line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: "
 
     # Billing line
     billing = data.get("billing") or {}
