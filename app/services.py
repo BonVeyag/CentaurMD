@@ -1775,7 +1775,8 @@ def run_clinical_query(
 
     q_lower = (query or "").lower()
     expand = ("expand" in q_lower) or (mode == "expand")
-    descriptive = is_descriptive_query(query)
+    format_hint, force_descriptive = _infer_query_format(query)
+    descriptive = is_descriptive_query(query) or force_descriptive
 
     web_context = ""
     if WEB_SEARCH_ENABLED:
@@ -1791,6 +1792,7 @@ def run_clinical_query(
         query=query,
         expand=expand,
         descriptive=descriptive,
+        format_hint=format_hint,
         attachments_text=attachments_text,
         attachments=attachments,
         web_context=web_context,
@@ -1875,7 +1877,8 @@ def run_clinical_query_stream(
 
     q_lower = (query or "").lower()
     expand = ("expand" in q_lower) or (mode == "expand")
-    descriptive = is_descriptive_query(query)
+    format_hint, force_descriptive = _infer_query_format(query)
+    descriptive = is_descriptive_query(query) or force_descriptive
 
     web_context = ""
     if WEB_SEARCH_ENABLED:
@@ -1891,6 +1894,7 @@ def run_clinical_query_stream(
         query=query,
         expand=expand,
         descriptive=descriptive,
+        format_hint=format_hint,
         attachments_text=attachments_text,
         attachments=attachments,
         web_context=web_context,
