@@ -4945,7 +4945,8 @@ ${transcript || "[none]"}`;
 // BILLING (SIMPLIFIED)
 // -------------------------
 const DAILY_BILLING_TEXT_LS_PREFIX = "centaur_daily_billing_text_v1:";
-const BILLING_MODEL_KEY = "centaur_billing_model_v1";
+const BILLING_MODEL_KEY_PREFIX = "centaur_billing_model_v1:";
+let billingAutosaveTimer = null;
 
 function todayStrLocal() {
   const d = new Date();
@@ -4954,7 +4955,9 @@ function todayStrLocal() {
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
 }
-function billingTextKeyToday(){ return `${DAILY_BILLING_TEXT_LS_PREFIX}${todayStrLocal()}`; }
+function billingUserKey(){ return String(authUser?.username || "anon"); }
+function billingTextKeyToday(){ return `${DAILY_BILLING_TEXT_LS_PREFIX}${billingUserKey()}:${todayStrLocal()}`; }
+function billingModelKey(){ return `${BILLING_MODEL_KEY_PREFIX}${billingUserKey()}`; }
 
 function normalizeBillingModel(val){
   return (String(val || "").toUpperCase() === "PCPCM") ? "PCPCM" : "FFS";
@@ -4963,11 +4966,11 @@ function syncBillingDate(){
   if (billingDateEl) billingDateEl.textContent = todayStrLocal();
 }
 function getBillingModelPref(){
-  return normalizeBillingModel(localStorage.getItem(BILLING_MODEL_KEY) || "FFS");
+  return normalizeBillingModel(localStorage.getItem(billingModelKey()) || "FFS");
 }
 function setBillingModelPref(val){
   const norm = normalizeBillingModel(val);
-  localStorage.setItem(BILLING_MODEL_KEY, norm);
+  localStorage.setItem(billingModelKey(), norm);
   if (billingModelSelect) billingModelSelect.value = norm;
   return norm;
 }
@@ -5005,8 +5008,14 @@ async function loadBillingFromServer() {
   try {
     const data = await apiGet(`/billing/today`);
     const serverText = String(data?.billing_text || "");
-    dailyBillingText.value = serverText;
-    try { localStorage.setItem(billingTextKeyToday(), serverText); } catch {}
+    const localText = String(localStorage.getItem(billingTextKeyToday()) || "");
+    if (!serverText.trim() && localText.trim()) {
+      dailyBillingText.value = localText;
+      try { await saveBillingToServer(); } catch {}
+    } else {
+      dailyBillingText.value = serverText;
+      try { localStorage.setItem(billingTextKeyToday(), serverText); } catch {}
+    }
     const serverModel = normalizeBillingModel(data?.billing_model || "");
     setBillingModelPref(serverModel);
     syncBillingDate();
@@ -5024,6 +5033,13 @@ async function saveBillingToLocal() {
 async function saveBillingToServer() {
   const billing_text = dailyBillingText.value || "";
   await apiPost(`/billing/save`, { billing_text, billing_model: getSelectedBillingModel() });
+}
+
+function scheduleBillingAutosave() {
+  clearTimeout(billingAutosaveTimer);
+  billingAutosaveTimer = setTimeout(async () => {
+    try { await saveBillingToServer(); } catch {}
+  }, 900);
 }
 
 async function billNow() {
@@ -5407,7 +5423,8 @@ referralBtn.addEventListener("click", async () => { await runWithButtonBusy(refe
 // Billing wiring (SIMPLIFIED)
 // -------------------------
 dailyBillingText.addEventListener("input", () => {
-  try { localStorage.setItem(billingTextKeyToday(), dailyBillingText.value || ""); } catch {}
+  try { saveBillingToLocal(); } catch {}
+  scheduleBillingAutosave();
 });
 
 billingModelSelect?.addEventListener("change", async () => {
@@ -5448,6 +5465,7 @@ printBillingBtn.addEventListener("click", async () => {
 // Best-effort cleanup
 window.addEventListener("beforeunload", () => {
   try { stopRecording(); } catch {}
+  try { saveBillingToLocal(); } catch {}
   try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
 });
 

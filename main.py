@@ -35,17 +35,14 @@ def ping():
 
 @app.on_event("startup")
 def startup_event():
-    # Option A: in-memory billing state lives inside api.py (process memory).
-    # This confirms startup, but does not persist billing across restarts.
-    logger.info("CentaurWeb backend started (billing: in-memory Option A)")
+    # Billing state is persisted per-user on disk in api.py.
+    logger.info("CentaurWeb backend started (billing: per-user persisted)")
     _auto_commit_on_reload()
 
 
 @app.on_event("shutdown")
 def shutdown_event():
-    # Option A behavior: all in-memory state (including any billing day state)
-    # will be lost on restart/shutdown.
-    logger.info("CentaurWeb backend stopped (billing: in-memory state cleared)")
+    logger.info("CentaurWeb backend stopped")
 
 
 # ======================
