@@ -1022,7 +1022,7 @@ def delete_macro(macro_id: str):
 
 class ClinicalQueryPayload(BaseModel):
     query: str
-    mode: str = "brief"
+    mode: str = "expand"
     macro: Optional[str] = None
 
 
