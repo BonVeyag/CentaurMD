@@ -96,14 +96,15 @@ MAX_IMAGE_BYTES_FOR_MODEL = 2 * 1024 * 1024  # 2 MB per image after downscale/re
 MAX_IMAGES_FOR_QUERY = 4
 
 # =========================
-# Billing (daily list) in-memory store
+# Billing (daily list) store
 # =========================
 
 EDMONTON_TZ = ZoneInfo("America/Edmonton")
 
 BILLING_LOCK = ThreadLock()
-# Keyed by YYYY-MM-DD (Edmonton local date)
+# Keyed by "{username}:{YYYY-MM-DD}"
 DAILY_BILLING_STORE: Dict[str, Dict[str, Any]] = {}
+#
 # Store shape:
 # {
 #   "date": "YYYY-MM-DD",
@@ -126,24 +127,70 @@ def _today_key_edmonton() -> str:
     return _now_edmonton().date().isoformat()
 
 
-def _init_daily_billing_state_if_missing(day_key: str) -> Dict[str, Any]:
+def _billing_state_key(username: str, day_key: str) -> str:
+    return f"{username}:{day_key}"
+
+
+def _billing_state_path(username: str, day_key: str) -> str:
+    base = _billing_archive_dir(username)
+    return os.path.join(base, f"current_{day_key}.json")
+
+
+def _default_billing_state(day_key: str) -> Dict[str, Any]:
+    return {
+        "date": day_key,
+        "physician": "",
+        "billing_model": "FFS",
+        "billing_text": "",
+        "last_updated_at": _utcnow().isoformat(),
+    }
+
+
+def _load_billing_state_from_disk(username: str, day_key: str) -> Dict[str, Any]:
+    path = _billing_state_path(username, day_key)
+    if not os.path.exists(path):
+        return _default_billing_state(day_key)
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return _default_billing_state(day_key)
+    if not isinstance(data, dict):
+        return _default_billing_state(day_key)
+    data.setdefault("date", day_key)
+    data.setdefault("physician", "")
+    data.setdefault("billing_model", "FFS")
+    data.setdefault("billing_text", "")
+    data.setdefault("last_updated_at", _utcnow().isoformat())
+    return data
+
+
+def _persist_billing_state(username: str, st: Dict[str, Any]) -> None:
+    day_key = str(st.get("date") or _today_key_edmonton())
+    path = _billing_state_path(username, day_key)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(st, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def _init_daily_billing_state_if_missing(username: str, day_key: str) -> Dict[str, Any]:
+    key = _billing_state_key(username, day_key)
     with BILLING_LOCK:
-        st = DAILY_BILLING_STORE.get(day_key)
-        if st is None:
-            st = {
-                "date": day_key,
-                "physician": "",
-                "billing_model": "FFS",
-                "billing_text": "",
-                "last_updated_at": _utcnow().isoformat(),
-            }
-            DAILY_BILLING_STORE[day_key] = st
+        st = DAILY_BILLING_STORE.get(key)
+        if st is not None:
+            return st
+    st = _load_billing_state_from_disk(username, day_key)
+    with BILLING_LOCK:
+        DAILY_BILLING_STORE[key] = st
         return st
 
 
-def _touch_billing_state(st: Dict[str, Any]) -> None:
+def _touch_billing_state(username: str, st: Dict[str, Any]) -> None:
     try:
         st["last_updated_at"] = _utcnow().isoformat()
+        _persist_billing_state(username, st)
     except Exception:
         pass
 
