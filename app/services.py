@@ -1862,6 +1862,31 @@ def run_clinical_query(
         else:
             candidates = _unique_models([model, CLINICAL_QUERY_THINK_MODEL])
 
+    def _unique_models(models: List[str]) -> List[str]:
+        seen = set()
+        out: List[str] = []
+        for m in models:
+            m = (m or "").strip()
+            if not m or m in seen:
+                continue
+            seen.add(m)
+            out.append(m)
+        return out
+
+    if has_images:
+        candidates = _unique_models([model, CLINICAL_QUERY_VISION_FAST_MODEL, CLINICAL_QUERY_VISION_MODEL])
+    else:
+        if fast_mode:
+            candidates = _unique_models([
+                model,
+                CLINICAL_QUERY_FAST_MODEL,
+                "gpt-5-mini",
+                "gpt-4.1-mini",
+                CLINICAL_QUERY_THINK_MODEL,
+            ])
+        else:
+            candidates = _unique_models([model, CLINICAL_QUERY_THINK_MODEL])
+
     system_msg = (
         "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
         "Conservative Alberta-appropriate advice. "
@@ -1998,47 +2023,54 @@ def run_clinical_query_stream(
     if temperature is not None:
         base_kwargs["temperature"] = temperature
 
-    try:
-        response = client.chat.completions.create(
-            **base_kwargs,
-            response_format={"type": "json_object"},
-            stream=True,
-        )
+    for cand in candidates:
+        try:
+            base_kwargs["model"] = cand
+            response = client.chat.completions.create(
+                **base_kwargs,
+                response_format={"type": "json_object"},
+                stream=True,
+            )
 
-        for chunk in response:
-            try:
-                delta = chunk.choices[0].delta
-                piece = getattr(delta, "content", None)
-            except Exception:
-                piece = None
-            if piece:
-                yield piece
-        return
-    except Exception:
-        pass
+            for chunk in response:
+                try:
+                    delta = chunk.choices[0].delta
+                    piece = getattr(delta, "content", None)
+                except Exception:
+                    piece = None
+                if piece:
+                    yield piece
+            return
+        except Exception:
+            continue
 
-    try:
-        response = client.chat.completions.create(
-            **base_kwargs,
-            stream=True,
-        )
-        for chunk in response:
-            try:
-                delta = chunk.choices[0].delta
-                piece = getattr(delta, "content", None)
-            except Exception:
-                piece = None
-            if piece:
-                yield piece
-    except Exception:
-        # Final fallback: return non-streaming output as a single chunk
-        yield run_clinical_query(
-            context=context,
-            query=query,
-            mode=mode,
-            attachments_text=attachments_text,
-            attachments=attachments,
-        )
+    for cand in candidates:
+        try:
+            base_kwargs["model"] = cand
+            response = client.chat.completions.create(
+                **base_kwargs,
+                stream=True,
+            )
+            for chunk in response:
+                try:
+                    delta = chunk.choices[0].delta
+                    piece = getattr(delta, "content", None)
+                except Exception:
+                    piece = None
+                if piece:
+                    yield piece
+            return
+        except Exception:
+            continue
+
+    # Final fallback: return non-streaming output as a single chunk
+    yield run_clinical_query(
+        context=context,
+        query=query,
+        mode=mode,
+        attachments_text=attachments_text,
+        attachments=attachments,
+    )
 
 # =========================
 # Patient Summary (EMR-only)
