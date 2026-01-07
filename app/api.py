@@ -2188,3 +2188,15 @@ def update_billing_archive(filename: str, payload: BillingArchiveUpdatePayload, 
         "saved_at_local": dt_local.isoformat(),
         "saved_at_utc": dt_utc.isoformat(),
     }
+
+
+@router.delete("/billing/archives/{filename}")
+def delete_billing_archive(filename: str, user: AuthUser = Depends(require_user)):
+    path = _safe_billing_archive_path(user.username, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Billing archive not found.")
+    try:
+        os.remove(path)
+    except Exception:
+        raise HTTPException(status_code=500, detail="Failed to delete billing archive.")
+    return {"deleted": True, "filename": filename}
