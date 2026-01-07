@@ -29,8 +29,12 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Model selection
 # =========================
 CLINICAL_QUERY_TEXT_MODEL = "gpt-5.2"
+# Fast/Think toggles for Clinical Query
+CLINICAL_QUERY_FAST_MODEL = os.getenv("CLINICAL_QUERY_FAST_MODEL", "gpt-5-mini")
+CLINICAL_QUERY_THINK_MODEL = os.getenv("CLINICAL_QUERY_THINK_MODEL", CLINICAL_QUERY_TEXT_MODEL)
 # If GPT-5.2 vision is not available, set to "gpt-4o-mini"
 CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5.2")
+CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL", "gpt-4o-mini")
 
 # Patient summary model
 PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-4.1-mini")
@@ -1774,7 +1778,10 @@ def run_clinical_query(
     _hydrate_identifiers_best_effort(context)
 
     q_lower = (query or "").lower()
-    expand = ("expand" in q_lower) or (mode == "expand")
+    mode_norm = (mode or "").strip().lower()
+    fast_mode = mode_norm == "fast"
+    think_mode = mode_norm in ("think", "thinking")
+    expand = ("expand" in q_lower) or (mode_norm in ("expand", "think", "thinking"))
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
 
@@ -1810,7 +1817,9 @@ def run_clinical_query(
                 break
 
     user_content = _build_multimodal_user_content(prompt, attachments if has_images else None)
-    model = CLINICAL_QUERY_VISION_MODEL if (has_images and isinstance(user_content, list)) else CLINICAL_QUERY_TEXT_MODEL
+    text_model = CLINICAL_QUERY_FAST_MODEL if fast_mode else CLINICAL_QUERY_THINK_MODEL
+    vision_model = CLINICAL_QUERY_VISION_FAST_MODEL if fast_mode else CLINICAL_QUERY_VISION_MODEL
+    model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
     system_msg = (
         "Conservative Alberta-appropriate advice. "
@@ -1876,7 +1885,10 @@ def run_clinical_query_stream(
     _hydrate_identifiers_best_effort(context)
 
     q_lower = (query or "").lower()
-    expand = ("expand" in q_lower) or (mode == "expand")
+    mode_norm = (mode or "").strip().lower()
+    fast_mode = mode_norm == "fast"
+    think_mode = mode_norm in ("think", "thinking")
+    expand = ("expand" in q_lower) or (mode_norm in ("expand", "think", "thinking"))
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
 
@@ -1912,7 +1924,9 @@ def run_clinical_query_stream(
                 break
 
     user_content = _build_multimodal_user_content(prompt, attachments if has_images else None)
-    model = CLINICAL_QUERY_VISION_MODEL if (has_images and isinstance(user_content, list)) else CLINICAL_QUERY_TEXT_MODEL
+    text_model = CLINICAL_QUERY_FAST_MODEL if fast_mode else CLINICAL_QUERY_THINK_MODEL
+    vision_model = CLINICAL_QUERY_VISION_FAST_MODEL if fast_mode else CLINICAL_QUERY_VISION_MODEL
+    model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
     system_msg = (
         "Conservative Alberta-appropriate advice. "
