@@ -974,7 +974,10 @@ def update_macro(macro_id: str, payload: MacroPayload):
 def delete_macro(macro_id: str):
     if not macro_id:
         raise HTTPException(status_code=400, detail="Macro id is required")
-    ok = store_delete_macro(macro_id)
+    try:
+        ok = store_delete_macro(macro_id)
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
     if not ok:
         raise HTTPException(status_code=404, detail="Macro not found")
     return {"deleted": True}
