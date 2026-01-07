@@ -18,6 +18,56 @@ ENV_STORE_PATH = "CENTAUR_MACRO_STORE_PATH"
 
 _LOCK = threading.Lock()
 
+SYSTEM_MACRO_IDS = {
+    "SOAP": "system:soap",
+    "REFERRAL": "system:referral",
+}
+
+DEFAULT_SOAP_TEMPLATE = """You are a Canadian family medicine clinical documentation assistant.
+
+Jurisdiction: Alberta, Canada.
+
+FORMATTING RULES:
+- Bold section titles
+- No bullets
+- One blank line between sections
+- Do NOT invent information
+
+SECTIONS:
+Issues
+Subjective
+Safety / red flags
+Objective
+Assessment
+Plan
+
+CLINICAL BACKGROUND:
+{{EMR}}
+
+VISIT TRANSCRIPT:
+{{TRANSCRIPT}}
+
+Generate the SOAP note now.
+""".strip()
+
+DEFAULT_REFERRAL_TEMPLATE = """Write a referral letter in Canadian/Alberta style.
+Mandatory formatting:
+- Start the letter body with: "Dear Colleague,"
+- Use clear headings and short paragraphs.
+- End the letter with exactly:
+  Sincerely,
+  (and DO NOT include any clinician name or credentials after Sincerely.)
+Content requirements:
+- Include: reason for referral, focused HPI, pertinent PMHx, meds/allergies if available, relevant exam/labs/imaging, what has been tried, specific question(s) for the consultant, urgency, and follow-up plan.
+- If key details are missing, leave placeholders like [Consultant Name], [Clinic], [Fax], [Patient Name], [DOB], [PHN].
+Extra instructions (if any):
+{{EXTRA}}
+Background/EMR (if any):
+{{EMR}}
+Live transcript:
+{{TRANSCRIPT}}
+""".strip()
+
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -62,6 +112,7 @@ class MacroEntry:
     content: str
     created_at_utc: str
     updated_at_utc: str
+    locked: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -82,6 +133,7 @@ def _load_entries() -> List[MacroEntry]:
         content = _clean_str(item.get("content"))
         created_at_utc = _clean_str(item.get("created_at_utc"))
         updated_at_utc = _clean_str(item.get("updated_at_utc"))
+        locked = bool(item.get("locked", False))
         if not mid or not name or not content:
             continue
         if not created_at_utc:
@@ -95,6 +147,7 @@ def _load_entries() -> List[MacroEntry]:
                 content=content,
                 created_at_utc=created_at_utc,
                 updated_at_utc=updated_at_utc,
+                locked=locked,
             )
         )
     return out
@@ -106,9 +159,65 @@ def _save_entries(entries: List[MacroEntry]) -> None:
     _safe_json_write(path, payload)
 
 
+def _find_by_name(entries: List[MacroEntry], name: str) -> Optional[MacroEntry]:
+    target = (name or "").strip().lower()
+    if not target:
+        return None
+    for e in entries:
+        if e.name.strip().lower() == target:
+            return e
+    return None
+
+
+def _ensure_defaults(entries: List[MacroEntry]) -> List[MacroEntry]:
+    now = _utcnow_iso()
+
+    soap_entry = _find_by_name(entries, "SOAP")
+    if soap_entry:
+        if not soap_entry.locked:
+            soap_entry.locked = True
+        if not soap_entry.content:
+            soap_entry.content = DEFAULT_SOAP_TEMPLATE
+        soap_entry.updated_at_utc = now
+    else:
+        entries.append(
+            MacroEntry(
+                id=SYSTEM_MACRO_IDS["SOAP"],
+                name="SOAP",
+                content=DEFAULT_SOAP_TEMPLATE,
+                created_at_utc=now,
+                updated_at_utc=now,
+                locked=True,
+            )
+        )
+
+    referral_entry = _find_by_name(entries, "Referral")
+    if referral_entry:
+        if not referral_entry.locked:
+            referral_entry.locked = True
+        if not referral_entry.content:
+            referral_entry.content = DEFAULT_REFERRAL_TEMPLATE
+        referral_entry.updated_at_utc = now
+    else:
+        entries.append(
+            MacroEntry(
+                id=SYSTEM_MACRO_IDS["REFERRAL"],
+                name="Referral",
+                content=DEFAULT_REFERRAL_TEMPLATE,
+                created_at_utc=now,
+                updated_at_utc=now,
+                locked=True,
+            )
+        )
+
+    return entries
+
+
 def list_macros() -> List[Dict[str, Any]]:
     with _LOCK:
         entries = _load_entries()
+        entries = _ensure_defaults(entries)
+        _save_entries(entries)
     entries.sort(key=lambda m: m.updated_at_utc, reverse=True)
     return [e.to_dict() for e in entries]
 
@@ -121,6 +230,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
 
     with _LOCK:
         entries = _load_entries()
+        entries = _ensure_defaults(entries)
         now = _utcnow_iso()
         mid = _clean_str(macro_id) or str(uuid4())
         existing = None
@@ -137,6 +247,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
                 content=content,
                 created_at_utc=e.created_at_utc,
                 updated_at_utc=now,
+                locked=e.locked,
             )
             entries[idx] = updated
             _save_entries(entries)
@@ -148,6 +259,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
             content=content,
             created_at_utc=now,
             updated_at_utc=now,
+            locked=False,
         )
         entries.append(created)
         _save_entries(entries)
@@ -160,6 +272,10 @@ def delete_macro(macro_id: str) -> bool:
         return False
     with _LOCK:
         entries = _load_entries()
+        entries = _ensure_defaults(entries)
+        for e in entries:
+            if e.id == mid and e.locked:
+                raise ValueError("Macro is locked and cannot be deleted")
         kept = [e for e in entries if e.id != mid]
         if len(kept) == len(entries):
             return False
