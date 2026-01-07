@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from app.api import router
+from app.api import router as api_router
+from app.auth import router as auth_router, require_user
 import logging
 import os
 import subprocess
@@ -50,7 +51,8 @@ def shutdown_event():
 # ======================
 # API ROUTES (MUST COME FIRST)
 # ======================
-app.include_router(router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(api_router, prefix="/api", dependencies=[Depends(require_user)])
 
 # ======================
 # FRONTEND

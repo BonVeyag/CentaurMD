@@ -3064,10 +3064,39 @@ chatLog.addEventListener("scroll", () => {
 
 function looksLikeEmrPaste(text) {
   const t = (text || "").trim();
-  if (t.length < 200) return false;
-  const k = ["phn", "dob", "med", "meds", "allerg", "pmhx", "hx", "history", "diagnos", "dx", "immun", "plan", "assessment", "problem list"];
+  if (t.length < 240) return false;
   const tl = t.toLowerCase();
-  return k.some(x => tl.includes(x));
+  const lineCount = t.split(/\n/).filter(l => l.trim()).length;
+
+  const phnHit = /(?:^|\n)\s*(?:phn|uli|personal health number)\b/i.test(t) || /\b\d{9,10}\s*\|\s*ab\b/i.test(t);
+  const demoHit = /\b(dob|date of birth|age|yr old|years old|sex|gender|mrn|address|postal|phone)\b/i.test(t);
+  const uiHit = /\b(dashboard|scheduler|bills|tasks|consults|patient notes|vitals|patient lists|ava connect|health profile|clinical notes)\b/i.test(tl);
+
+  const sections = [
+    "medications", "allerg", "problem list", "diagnos", "assessment", "plan",
+    "subjective", "objective", "family hx", "social history", "immun", "vaccin",
+    "labs", "investigations", "imaging", "consults", "notes"
+  ];
+  let sectionHits = 0;
+  for (const k of sections) {
+    if (tl.includes(k)) sectionHits += 1;
+  }
+
+  const dateLines = (t.match(/^\s*\d{4}[-/](?:\d{1,2}|[A-Za-z]{3,9})[-/]\d{1,2}\b/gm) || []).length;
+  const imagingReport = /\b(impression|findings|technique|comparison|exam|clinical (history|indication)|indication)\s*:/i.test(t);
+
+  let score = 0;
+  if (phnHit) score += 3;
+  if (uiHit) score += 3;
+  if (demoHit) score += 1;
+  if (sectionHits >= 3) score += 3;
+  else if (sectionHits >= 2) score += 2;
+  else if (sectionHits === 1) score += 1;
+  if (dateLines >= 2) score += 1;
+  if (lineCount >= 12) score += 1;
+
+  if (imagingReport && score < 4) return false;
+  return score >= 4;
 }
 
 // -------------------------
