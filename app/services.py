@@ -1881,6 +1881,7 @@ def run_clinical_query(
             candidates = _unique_models([
                 model,
                 CLINICAL_QUERY_FAST_MODEL,
+                "gpt-4o-mini",
                 "gpt-5-mini",
                 "gpt-4.1-mini",
                 CLINICAL_QUERY_THINK_MODEL,
