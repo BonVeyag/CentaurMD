@@ -148,6 +148,38 @@ def _touch_billing_state(st: Dict[str, Any]) -> None:
         pass
 
 
+def _billing_archive_dir(username: str) -> str:
+    return user_billing_dir(username)
+
+
+def _safe_billing_archive_path(username: str, filename: str) -> str:
+    name = (filename or "").strip()
+    if not name or "/" in name or "\\" in name or ".." in name:
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    if not re.match(r"^[A-Za-z0-9._-]+\.txt$", name):
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    base = os.path.abspath(_billing_archive_dir(username))
+    path = os.path.abspath(os.path.join(base, name))
+    if not path.startswith(base + os.sep):
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    return path
+
+
+def _make_billing_archive_filename(base_dir: str, dt_local: datetime) -> str:
+    stem = dt_local.strftime("%Y-%m-%d_%H-%M-%S")
+    filename = f"{stem}.txt"
+    path = os.path.join(base_dir, filename)
+    if not os.path.exists(path):
+        return filename
+    idx = 2
+    while True:
+        filename = f"{stem}_{idx:02d}.txt"
+        path = os.path.join(base_dir, filename)
+        if not os.path.exists(path):
+            return filename
+        idx += 1
+
+
 def _infer_attachment_kind(mime: str) -> str:
     """
     Backward-compatible helper.
