@@ -169,16 +169,20 @@ def _find_by_name(entries: List[MacroEntry], name: str) -> Optional[MacroEntry]:
     return None
 
 
-def _ensure_defaults(entries: List[MacroEntry]) -> List[MacroEntry]:
+def _ensure_defaults(entries: List[MacroEntry]) -> tuple[List[MacroEntry], bool]:
     now = _utcnow_iso()
+    changed = False
 
     soap_entry = _find_by_name(entries, "SOAP")
     if soap_entry:
         if not soap_entry.locked:
             soap_entry.locked = True
+            changed = True
         if not soap_entry.content:
             soap_entry.content = DEFAULT_SOAP_TEMPLATE
-        soap_entry.updated_at_utc = now
+            changed = True
+        if changed:
+            soap_entry.updated_at_utc = now
     else:
         entries.append(
             MacroEntry(
@@ -190,14 +194,18 @@ def _ensure_defaults(entries: List[MacroEntry]) -> List[MacroEntry]:
                 locked=True,
             )
         )
+        changed = True
 
     referral_entry = _find_by_name(entries, "Referral")
     if referral_entry:
         if not referral_entry.locked:
             referral_entry.locked = True
+            changed = True
         if not referral_entry.content:
             referral_entry.content = DEFAULT_REFERRAL_TEMPLATE
-        referral_entry.updated_at_utc = now
+            changed = True
+        if changed:
+            referral_entry.updated_at_utc = now
     else:
         entries.append(
             MacroEntry(
@@ -209,15 +217,17 @@ def _ensure_defaults(entries: List[MacroEntry]) -> List[MacroEntry]:
                 locked=True,
             )
         )
+        changed = True
 
-    return entries
+    return entries, changed
 
 
 def list_macros() -> List[Dict[str, Any]]:
     with _LOCK:
         entries = _load_entries()
-        entries = _ensure_defaults(entries)
-        _save_entries(entries)
+        entries, changed = _ensure_defaults(entries)
+        if changed:
+            _save_entries(entries)
     entries.sort(key=lambda m: m.updated_at_utc, reverse=True)
     return [e.to_dict() for e in entries]
 
@@ -230,7 +240,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
 
     with _LOCK:
         entries = _load_entries()
-        entries = _ensure_defaults(entries)
+        entries, _ = _ensure_defaults(entries)
         now = _utcnow_iso()
         mid = _clean_str(macro_id) or str(uuid4())
         existing = None
@@ -272,7 +282,7 @@ def delete_macro(macro_id: str) -> bool:
         return False
     with _LOCK:
         entries = _load_entries()
-        entries = _ensure_defaults(entries)
+        entries, _ = _ensure_defaults(entries)
         for e in entries:
             if e.id == mid and e.locked:
                 raise ValueError("Macro is locked and cannot be deleted")

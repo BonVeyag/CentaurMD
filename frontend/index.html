@@ -1843,8 +1843,9 @@ function normalizeMacroRecord(m) {
   const content = String(m?.content || "").trim();
   const updatedRaw = m?.updated_at_utc || m?.updatedAt || m?.updated_at || "";
   const updatedAt = updatedRaw ? Date.parse(updatedRaw) || Date.now() : (Number(m?.updatedAt) || Date.now());
+  const locked = Boolean(m?.locked);
   if (!id || !name || !content) return null;
-  return { id, name, content, updatedAt };
+  return { id, name, content, updatedAt, locked };
 }
 
 function loadMacrosFromCache() {
@@ -1924,6 +1925,23 @@ function setEditorValues(macro) {
   macroContentInput.value = macro?.content || "";
 }
 
+function getMacroByName(name) {
+  const target = String(name || "").trim().toLowerCase();
+  if (!target) return null;
+  return macros.find(m => String(m?.name || "").trim().toLowerCase() === target) || null;
+}
+
+function expandMacroTemplate(template, vars) {
+  let out = String(template || "");
+  const rep = vars || {};
+  for (const key of Object.keys(rep)) {
+    const val = (rep[key] == null || String(rep[key]).trim() === "") ? "[none]" : String(rep[key]);
+    const re = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}|\\{\\s*${key}\\s*\\}`, "gi");
+    out = out.replace(re, val);
+  }
+  return out;
+}
+
 function refreshMacroPicker(selectedId="") {
   if (!macroPickerSelect) return;
   const current = selectedId || macroPickerSelect.value || "";
@@ -1939,6 +1957,12 @@ function refreshMacroPicker(selectedId="") {
     macroPickerSelect.appendChild(opt);
   }
   macroPickerSelect.value = macros.some(m => m.id === current) ? current : "";
+  const selected = macros.find(m => m.id === macroPickerSelect.value);
+  if (macroDeleteBtn) {
+    const locked = Boolean(selected?.locked);
+    macroDeleteBtn.disabled = locked;
+    macroDeleteBtn.textContent = locked ? "Locked" : "Delete";
+  }
 }
 
 function startNewMacro() {
@@ -2036,6 +2060,10 @@ async function deleteMacroFromPicker() {
   const target = macros.find(m => m.id === id);
   if (!target) {
     setMacroStatus("Macro not found.", true);
+    return;
+  }
+  if (target.locked) {
+    setMacroStatus("This macro is locked and cannot be deleted.", true);
     return;
   }
   const ok = window.confirm(`Delete macro "${target.name}"?`);
@@ -3813,9 +3841,23 @@ async function generateSoapToChat() {
   try {
     await ensureSession();
     logChat("System", "Generating SOAP…");
-    const data = await apiPost(`/session/${sessionId}/make_soap`);
-    const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
-    const soapText = stripPairedMarkdownEmphasis(soapTextRaw);
+    const macro = getMacroByName("SOAP");
+    let soapText = "";
+    if (macro?.content) {
+      const prompt = expandMacroTemplate(macro.content, {
+        EMR: emrBackgroundText || "[none]",
+        TRANSCRIPT: transcriptBox.value || "[none]",
+        EXTRA: "",
+      });
+      const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "brief", macro: prompt });
+      const rawContent = (data?.response !== undefined) ? data.response : data;
+      const readable = readableFromMaybeJson(rawContent);
+      soapText = stripPairedMarkdownEmphasis(readable);
+    } else {
+      const data = await apiPost(`/session/${sessionId}/make_soap`);
+      const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
+      soapText = stripPairedMarkdownEmphasis(soapTextRaw);
+    }
     logChat("SOAP", soapText);
     await copyRichText(soapText);
     logChat("System", "SOAP copied (rich formatting).");
@@ -3838,7 +3880,16 @@ async function generateReferralToChat() {
     }
 
     logChat("System", "Generating referral letter…");
-    const instruction =
+    const macro = getMacroByName("Referral");
+    let instruction = "";
+    if (macro?.content) {
+      instruction = expandMacroTemplate(macro.content, {
+        EMR: bg || "[none]",
+        TRANSCRIPT: transcript || "[none]",
+        EXTRA: extra || "[none]",
+      });
+    } else {
+      instruction =
 `Write a referral letter in Canadian/Alberta style.
 Mandatory formatting:
 - Start the letter body with: "Dear Colleague,"
@@ -3855,8 +3906,9 @@ Background/EMR (if any):
 ${bg || "[none]"}
 Live transcript:
 ${transcript || "[none]"}`;
+    }
 
-    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: instruction, mode: "brief" });
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "brief", macro: instruction });
     let content = data?.response ?? "";
     let letter = "";
     try {
@@ -4071,7 +4123,20 @@ macroSelect?.addEventListener("change", async () => {
   setSelectedMacroId("");
   if (macroSelect) macroSelect.value = "";
   if (macro?.content) {
-    await sendClinicalQueryWithDraft("", "brief", macro.content);
+    const expanded = expandMacroTemplate(macro.content, {
+      EMR: emrBackgroundText || "[none]",
+      TRANSCRIPT: transcriptBox.value || "[none]",
+      EXTRA: "",
+    });
+    await sendClinicalQueryWithDraft("", "brief", expanded);
+  }
+});
+macroPickerSelect?.addEventListener("change", () => {
+  const selected = macros.find(m => m.id === macroPickerSelect.value);
+  if (macroDeleteBtn) {
+    const locked = Boolean(selected?.locked);
+    macroDeleteBtn.disabled = locked;
+    macroDeleteBtn.textContent = locked ? "Locked" : "Delete";
   }
 });
 
