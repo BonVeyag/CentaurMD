@@ -4275,8 +4275,9 @@ async function handleEmrBackgroundPasteOnly(emrText) {
   setPatientAnchorFromTextBestEffort(emrBackgroundText);
 
   hasAiSummary = false;
-  renderRapidSummary(true);
-  refreshPatientAnchorFromSnapshotPreferred();
+  lastSnapshotHash = "";
+  snapshotPanel.textContent = "";
+  panelUpdatedAt.snapshot = 0;
 
   const sid = sessionId;
   try {
@@ -4285,8 +4286,6 @@ async function handleEmrBackgroundPasteOnly(emrText) {
     // fallback (best-effort storage) without generating an answer
     try { await apiPost(`/session/${sid}/clinical_query`, { query: emrBackgroundText, mode: "background" }); } catch {}
   }
-
-  loadPatientSummaryAI(false);
 }
 
 // -------------------------

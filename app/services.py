@@ -1616,6 +1616,9 @@ DESCRIPTIVE_PATTERNS = [
     r"\bwhat is the patient on\b",
     r"\blist (meds|medications)\b",
     r"\bcurrent medications\b",
+    r"\blist (his|her|their)?\s*(main )?(issues|problems|dx|diagnoses)\b",
+    r"\bmain issues\b",
+    r"\bproblem list\b",
     r"\bwhat is this (pdf|document|file|attachment)\b",
     r"\bwhat does this (pdf|document|file|attachment) say\b",
     r"\bsummarize (this|the) (pdf|document|file|attachment)\b",
@@ -1636,6 +1639,28 @@ def is_descriptive_query(query: str) -> bool:
     return any(re.search(p, q) for p in DESCRIPTIVE_PATTERNS)
 
 
+def _infer_query_format(query: str) -> Tuple[str, bool]:
+    q = (query or "").lower()
+    wants_plan = any(k in q for k in [
+        "plan", "treat", "treatment", "manage", "management",
+        "moving forward", "next step", "next steps", "what to do", "recommend"
+    ])
+    wants_summary = any(k in q for k in ["summarize", "summary", "overview", "snapshot", "brief"])
+    wants_list = any(k in q for k in [
+        "list", "issues", "problem", "problems", "dx", "diagnos", "main issues", "active issues"
+    ])
+
+    if wants_list and not wants_plan and not wants_summary:
+        return "list_only", True
+    if wants_plan and wants_summary:
+        return "summary_and_plan", False
+    if wants_plan:
+        return "plan_only", False
+    if wants_summary:
+        return "summary_only", False
+    return "concise", False
+
+
 CLINICAL_QUERY_MAX_BACKGROUND_CHARS = 12000
 CLINICAL_QUERY_MAX_TRANSCRIPT_CHARS = 9000
 CLINICAL_QUERY_MAX_ATTACHMENTS_CHARS = 12000
@@ -1653,6 +1678,7 @@ def build_clinical_query_prompt(
     query: str,
     expand: bool,
     descriptive: bool,
+    format_hint: str,
     attachments_text: str = "",
     attachments: Optional[List[Dict[str, Any]]] = None,
     web_context: str = "",
@@ -1723,17 +1749,18 @@ missing_critical_info
 uncertainties
 follow_up
 
-DIRECT_ANSWER FORMAT:
-- Use clear section headings and spacing for readability.
-- Required headings:
-  1) What we know
-  2) Plan moving forward
-- Use bullet points under each heading.
-- Keep it concise and chart-auditable.
+DIRECT_ANSWER FORMAT (match the question):
+- format_hint = "{format_hint}"
+- If format_hint="list_only": return 3–8 bullet points only. No headings or extra sections.
+- If format_hint="summary_only": return a short paragraph (2–5 sentences). No headings.
+- If format_hint="plan_only": include a "Plan" heading with concise bullets.
+- If format_hint="summary_and_plan": use two headings: "What we know" and "Plan moving forward", with bullets.
+- If format_hint="concise": 1–2 short paragraphs, no headings.
 
 If DESCRIPTIVE:
 - recommended_regimens = []
 - tests_or_workup = []
+ - leave red_flags, missing_critical_info, uncertainties, follow_up empty unless explicitly asked
 """.strip()
 
 
