@@ -1891,6 +1891,10 @@ class BillingBillPayload(BaseModel):
     billing_model: Optional[str] = None
 
 
+class BillingArchiveUpdatePayload(BaseModel):
+    text: str
+
+
 @router.get("/billing/today")
 def get_billing_today():
     """
