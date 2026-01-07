@@ -946,6 +946,33 @@ textarea::-webkit-scrollbar-track{
   flex:1;
   min-height:340px;
 }
+
+.billing-archive-row{
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.billing-archive-row select{
+  flex:1 1 auto;
+  min-width:0;
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  color: var(--text);
+  font-size: var(--fs-body);
+  border:none;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.billing-archive-row select option{
+  color: var(--text);
+  background: var(--panel);
+}
+.billing-archive-panel textarea{
+  resize:none;
+}
+.billing-archive-panel{
+  width:min(640px, 94vw);
+}
 .macro-editor .summary-title{
   margin-top:2px;
   margin-bottom:4px;
@@ -1363,11 +1390,19 @@ textarea::-webkit-scrollbar-track{
         <span class="theme-icon" aria-hidden="true"></span>
       </button>
       <button id="menuBtn" type="button" title="Menu" aria-label="Menu">☰</button>
-      <button type="button" title="Profile" aria-label="Profile">👤</button>
+      <button id="profileBtn" type="button" title="Account" aria-label="Account">👤</button>
 
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
           <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
+        </div>
+      </div>
+      <div id="profilePopover" class="popover menu-popover" role="dialog" aria-label="Account" style="display:none">
+        <div class="pop-row" style="margin-bottom:0;">
+          <button id="signOutBtn" type="button" class="menu-item">Sign out</button>
+          <button id="reviewBillingBtn" type="button" class="menu-item">Review saved billings</button>
+          <button id="personalizationBtn" type="button" class="menu-item">Personalization</button>
+          <button id="coachReportBtn" type="button" class="menu-item">Coach Report</button>
         </div>
       </div>
     </div>
@@ -1538,6 +1573,30 @@ textarea::-webkit-scrollbar-track{
   </div>
 </div>
 
+<div id="billingArchiveOverlay" class="macro-overlay" style="display:none"></div>
+<div id="billingArchivePanel" class="macro-panel billing-archive-panel" style="display:none" aria-label="Saved billings">
+  <div class="macro-head">
+    <div class="headline">Saved Billings</div>
+    <button id="billingArchiveCloseBtn" type="button">✕</button>
+  </div>
+
+  <div class="macro-section">
+    <div class="billing-archive-row">
+      <select id="billingArchiveSelect"></select>
+      <button id="billingArchiveRefreshBtn" type="button">Refresh</button>
+    </div>
+    <div id="billingArchiveMeta" class="macro-status"></div>
+  </div>
+
+  <div class="macro-section macro-editor">
+    <textarea id="billingArchiveText" placeholder="Select a saved billing to review or edit"></textarea>
+    <div class="macro-editor-actions">
+      <button id="billingArchiveSaveBtn" class="primary" type="button">Save</button>
+      <button id="billingArchivePrintBtn" type="button">Reprint</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API_BASE = "/api";
 const CHUNK_MS = 12000;
@@ -1641,6 +1700,9 @@ const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
 let authToken = String(localStorage.getItem(AUTH_TOKEN_KEY) || "");
 let authUser = null;
 let appBootstrapped = false;
+let billingArchiveItems = [];
+let billingArchiveCurrent = "";
+let billingArchiveCurrentMeta = null;
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1710,6 +1772,25 @@ const authSignupUsername = document.getElementById("authSignupUsername");
 const authSignupEmail = document.getElementById("authSignupEmail");
 const authSignupPassword = document.getElementById("authSignupPassword");
 const authError = document.getElementById("authError");
+
+// Profile menu refs
+const profileBtn = document.getElementById("profileBtn");
+const profilePopover = document.getElementById("profilePopover");
+const signOutBtn = document.getElementById("signOutBtn");
+const reviewBillingBtn = document.getElementById("reviewBillingBtn");
+const personalizationBtn = document.getElementById("personalizationBtn");
+const coachReportBtn = document.getElementById("coachReportBtn");
+
+// Billing archive refs
+const billingArchiveOverlay = document.getElementById("billingArchiveOverlay");
+const billingArchivePanel = document.getElementById("billingArchivePanel");
+const billingArchiveCloseBtn = document.getElementById("billingArchiveCloseBtn");
+const billingArchiveSelect = document.getElementById("billingArchiveSelect");
+const billingArchiveRefreshBtn = document.getElementById("billingArchiveRefreshBtn");
+const billingArchiveText = document.getElementById("billingArchiveText");
+const billingArchiveSaveBtn = document.getElementById("billingArchiveSaveBtn");
+const billingArchivePrintBtn = document.getElementById("billingArchivePrintBtn");
+const billingArchiveMeta = document.getElementById("billingArchiveMeta");
 const macroEditBtn = document.getElementById("macroEditBtn");
 const macroDeleteBtn = document.getElementById("macroDeleteBtn");
 const macroNameInput = document.getElementById("macroNameInput");
@@ -2247,8 +2328,151 @@ function closeMenuPopover() {
 
 function toggleMenuPopover() {
   if (!menuPopover) return;
+  closeProfilePopover();
   const open = menuPopover.style.display !== "none";
   menuPopover.style.display = open ? "none" : "block";
+}
+
+function closeProfilePopover() {
+  if (profilePopover) profilePopover.style.display = "none";
+}
+
+function toggleProfilePopover() {
+  if (!profilePopover) return;
+  closeMenuPopover();
+  const open = profilePopover.style.display !== "none";
+  profilePopover.style.display = open ? "none" : "block";
+}
+
+function openBillingArchivePanel() {
+  if (!billingArchivePanel || !billingArchiveOverlay) return;
+  billingArchiveOverlay.style.display = "block";
+  billingArchivePanel.style.display = "flex";
+}
+
+function closeBillingArchivePanel() {
+  if (!billingArchivePanel || !billingArchiveOverlay) return;
+  billingArchiveOverlay.style.display = "none";
+  billingArchivePanel.style.display = "none";
+}
+
+function formatArchiveLabel(item) {
+  const iso = String(item?.saved_at_local || "").trim();
+  if (iso.length >= 16) return `${iso.slice(0, 16).replace("T", " ")}`;
+  return item?.filename || "Saved billing";
+}
+
+function refreshBillingArchiveSelect() {
+  if (!billingArchiveSelect) return;
+  billingArchiveSelect.innerHTML = "";
+  const def = document.createElement("option");
+  def.value = "";
+  def.textContent = "Select saved billing";
+  billingArchiveSelect.appendChild(def);
+  for (const item of billingArchiveItems) {
+    const opt = document.createElement("option");
+    opt.value = item.filename;
+    opt.textContent = `${formatArchiveLabel(item)} • ${item.filename}`;
+    billingArchiveSelect.appendChild(opt);
+  }
+  billingArchiveSelect.value = billingArchiveCurrent || "";
+}
+
+async function loadBillingArchives() {
+  const data = await apiGet("/billing/archives");
+  billingArchiveItems = Array.isArray(data?.items) ? data.items : [];
+  if (!billingArchiveItems.length) {
+    billingArchiveCurrent = "";
+    billingArchiveCurrentMeta = null;
+    if (billingArchiveText) billingArchiveText.value = "";
+    if (billingArchiveMeta) billingArchiveMeta.textContent = "No saved billings yet.";
+  }
+  refreshBillingArchiveSelect();
+  if (billingArchiveItems.length && !billingArchiveCurrent) {
+    await loadBillingArchive(billingArchiveItems[0].filename);
+  }
+}
+
+async function loadBillingArchive(name) {
+  if (!name) return;
+  const data = await apiGet(`/billing/archives/${encodeURIComponent(name)}`);
+  billingArchiveCurrent = name;
+  billingArchiveCurrentMeta = data || null;
+  if (billingArchiveText) billingArchiveText.value = String(data?.text || "");
+  if (billingArchiveMeta) {
+    const saved = String(data?.saved_at_local || "").replace("T", " ").slice(0, 16);
+    const total = data?.total_patient_count;
+    billingArchiveMeta.textContent = saved ? `Saved: ${saved}${total !== undefined ? ` • Total: ${total}` : ""}` : "";
+  }
+  refreshBillingArchiveSelect();
+}
+
+async function saveBillingArchive() {
+  if (!billingArchiveCurrent) {
+    logChat("System", "Select a saved billing first.");
+    return;
+  }
+  const text = billingArchiveText?.value || "";
+  const data = await apiPut(`/billing/archives/${encodeURIComponent(billingArchiveCurrent)}`, { text });
+  if (billingArchiveMeta) {
+    const saved = String(data?.saved_at_local || "").replace("T", " ").slice(0, 16);
+    const total = data?.total_patient_count;
+    billingArchiveMeta.textContent = saved ? `Saved: ${saved}${total !== undefined ? ` • Total: ${total}` : ""}` : "";
+  }
+  logChat("System", "Saved billing updated.");
+}
+
+function openBillingPrintWindow(printable, metaDate, metaCount) {
+  const w = window.open("", "_blank");
+  if (!w) { logChat("System", "Pop-up blocked. Allow pop-ups to print."); return; }
+  const physicianName = "Dr. Thapa";
+  const safeText = String(printable || "").replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]));
+
+  w.document.open();
+  w.document.write(`
+    <html>
+    <head>
+      <title>Physician: ${escapeHtml(physicianName)}</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <style>
+        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
+        h1 { font-size: 18px; margin: 0 0 10px 0; }
+        .meta { font-size: 12px; margin-bottom: 16px; color: #444; }
+        pre { white-space: pre-wrap; font-size: 12px; line-height: 1.35; }
+      </style>
+    </head>
+    <body>
+      <h1>Physician: ${escapeHtml(physicianName)}</h1>
+      <div class="meta">
+        Date: ${escapeHtml(metaDate || todayStrLocal())} &nbsp;|&nbsp;
+        Total: ${escapeHtml(String(metaCount ?? ""))}
+      </div>
+      <pre>${safeText}</pre>
+    </body>
+    </html>
+  `);
+  w.document.close();
+  try {
+    w.focus();
+    w.print();
+  } catch {}
+}
+
+function getArchiveMetaDate(meta) {
+  const saved = String(meta?.saved_at_local || "");
+  if (!saved) return "";
+  return saved.split("T")[0];
+}
+
+async function reprintBillingArchive() {
+  if (!billingArchiveCurrent) {
+    logChat("System", "Select a saved billing first.");
+    return;
+  }
+  const text = billingArchiveText?.value || "";
+  const total = countPatientsFromText(text);
+  const metaDate = getArchiveMetaDate(billingArchiveCurrentMeta) || todayStrLocal();
+  openBillingPrintWindow(text, metaDate, total);
 }
 
 // -------------------------
@@ -4419,42 +4643,9 @@ async function saveBillingEdits() {
 async function printBillingList() {
   const resp = await apiPost(`/billing/print`);
   const printable = String(resp?.print_text || "").trim();
-  const w = window.open("", "_blank");
-  if (!w) { logChat("System", "Pop-up blocked. Allow pop-ups to print."); return; }
-
   const metaDate = String(resp?.date || todayStrLocal());
   const metaCount = String(resp?.total_patient_count ?? countPatientsFromText(dailyBillingText.value || ""));
-  const physicianName = "Dr. Thapa";
-
-  w.document.open();
-  w.document.write(`
-    <html>
-    <head>
-      <title>Physician: ${escapeHtml(physicianName)}</title>
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <style>
-        body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
-        h1 { font-size: 18px; margin: 0 0 10px 0; }
-        .meta { font-size: 12px; margin-bottom: 16px; color: #444; }
-        pre { white-space: pre-wrap; font-size: 12px; line-height: 1.35; }
-      </style>
-    </head>
-    <body>
-      <h1>Physician: ${escapeHtml(physicianName)}</h1>
-      <div class="meta">
-        Date: ${metaDate} &nbsp;|&nbsp;
-        Total: ${metaCount}
-      </div>
-      <pre>${printable.replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]))}</pre>
-    </body>
-    </html>
-  `);
-  w.document.close();
-
-  try {
-    w.focus();
-    w.print();
-  } catch {}
+  openBillingPrintWindow(printable, metaDate, metaCount);
 
   setTimeout(() => {
     try { localStorage.removeItem(billingTextKeyToday()); } catch {}
@@ -4513,6 +4704,12 @@ menuBtn?.addEventListener("click", (e) => {
   toggleMenuPopover();
 });
 menuPopover?.addEventListener("click", (e) => e.stopPropagation());
+profileBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  toggleProfilePopover();
+});
+profilePopover?.addEventListener("click", (e) => e.stopPropagation());
 themeBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -4531,6 +4728,9 @@ macroBuilderBtn?.addEventListener("click", (e) => {
 });
 macroCloseBtn?.addEventListener("click", () => closeMacroPanel());
 macroOverlay?.addEventListener("click", () => closeMacroPanel());
+billingArchiveCloseBtn?.addEventListener("click", () => closeBillingArchivePanel());
+billingArchiveOverlay?.addEventListener("click", () => closeBillingArchivePanel());
+billingArchivePanel?.addEventListener("click", (e) => e.stopPropagation());
 macroAddBtn?.addEventListener("click", () => startNewMacro());
 macroSaveBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(macroSaveBtn, "Saving…", saveMacroFromEditor);
@@ -4539,6 +4739,40 @@ macroCancelBtn?.addEventListener("click", () => cancelMacroEdit());
 macroEditBtn?.addEventListener("click", () => editMacroFromPicker());
 macroDeleteBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(macroDeleteBtn, "Deleting…", deleteMacroFromPicker);
+});
+signOutBtn?.addEventListener("click", async () => {
+  closeProfilePopover();
+  try { stopRecording(); } catch {}
+  try { await apiPost("/auth/logout"); } catch {}
+  clearAuthToken();
+  window.location.reload();
+});
+reviewBillingBtn?.addEventListener("click", async () => {
+  closeProfilePopover();
+  openBillingArchivePanel();
+  await loadBillingArchives();
+});
+personalizationBtn?.addEventListener("click", () => {
+  closeProfilePopover();
+  logChat("System", "Personalization is coming soon.");
+});
+coachReportBtn?.addEventListener("click", () => {
+  closeProfilePopover();
+  logChat("System", "Coach Report is coming soon.");
+});
+billingArchiveRefreshBtn?.addEventListener("click", async () => {
+  await loadBillingArchives();
+});
+billingArchiveSelect?.addEventListener("change", async () => {
+  const name = billingArchiveSelect.value;
+  if (!name) return;
+  await loadBillingArchive(name);
+});
+billingArchiveSaveBtn?.addEventListener("click", async () => {
+  await runWithButtonFeedback(billingArchiveSaveBtn, "Saving…", "Saved", saveBillingArchive);
+});
+billingArchivePrintBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(billingArchivePrintBtn, "Printing…", reprintBillingArchive);
 });
 macroSelect?.addEventListener("change", async () => {
   const id = macroSelect.value;
@@ -4681,12 +4915,14 @@ chatInput.addEventListener("keydown", (e) => {
 
 // Attachments: + menu open/close
 cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
-document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); });
+document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); closeProfilePopover(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     closePlusMenu();
     closeMenuPopover();
     closeMacroPanel();
+    closeProfilePopover();
+    closeBillingArchivePanel();
   }
 });
 cqPlusMenu.addEventListener("click", (e) => { e.stopPropagation(); });
