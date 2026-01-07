@@ -1657,7 +1657,7 @@ NOTES:
     if isinstance(billing, dict):
         one_line = str(billing.get("one_line") or "").strip()
 
-    virtual_call = bool(transcript_ok and _is_virtual_call(transcript))
+    virtual_call = bool(transcript and _is_virtual_call(transcript))
     if virtual_call:
         one_line = _normalize_billing_for_virtual(one_line, model_norm)
     elif model_norm == "PCPCM":
