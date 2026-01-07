@@ -531,6 +531,26 @@ input[type="text"]:focus-visible{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
 }
+.seg.cq-mode{
+  position: relative;
+  box-shadow: var(--shadow-xs);
+}
+.seg.cq-mode::before,
+.seg.cq-mode::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:14px;
+  pointer-events:none;
+}
+.seg.cq-mode::before{
+  box-shadow: inset 0 1px 0 var(--edge-hi);
+  z-index: 1;
+}
+.seg.cq-mode::after{
+  border:1px solid var(--edge-soft);
+  z-index: 2;
+}
 .seg button{
   flex:1;
   border:none;
@@ -541,6 +561,10 @@ input[type="text"]:focus-visible{
   padding:10px 10px;
   font-size:13px;
   font-weight:750;
+}
+.seg.cq-mode button{
+  position: relative;
+  z-index: 0;
 }
 .seg button:last-child{ border-right:none; }
 .seg button.active{
@@ -559,8 +583,7 @@ input[type="text"]:focus-visible{
 .cq-mode button.active{
   background: var(--primary-bg);
   color: var(--primary-text);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--primary-border),
+  box-shadow: inset 0 0 0 1px var(--primary-border),
               inset 0 1px 0 var(--edge-hi);
 }
 .pop-help{
@@ -3427,6 +3450,15 @@ function addMessage(role, text, attachments=[]) {
 }
 function logChat(role, text, attachments=[]) { addMessage(role, text, attachments); }
 
+function scrollChatToMessageStart(contentEl) {
+  if (!chatLog || !contentEl) return;
+  const row = contentEl.closest(".msg");
+  if (!row) return;
+  const top = row.offsetTop || 0;
+  chatLog.scrollTop = Math.max(0, top);
+  chatAutoScroll = false;
+}
+
 function hashLite(text) {
   const s = String(text || "");
   let h = 2166136261;
@@ -4622,6 +4654,7 @@ async function sendClinicalQueryWithDraft(queryText, modeOverride="", macroOverr
   renderDraft();
 
   const contentEl = addMessage("Centaur", "…");
+  scrollChatToMessageStart(contentEl);
   let streamedText = "";
   let meta = null;
   const parser = createDirectAnswerStreamParser();

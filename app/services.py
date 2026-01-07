@@ -1954,14 +1954,20 @@ def run_clinical_query_stream(
         "If image(s) are provided in the message payload, you may describe their visible features."
     )
 
+    temperature = None if fast_mode else 0.2
+    base_kwargs = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_msg},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    if temperature is not None:
+        base_kwargs["temperature"] = temperature
+
     try:
         response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.2,
+            **base_kwargs,
             response_format={"type": "json_object"},
             stream=True,
         )
@@ -1980,12 +1986,7 @@ def run_clinical_query_stream(
 
     try:
         response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.2,
+            **base_kwargs,
             stream=True,
         )
         for chunk in response:
