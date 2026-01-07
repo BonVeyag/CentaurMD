@@ -566,6 +566,14 @@ input[type="text"]:focus-visible{
   position: relative;
   z-index: 0;
 }
+.seg.cq-mode button:first-child{
+  border-top-left-radius:12px;
+  border-bottom-left-radius:12px;
+}
+.seg.cq-mode button:last-child{
+  border-top-right-radius:12px;
+  border-bottom-right-radius:12px;
+}
 .seg button:last-child{ border-right:none; }
 .seg button.active{
   background: color-mix(in oklab, rgba(37,99,235,.18) 92%, transparent);
@@ -573,7 +581,7 @@ input[type="text"]:focus-visible{
 .cq-mode{
   display:flex;
   gap:0;
-  padding:0;
+  padding:2px;
 }
 .cq-mode button{
   font-size:12px;
@@ -932,6 +940,47 @@ textarea::-webkit-scrollbar-track{
   background: color-mix(in oklab, var(--panel) 96%, transparent);
   box-shadow: var(--shadow-lg);
   z-index:90;
+}
+.confirm-panel{
+  position:fixed;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  width:min(420px, 92vw);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:16px;
+  border-radius:18px;
+  border:none;
+  background: color-mix(in oklab, var(--panel) 96%, transparent);
+  box-shadow: var(--shadow-lg),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  z-index:100;
+}
+.confirm-title{
+  font-size:16px;
+  font-weight:750;
+}
+.confirm-body{
+  font-size:13px;
+  color: var(--muted);
+  line-height:1.4;
+}
+.confirm-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:4px;
+}
+.confirm-actions button{
+  min-width: var(--btn-min);
+  min-height: var(--btn-height);
+  padding: var(--btn-pad);
+}
+.confirm-actions button.primary{
+  min-width: var(--btn-primary-min);
 }
 .macro-head{
   display:flex;
@@ -1664,6 +1713,16 @@ textarea::-webkit-scrollbar-track{
   </div>
 </div>
 
+<div id="newPatientConfirmOverlay" class="macro-overlay" style="display:none"></div>
+<div id="newPatientConfirmPanel" class="confirm-panel" style="display:none" role="dialog" aria-modal="true" aria-labelledby="newPatientConfirmTitle">
+  <div class="confirm-title" id="newPatientConfirmTitle">Billing not generated</div>
+  <div class="confirm-body">Please generate billing for the current patient before starting a new one. Continue anyway?</div>
+  <div class="confirm-actions">
+    <button id="newPatientConfirmCancelBtn" type="button">Cancel</button>
+    <button id="newPatientConfirmProceedBtn" class="primary" type="button">New anyway</button>
+  </div>
+</div>
+
 <script>
 const API_BASE = "/api";
 const CHUNK_MS = 12000;
@@ -1875,6 +1934,10 @@ const macroCancelBtn = document.getElementById("macroCancelBtn");
 const macroStatus = document.getElementById("macroStatus");
 const globalCopyBtn = document.getElementById("globalCopyBtn");
 const themeBtn = document.getElementById("themeBtn");
+const newPatientConfirmOverlay = document.getElementById("newPatientConfirmOverlay");
+const newPatientConfirmPanel = document.getElementById("newPatientConfirmPanel");
+const newPatientConfirmCancelBtn = document.getElementById("newPatientConfirmCancelBtn");
+const newPatientConfirmProceedBtn = document.getElementById("newPatientConfirmProceedBtn");
 
 // -------------------------
 // Helpers
@@ -3622,6 +3685,59 @@ function handleAuthRequired() {
   clearAuthToken();
   showAuthOverlay("login");
 }
+
+function openNewPatientConfirm() {
+  if (!newPatientConfirmOverlay || !newPatientConfirmPanel) return;
+  newPatientConfirmOverlay.style.display = "block";
+  newPatientConfirmPanel.style.display = "flex";
+}
+
+function closeNewPatientConfirm() {
+  if (!newPatientConfirmOverlay || !newPatientConfirmPanel) return;
+  newPatientConfirmOverlay.style.display = "none";
+  newPatientConfirmPanel.style.display = "none";
+}
+
+async function startNewPatientSession() {
+  try { stopRecording(); } catch {}
+  recState = "idle";
+  updateRecUI();
+
+  const oldSid = sessionId;
+  if (oldSid) { try { await deleteAllUploadedAttachmentsBestEffort(oldSid); } catch {} }
+
+  transcriptBox.value = "";
+  chatLog.innerHTML = "";
+  snapshotPanel.textContent = "";
+  coachPanel.textContent = "";
+
+  panelUpdatedAt.snapshot = 0;
+  panelUpdatedAt.coach = 0;
+  panelUpdatedAt.transcript = 0;
+
+  lastSnapshotHash = "";
+  lastPatientSummaryHash = "";
+  hasAiSummary = false;
+  patientSummaryBusy = false;
+  lastCoachHash = "";
+  emrBackgroundText = "";
+  lastCoachRunAt = 0;
+  lastCoachTranscriptLen = 0;
+  lastAssistantPlainText = "";
+  hasBilledCurrentPatient = false;
+
+  patientName = "";
+  patientPHN = "";
+  patientAge = "";
+
+  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
+  cqDraft = [];
+  renderDraft();
+  closePlusMenu();
+
+  await createSession();
+  logChat("System", "New patient session created.");
+}
 async function ensureAuth() {
   if (!authToken) {
     showAuthOverlay("login");
@@ -5023,6 +5139,12 @@ macroEditBtn?.addEventListener("click", () => editMacroFromPicker());
 macroDeleteBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(macroDeleteBtn, "Deleting…", deleteMacroFromPicker);
 });
+newPatientConfirmCancelBtn?.addEventListener("click", () => closeNewPatientConfirm());
+newPatientConfirmProceedBtn?.addEventListener("click", async () => {
+  closeNewPatientConfirm();
+  await startNewPatientSession();
+});
+newPatientConfirmOverlay?.addEventListener("click", () => closeNewPatientConfirm());
 signOutBtn?.addEventListener("click", async () => {
   closeProfilePopover();
   try { stopRecording(); } catch {}
@@ -5131,47 +5253,10 @@ async function deleteAllUploadedAttachmentsBestEffort(oldSid) {
 
 newBtn.addEventListener("click", async () => {
   if (hasCurrentPatientData() && !hasBilledCurrentPatient) {
-    alert("Please generate billing for the current patient before starting a new one.");
+    openNewPatientConfirm();
     return;
   }
-  try { stopRecording(); } catch {}
-  recState = "idle";
-  updateRecUI();
-
-  const oldSid = sessionId;
-  if (oldSid) { try { await deleteAllUploadedAttachmentsBestEffort(oldSid); } catch {} }
-
-  transcriptBox.value = "";
-  chatLog.innerHTML = "";
-  snapshotPanel.textContent = "";
-  coachPanel.textContent = "";
-
-  panelUpdatedAt.snapshot = 0;
-  panelUpdatedAt.coach = 0;
-  panelUpdatedAt.transcript = 0;
-
-  lastSnapshotHash = "";
-  lastPatientSummaryHash = "";
-  hasAiSummary = false;
-  patientSummaryBusy = false;
-  lastCoachHash = "";
-  emrBackgroundText = "";
-  lastCoachRunAt = 0;
-  lastCoachTranscriptLen = 0;
-  lastAssistantPlainText = "";
-  hasBilledCurrentPatient = false;
-
-  patientName = "";
-  patientPHN = "";
-  patientAge = "";
-
-  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
-  cqDraft = [];
-  renderDraft();
-  closePlusMenu();
-
-  await createSession();
-  logChat("System", "New patient session created.");
+  await startNewPatientSession();
 });
 
 sendBtn.addEventListener("click", async () => {
