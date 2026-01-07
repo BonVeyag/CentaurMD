@@ -2060,7 +2060,11 @@ def save_billing_today(payload: BillingSavePayload, user: AuthUser = Depends(req
 
 
 @router.post("/session/{session_id}/billing/bill")
-def bill_current_session_into_daily_list(session_id: str, payload: BillingBillPayload = BillingBillPayload()):
+def bill_current_session_into_daily_list(
+    session_id: str,
+    payload: BillingBillPayload = BillingBillPayload(),
+    user: AuthUser = Depends(require_user),
+):
     """
     BILL action:
     - Generates a 3-line entry and auto-saves to the daily billing list (server memory).
@@ -2073,7 +2077,7 @@ def bill_current_session_into_daily_list(session_id: str, payload: BillingBillPa
     _ensure_anchor_hydrated_from_emr(context)
 
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key)
 
     with BILLING_LOCK:
         current_model = (payload.billing_model or st.get("billing_model") or "FFS").strip().upper()
@@ -2091,7 +2095,7 @@ def bill_current_session_into_daily_list(session_id: str, payload: BillingBillPa
 
     with BILLING_LOCK:
         st["billing_text"] = _append_entry_to_billing_text(st.get("billing_text") or "", lines)
-        _touch_billing_state(st)
+        _touch_billing_state(user.username, st)
         total = _count_patients_in_billing_text(st.get("billing_text") or "")
 
         return {
@@ -2117,7 +2121,7 @@ def print_and_clear_billing_today(user: AuthUser = Depends(require_user)):
       (Billing model selection remains for the day.)
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key)
 
     archive_name = ""
     saved_at_local = ""
@@ -2130,7 +2134,7 @@ def print_and_clear_billing_today(user: AuthUser = Depends(require_user)):
 
         # Clear only the billing memory (list/display); keep physician + model sticky for day
         st["billing_text"] = ""
-        _touch_billing_state(st)
+        _touch_billing_state(user.username, st)
 
     if printable:
         dt_local = _now_edmonton()
