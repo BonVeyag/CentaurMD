@@ -1700,6 +1700,7 @@ textarea::-webkit-scrollbar-track{
     <div class="billing-archive-row">
       <select id="billingArchiveSelect"></select>
       <button id="billingArchiveRefreshBtn" type="button">Refresh</button>
+      <button id="billingArchiveDeleteBtn" type="button">Delete</button>
     </div>
     <div id="billingArchiveMeta" class="macro-status"></div>
   </div>
@@ -1921,6 +1922,7 @@ const billingArchivePanel = document.getElementById("billingArchivePanel");
 const billingArchiveCloseBtn = document.getElementById("billingArchiveCloseBtn");
 const billingArchiveSelect = document.getElementById("billingArchiveSelect");
 const billingArchiveRefreshBtn = document.getElementById("billingArchiveRefreshBtn");
+const billingArchiveDeleteBtn = document.getElementById("billingArchiveDeleteBtn");
 const billingArchiveText = document.getElementById("billingArchiveText");
 const billingArchiveSaveBtn = document.getElementById("billingArchiveSaveBtn");
 const billingArchivePrintBtn = document.getElementById("billingArchivePrintBtn");
@@ -2514,6 +2516,9 @@ function refreshBillingArchiveSelect() {
     billingArchiveSelect.appendChild(opt);
   }
   billingArchiveSelect.value = billingArchiveCurrent || "";
+  if (billingArchiveDeleteBtn) {
+    billingArchiveDeleteBtn.disabled = !billingArchiveCurrent;
+  }
 }
 
 async function loadBillingArchives() {
@@ -2558,6 +2563,23 @@ async function saveBillingArchive() {
     billingArchiveMeta.textContent = saved ? `Saved: ${saved}${total !== undefined ? ` • Total: ${total}` : ""}` : "";
   }
   logChat("System", "Saved billing updated.");
+}
+
+async function deleteBillingArchive() {
+  if (!billingArchiveCurrent) {
+    logChat("System", "Select a saved billing first.");
+    return;
+  }
+  const name = billingArchiveCurrent;
+  const ok = window.confirm(`Delete saved billing "${name}"? This cannot be undone.`);
+  if (!ok) return;
+  await apiDelete(`/billing/archives/${encodeURIComponent(name)}`);
+  billingArchiveCurrent = "";
+  billingArchiveCurrentMeta = null;
+  if (billingArchiveText) billingArchiveText.value = "";
+  if (billingArchiveMeta) billingArchiveMeta.textContent = "Deleted.";
+  await loadBillingArchives();
+  logChat("System", "Saved billing deleted.");
 }
 
 function openBillingPrintWindow(printable, metaDate, metaCount) {
@@ -5167,6 +5189,9 @@ coachReportBtn?.addEventListener("click", () => {
 });
 billingArchiveRefreshBtn?.addEventListener("click", async () => {
   await loadBillingArchives();
+});
+billingArchiveDeleteBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(billingArchiveDeleteBtn, "Deleting…", deleteBillingArchive);
 });
 billingArchiveSelect?.addEventListener("change", async () => {
   const name = billingArchiveSelect.value;
