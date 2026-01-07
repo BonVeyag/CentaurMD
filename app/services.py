@@ -28,11 +28,12 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # =========================
 # Model selection
 # =========================
-CLINICAL_QUERY_TEXT_MODEL = "gpt-4.1"
-CLINICAL_QUERY_VISION_MODEL = "gpt-4o-mini"
+CLINICAL_QUERY_TEXT_MODEL = "gpt-5.2"
+# If GPT-5.2 vision is not available, set to "gpt-4o-mini"
+CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5.2")
 
 # Patient summary model
-PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-4.1")
+PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-4.1-mini")
 
 # Billing model (use a smaller model; upgrade if you prefer)
 BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-4.1-mini")
@@ -1335,7 +1336,7 @@ MIN_TRANSCRIPT_WORDS = 12
 COACH_MAX_TRANSCRIPT_CHARS = 4200
 COACH_MAX_BACKGROUND_CHARS = 4200
 
-DIFFERENTIAL_MODEL = "gpt-4.1"
+DIFFERENTIAL_MODEL = "gpt-5.2"
 
 DDX_MAX = 4
 CANT_MISS_MAX = 4
