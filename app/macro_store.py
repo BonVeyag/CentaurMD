@@ -175,14 +175,16 @@ def _ensure_defaults(entries: List[MacroEntry]) -> tuple[List[MacroEntry], bool]
 
     soap_entry = _find_by_name(entries, "SOAP")
     if soap_entry:
+        soap_changed = False
         if not soap_entry.locked:
             soap_entry.locked = True
-            changed = True
+            soap_changed = True
         if not soap_entry.content:
             soap_entry.content = DEFAULT_SOAP_TEMPLATE
-            changed = True
-        if changed:
+            soap_changed = True
+        if soap_changed:
             soap_entry.updated_at_utc = now
+            changed = True
     else:
         entries.append(
             MacroEntry(
@@ -198,14 +200,16 @@ def _ensure_defaults(entries: List[MacroEntry]) -> tuple[List[MacroEntry], bool]
 
     referral_entry = _find_by_name(entries, "Referral")
     if referral_entry:
+        ref_changed = False
         if not referral_entry.locked:
             referral_entry.locked = True
-            changed = True
+            ref_changed = True
         if not referral_entry.content:
             referral_entry.content = DEFAULT_REFERRAL_TEMPLATE
-            changed = True
-        if changed:
+            ref_changed = True
+        if ref_changed:
             referral_entry.updated_at_utc = now
+            changed = True
     else:
         entries.append(
             MacroEntry(
