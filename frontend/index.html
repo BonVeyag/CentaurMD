@@ -548,8 +548,8 @@ input[type="text"]:focus-visible{
 }
 .cq-mode{
   display:flex;
-  gap:6px;
-  padding:2px;
+  gap:0;
+  padding:0;
 }
 .cq-mode button{
   font-size:12px;
@@ -4329,8 +4329,10 @@ async function handleEmrBackgroundPasteOnly(emrText) {
 
   hasAiSummary = false;
   lastSnapshotHash = "";
-  snapshotPanel.textContent = "";
-  panelUpdatedAt.snapshot = 0;
+  lastPatientSummaryHash = "";
+  renderRapidSummary(true);
+  clearTimeout(snapshotDebounce);
+  snapshotDebounce = setTimeout(() => loadPatientSummaryAI(false), 400);
 
   const sid = sessionId;
   try {
