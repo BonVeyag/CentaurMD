@@ -1837,6 +1837,31 @@ def run_clinical_query(
     vision_model = CLINICAL_QUERY_VISION_FAST_MODEL if fast_mode else CLINICAL_QUERY_VISION_MODEL
     model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
+    def _unique_models(models: List[str]) -> List[str]:
+        seen = set()
+        out: List[str] = []
+        for m in models:
+            m = (m or "").strip()
+            if not m or m in seen:
+                continue
+            seen.add(m)
+            out.append(m)
+        return out
+
+    if has_images:
+        candidates = _unique_models([model, CLINICAL_QUERY_VISION_FAST_MODEL, CLINICAL_QUERY_VISION_MODEL])
+    else:
+        if fast_mode:
+            candidates = _unique_models([
+                model,
+                CLINICAL_QUERY_FAST_MODEL,
+                "gpt-5-mini",
+                "gpt-4.1-mini",
+                CLINICAL_QUERY_THINK_MODEL,
+            ])
+        else:
+            candidates = _unique_models([model, CLINICAL_QUERY_THINK_MODEL])
+
     system_msg = (
         "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
         "Conservative Alberta-appropriate advice. "
@@ -1856,38 +1881,46 @@ def run_clinical_query(
     if temperature is not None:
         base_kwargs["temperature"] = temperature
 
-    try:
-        response = client.chat.completions.create(
-            **base_kwargs,
-            response_format={"type": "json_object"},
-        )
-        return (response.choices[0].message.content or "").strip()
-    except Exception:
-        pass
+    last_error: Optional[Exception] = None
+    for cand in candidates:
+        try:
+            base_kwargs["model"] = cand
+            response = client.chat.completions.create(
+                **base_kwargs,
+                response_format={"type": "json_object"},
+            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            last_error = e
+            continue
 
-    try:
-        response = client.chat.completions.create(
-            **base_kwargs,
-        )
-        return (response.choices[0].message.content or "").strip()
-    except Exception as e:
-        err = {
-            "direct_answer": "",
-            "recommended_regimens": [],
-            "interactions_and_contraindications": [],
-            "tests_or_workup": [],
-            "red_flags": [],
-            "missing_critical_info": ["Model call failed."],
-            "uncertainties": [str(e)],
-            "follow_up": ["Retry the query. If using images, confirm attachments are being uploaded and passed to /clinical_query."],
-            "meta": {
-                "model_attempted": model,
-                "has_images": has_images,
-                "attachments_text_present": bool((attachments_text or "").strip()),
-                "generated_at": _now_utc().isoformat(),
-            },
-        }
-        return json.dumps(err, ensure_ascii=False, indent=2)
+    for cand in candidates:
+        try:
+            base_kwargs["model"] = cand
+            response = client.chat.completions.create(
+                **base_kwargs,
+            )
+            return (response.choices[0].message.content or "").strip()
+        except Exception as e:
+            last_error = e
+            continue
+    err = {
+        "direct_answer": "",
+        "recommended_regimens": [],
+        "interactions_and_contraindications": [],
+        "tests_or_workup": [],
+        "red_flags": [],
+        "missing_critical_info": ["Model call failed."],
+        "uncertainties": [str(last_error) if last_error else "Unknown error"],
+        "follow_up": ["Retry the query. If using images, confirm attachments are being uploaded and passed to /clinical_query."],
+        "meta": {
+            "model_attempted": candidates[-1] if candidates else model,
+            "has_images": has_images,
+            "attachments_text_present": bool((attachments_text or "").strip()),
+            "generated_at": _now_utc().isoformat(),
+        },
+    }
+    return json.dumps(err, ensure_ascii=False, indent=2)
 
 
 def run_clinical_query_stream(
