@@ -1574,11 +1574,11 @@ def _generate_icd9_and_billing_lines(
 ) -> Tuple[str, str]:
     """
     Returns:
-      line2: ICD-9 line (or "")
+      line2: ICD-9 line (always includes label; blank if no transcript)
       line3: Billing line (or "")
     Rules:
-      - STRICTLY transcript-based for ICD-9 + billing content.
-      - If transcript insufficient: return ("", "")
+      - ICD-9 strictly from transcript.
+      - If transcript insufficient: return blank ICD-9 label and use EMR fallback only for billing line (if available).
     """
     transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
     transcript_ok = _has_meaningful_transcript_for_billing(context)
@@ -1617,6 +1617,7 @@ HARD RULES:
 - If the source does not support a diagnosis/procedure, omit it.
 - Output MUST be STRICT JSON only (no markdown, no extra text).
 - If the source is an EMR fallback, treat it as the visit note for today and do NOT pull other history.
+- If the source is an EMR fallback (no transcript), set icd9 = [].
 {cmgp_rule}
 
 BILLING MODEL:
