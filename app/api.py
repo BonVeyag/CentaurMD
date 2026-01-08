@@ -940,7 +940,7 @@ def differential_coach_endpoint(session_id: str):
 
     _ensure_anchor_hydrated_from_emr(context)
     output_raw = run_differential_coach(context)
-    output_text = format_differential_output(output_raw)
+    output_text = output_raw
 
     _safe_cache_derived(context, "differential", output_text)
     _touch(context)
