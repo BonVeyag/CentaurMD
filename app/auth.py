@@ -330,6 +330,11 @@ def login(payload: LoginPayload):
     if not _verify_password(payload.password, rec.get("salt", ""), rec.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
 
+    if SIGNUP_MODE != "open":
+        allowlist = _load_signup_allowlist()
+        if allowlist and username not in allowlist:
+            raise HTTPException(status_code=403, detail="Account not approved.")
+
     token = _create_session(username)
     return {"token": token, "user": _public_user(username, rec)}
 
