@@ -531,26 +531,6 @@ input[type="text"]:focus-visible{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
 }
-.seg.cq-mode{
-  position: relative;
-  box-shadow: var(--shadow-xs);
-}
-.seg.cq-mode::before,
-.seg.cq-mode::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius:14px;
-  pointer-events:none;
-}
-.seg.cq-mode::before{
-  box-shadow: inset 0 1px 0 var(--edge-hi);
-  z-index: 1;
-}
-.seg.cq-mode::after{
-  border:1px solid var(--edge-soft);
-  z-index: 2;
-}
 .seg button{
   flex:1;
   border:none;
@@ -562,37 +542,9 @@ input[type="text"]:focus-visible{
   font-size:13px;
   font-weight:750;
 }
-.seg.cq-mode button{
-  position: relative;
-  z-index: 0;
-}
-.seg.cq-mode button:first-child{
-  border-top-left-radius:12px;
-  border-bottom-left-radius:12px;
-}
-.seg.cq-mode button:last-child{
-  border-top-right-radius:12px;
-  border-bottom-right-radius:12px;
-}
 .seg button:last-child{ border-right:none; }
 .seg button.active{
   background: color-mix(in oklab, rgba(37,99,235,.18) 92%, transparent);
-}
-.cq-mode{
-  display:flex;
-  gap:0;
-  padding:2px;
-}
-.cq-mode button{
-  font-size:12px;
-  min-height:26px;
-  padding:4px 10px;
-}
-.cq-mode button.active{
-  background: var(--primary-bg);
-  color: var(--primary-text);
-  box-shadow: inset 0 0 0 1px var(--primary-border),
-              inset 0 1px 0 var(--edge-hi);
 }
 .pop-help{
   font-size:12px;
@@ -1558,12 +1510,7 @@ textarea::-webkit-scrollbar-track{
         <div>
           <div class="headline">Clinical Query</div>
         </div>
-        <div class="eyebrow">
-          <div class="seg cq-mode" role="group" aria-label="Clinical Query mode">
-            <button id="cqModeFastBtn" type="button">Fast</button>
-            <button id="cqModeThinkBtn" type="button">Thinking</button>
-          </div>
-        </div>
+        <div class="eyebrow"></div>
       </div>
 
       <div class="chatlog" aria-live="polite"></div>
@@ -1800,8 +1747,6 @@ let billingArchiveCurrent = "";
 let billingArchiveCurrentMeta = null;
 let hasBilledCurrentPatient = false;
 let wakeLockSentinel = null;
-const CQ_MODE_KEY = "centaur_cq_mode_v1";
-let cqMode = String(localStorage.getItem(CQ_MODE_KEY) || "fast").toLowerCase();
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -1880,8 +1825,6 @@ const personalizationBtn = document.getElementById("personalizationBtn");
 const coachReportBtn = document.getElementById("coachReportBtn");
 
 // Clinical Query mode refs
-const cqModeFastBtn = document.getElementById("cqModeFastBtn");
-const cqModeThinkBtn = document.getElementById("cqModeThinkBtn");
 
 // Billing archive refs
 const billingArchiveOverlay = document.getElementById("billingArchiveOverlay");
@@ -2657,33 +2600,6 @@ function toggleTheme() {
   const current = getThemePref();
   const next = current === "dark" ? "light" : "dark";
   setThemePref(next);
-}
-
-// -------------------------
-// Clinical Query mode
-// -------------------------
-function normalizeCqMode(mode) {
-  const v = String(mode || "").toLowerCase().trim();
-  if (v === "think" || v === "thinking") return "think";
-  return "fast";
-}
-
-function applyCqMode(mode) {
-  const m = normalizeCqMode(mode);
-  cqMode = m;
-  if (cqModeFastBtn) cqModeFastBtn.classList.toggle("active", m === "fast");
-  if (cqModeThinkBtn) cqModeThinkBtn.classList.toggle("active", m === "think");
-}
-
-function setCqMode(mode) {
-  const m = normalizeCqMode(mode);
-  try { localStorage.setItem(CQ_MODE_KEY, m); } catch {}
-  applyCqMode(m);
-  return m;
-}
-
-function initCqMode() {
-  applyCqMode(cqMode);
 }
 
 // -------------------------
@@ -4638,10 +4554,10 @@ function createDirectAnswerStreamParser() {
   };
 }
 
-async function sendClinicalQueryWithDraft(queryText, modeOverride="", macroOverride="") {
+async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOverride="") {
   await ensureSession();
   const q = (queryText || "").trim();
-  const mode = normalizeCqMode(modeOverride || cqMode);
+  const mode = "fast";
   const overrideText = String(macroOverride || "").trim();
   const selectedMacro = overrideText ? null : getSelectedMacro();
   const macroText = overrideText || (selectedMacro?.content || "").trim();
@@ -4667,6 +4583,7 @@ async function sendClinicalQueryWithDraft(queryText, modeOverride="", macroOverr
   const attachment_ids = ready.map(d => d.serverId).filter(Boolean);
   const payload = { query: q, mode };
   if (macroText) payload.macro = macroText;
+  if (modelOverride) payload.model = modelOverride;
   if (attachment_ids.length) payload.attachment_ids = attachment_ids;
 
   cqDraft = [];
@@ -4745,7 +4662,7 @@ async function generateSoapToChat() {
         TRANSCRIPT: transcriptBox.value || "[none]",
         EXTRA: "",
       });
-      const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "brief", macro: prompt });
+      const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: prompt, model: "gpt-5.2" });
       const rawContent = (data?.response !== undefined) ? data.response : data;
       const readable = readableFromMaybeJson(rawContent);
       soapText = stripPairedMarkdownEmphasis(readable);
@@ -4802,7 +4719,7 @@ Live transcript:
 ${transcript || "[none]"}`;
     }
 
-    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "brief", macro: instruction });
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: instruction, model: "gpt-5.2" });
     let content = data?.response ?? "";
     let letter = "";
     try {
@@ -5019,16 +4936,6 @@ themeBtn?.addEventListener("click", (e) => {
   e.stopPropagation();
   toggleTheme();
 });
-cqModeFastBtn?.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setCqMode("fast");
-});
-cqModeThinkBtn?.addEventListener("click", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  setCqMode("think");
-});
 globalCopyBtn?.addEventListener("click", async (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -5108,7 +5015,7 @@ macroSelect?.addEventListener("change", async () => {
       TRANSCRIPT: transcriptBox.value || "[none]",
       EXTRA: "",
     });
-    await sendClinicalQueryWithDraft("", cqMode, expanded);
+    await sendClinicalQueryWithDraft("", expanded, "gpt-5.2");
   }
 });
 macroPickerSelect?.addEventListener("change", () => {
@@ -5174,7 +5081,7 @@ sendBtn.addEventListener("click", async () => {
   const q = chatInput.value;
   chatInput.value = "";
   flashButton(sendBtn);
-  await sendClinicalQueryWithDraft(q, cqMode);
+  await sendClinicalQueryWithDraft(q);
 });
 
 // EMR paste: show only, do not generate any answer
@@ -5347,7 +5254,6 @@ window.addEventListener("beforeunload", () => {
     updateRecUI();
     stopTimer(false);
     initTheme();
-    initCqMode();
 
     const authed = await ensureAuth();
     if (authed) {

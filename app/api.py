@@ -1071,6 +1071,7 @@ class ClinicalQueryPayload(BaseModel):
     query: str
     mode: str = "fast"
     macro: Optional[str] = None
+    model: Optional[str] = None
 
 
 @router.post("/session/{session_id}/clinical_query")
@@ -1119,6 +1120,8 @@ def clinical_query(session_id: str, payload: ClinicalQueryPayload):
         image_payloads = []
 
     call_kwargs: Dict[str, Any] = {"query": query, "mode": payload.mode}
+    if payload.model:
+        call_kwargs["model_override"] = payload.model
     attachments_used = False
 
     if attachments_text.strip() and _fn_accepts_kw(run_clinical_query, "attachments_text"):
@@ -1192,6 +1195,8 @@ def clinical_query_stream(session_id: str, payload: ClinicalQueryPayload):
         image_payloads = []
 
     call_kwargs: Dict[str, Any] = {"query": query, "mode": payload.mode}
+    if payload.model:
+        call_kwargs["model_override"] = payload.model
     attachments_used = False
 
     if attachments_text.strip():
