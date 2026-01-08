@@ -2473,15 +2473,16 @@ Billing model for this encounter: {bm}
 STRICT RULES:
 1) ICD-9: include ONLY diagnoses that were discussed/managed TODAY, based strictly on the VISIT TRANSCRIPT.
    - Do NOT include PMHx from the background unless it was actively addressed today.
-   - If transcript is insufficient, return icd9=[].
+   - If transcript is present, return at least one best-guess ICD-9 code.
 2) Billing codes:
    - Suggest the most appropriate Alberta primary care physician billing code(s) for the encounter.
+   - Use Alberta family practice billing conventions and avoid stacking multiple base visit codes.
+   - Include only ONE primary visit/consult code (03.xx) per encounter.
    - Try to maximize billing compliantly.
    - Assume baseline non-face-to-face time is already spent: chart review 5 min + charting 5 min (=10 minutes).
    - If the transcript clearly implies extra time/complexity, reflect that with appropriate complexity/time modifiers where reasonable.
 3) PCPCM:
    - Still produce a “shadow-billing style” code suggestion that mirrors the service delivered.
-   - If an item is not billable under PCPCM, still include it but mark it as "shadow" in the descriptor.
 4) Output must be STRICT JSON ONLY, no markdown, no extra text.
 
 REFERENCE TABLE (local excerpt; use as anchor when possible):
@@ -2498,9 +2499,9 @@ Return JSON with this schema:
 {{
   "icd9": [{{"code":"401", "dx":"Hypertension"}}, ...],
   "billing": [
-     {{"code":"03.03A", "descriptor":"Regular office visit"}},
-     {{"code":"CMGP01", "descriptor":"Complexity/time modifier"}},
-     {{"code":"93.91A", "descriptor":"Hip injection"}}
+     {{"code":"03.03A"}},
+     {{"code":"CMGP01"}},
+     {{"code":"93.91A"}}
   ],
   "notes": "optional short note (1 line max) if uncertainty"
 }}
@@ -2508,6 +2509,7 @@ Return JSON with this schema:
 Additional formatting rules:
 - icd9[].code must be digits only (no periods).
 - billing[].code must be the Alberta code string exactly (e.g., 03.03A, CMGP01).
+- Do NOT include descriptors in the billing array.
 """.strip()
 
 
@@ -2532,30 +2534,21 @@ def _format_icd9_line(icd9: List[Dict[str, str]]) -> str:
 def _format_billing_line(billing_items: List[Dict[str, str]]) -> str:
     """
     Line 3 spec:
-      Billing: 03.03A + CMGP01 + 93.91A (Hip injection)
-    For codes other than 03.03A and CMGP*, include a descriptor.
+      Billing: 03.03A + CMGP01 + 93.91A
     """
     if not billing_items:
         return "Billing: "
 
     codes: List[str] = []
-    descriptors: List[str] = []
     for it in billing_items:
         if not isinstance(it, dict):
             continue
         code = str(it.get("code") or "").strip()
-        desc = str(it.get("descriptor") or "").strip()
         if not code:
             continue
         codes.append(code)
-        if desc and (not code.startswith("03.03A")) and (not code.startswith("CMGP")):
-            descriptors.append(f"{code} ({desc})")
 
     base = "Billing: " + " + ".join(codes)
-    if descriptors:
-        desc_text = "; ".join(descriptors)
-        base = base + "  " + desc_text
-
     return base.strip()
 
 
