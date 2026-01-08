@@ -2115,30 +2115,21 @@ JSON SCHEMA:
   "family_members": "",
   "occupation": "",
   "hobbies_and_interests": "",
-  "last_three_visits": ["..."],
+  "recent_social_life": "",
+  "recent_visits": ["..."],
   "significant_life_events": ["..."],
-  "smoking_history": "",
-  "alcohol_use_history": "",
-  "other_substance_use_history": "",
-  "diagnoses": ["..."],
-  "medication_review": {{
-    "has_issues": false,
-    "issues": ["..."]
-  }},
-  "preventative_health_review": ["..."]
+  "diagnoses": ["..."]
 }}
 
 RULES:
 - Use the source-of-truth demographics if provided.
 - Age must be shown as "X years" or "X months" if under 2 years.
 - Gender must be one of: "Male", "Female", "Non-binary" (leave blank if unknown).
-- Family members: include names and pets if present; otherwise "".
-- Summary of last 3 visits: provide up to 3 succinct bullet lines, most recent first.
-- Significant life events: most recent first.
-- Smoking/alcohol/other substance: omit by returning "" if none.
-- Diagnoses: one line each, most relevant/recent first; add date if available.
-- Medication review: ONLY list issues; if none, set has_issues=false and issues=[].
-- Preventative health review: list what is currently due (Canadian guidelines); be conservative if data is missing.
+- Family members: include names if present; otherwise "".
+- Recent social life: brief phrase if present; otherwise "".
+- Recent visits: include only if the most recent visit is within the last 12 months. One short sentence per visit; most recent first.
+- Significant life events: most recent first; return [] if none.
+- Diagnoses: one line each, most relevant/recent first; add date if available. Return [] if none.
 
 {demo_block}
 

@@ -725,28 +725,6 @@ textarea::-webkit-scrollbar-track{
 }
 .transcript-btnrow button#record_btn{ font-weight:850; }
 
-.audio-input-row{
-  display:flex;
-  margin-bottom:8px;
-}
-.audio-input-row select{
-  width:100%;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  color: var(--text);
-  border:none;
-  border-radius:12px;
-  min-height: var(--btn-height);
-  padding: var(--btn-pad);
-  font-size: var(--fs-body);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.audio-input-row select option{
-  color: var(--text);
-  background: var(--panel);
-}
-
 /* Keep transcript stable; scroll inside */
 .transcript-box{
   flex:1;
@@ -1544,11 +1522,6 @@ textarea::-webkit-scrollbar-track{
             <button id="record_btn" class="primary" type="button">Record</button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
-          <div class="audio-input-row">
-            <select id="audioInputSelect" aria-label="Audio input">
-              <option value="">Mic: System Default</option>
-            </select>
-          </div>
 
           <textarea class="transcript-box" id="transcript_box" placeholder="Live transcript will appear here…" spellcheck="false"></textarea>
         </div>
@@ -1818,11 +1791,6 @@ let lastCoachTranscriptLen = 0;
 let emrBackgroundText = "";
 let macros = [];
 let editingMacroId = "";
-let lastAudioInputKey = "";
-let audioDeviceChangeTimer = null;
-let lastAudioDeviceId = "";
-const AUDIO_INPUT_PREF_KEY = "centaur_audio_input_v1";
-let preferredAudioInputId = String(localStorage.getItem(AUDIO_INPUT_PREF_KEY) || "");
 const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
 let authToken = String(localStorage.getItem(AUTH_TOKEN_KEY) || "");
 let authUser = null;
@@ -1853,7 +1821,6 @@ const recDot = document.querySelector(".rec-dot");
 const timerEl = document.querySelector(".timer");
 const recordBtn = document.getElementById("record_btn");
 const newBtn    = document.getElementById("new_patient_btn");
-const audioInputSelect = document.getElementById("audioInputSelect");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
 
@@ -3248,6 +3215,14 @@ function extractHobbies(text) {
   if (!v) v = lastMatch(/(?:^|\n)\s*(?:Enjoys?|Likes?)\s*(?<val>[^\n]{0,220})/ig, t, 1);
   return sanitizeSocialValue(v, 110);
 }
+function extractRecentSocialLife(text) {
+  const t = String(text || "");
+  let v =
+    extractLineValue("Social\\s*History|Social\\s*Hx|Social", t) ||
+    lastMatch(/(?:^|\n)\s*Social\s*(?:History|Hx)\s*[:#=\-]?\s*(?<val>[^\n]{0,220})/ig, t, 1) ||
+    "";
+  return sanitizeSocialValue(v, 140);
+}
 
 function buildPatientSummaryText(backgroundText, transcriptText) {
   const bg = String(backgroundText || "");
@@ -3257,22 +3232,31 @@ function buildPatientSummaryText(backgroundText, transcriptText) {
   const name = extractNameFromText(src) || patientName || "";
   const phn = extractPHNFromText(src) || patientPHN || "";
   const ageDisp = extractAgeDisplay(src) || (patientAge ? `${patientAge} years` : "");
-  const gender = extractGenderFromText(src) || "";
+  const genderRaw = extractGenderFromText(src) || "";
+  const gender = genderRaw === "M" ? "Male" : (genderRaw === "F" ? "Female" : genderRaw);
 
   const famNames = extractFamilyMembersNames(src);
   const occ = extractOccupation(src);
   const hobbies = extractHobbies(src);
+  const social = extractRecentSocialLife(src);
 
-  const lines = [];
-  lines.push(`Name: ${name}`);
-  lines.push(`PHN: ${phn}`);
-  lines.push(`Age: ${ageDisp}`);
-  lines.push(`Gender: ${gender}`);
-  if (famNames) lines.push(`Family members names: ${famNames}`);
-  if (occ) lines.push(`Occupation: ${occ}`);
-  if (hobbies) lines.push(`Hobbies: ${hobbies}`);
+  const sections = [];
+  sections.push([
+    `Patient Name: ${name}`,
+    `PHN: ${phn}`,
+    `Age: ${ageDisp}`,
+    `Gender: ${gender}`,
+  ].join("\n"));
 
-  return lines.join("\n").trimEnd();
+  if (famNames) sections.push(`Family members names: ${famNames}`);
+
+  const socialLines = [];
+  if (occ) socialLines.push(`Occupation: ${occ}`);
+  if (hobbies) socialLines.push(`Hobbies and interests: ${hobbies}`);
+  if (social) socialLines.push(`Recent social life: ${social}`);
+  if (socialLines.length) sections.push(socialLines.join("\n"));
+
+  return sections.join("\n\n").trimEnd();
 }
 
 function normalizeSummaryArray(v) {
@@ -3296,19 +3280,24 @@ function renderPatientSummaryAI(summary) {
   const family = String(s.family_members || "").trim();
   const occupation = String(s.occupation || "").trim();
   const hobbies = String(s.hobbies_and_interests || "").trim();
+  const social = String(s.recent_social_life || "").trim();
 
-  const lastVisits = normalizeSummaryArray(s.last_three_visits);
+  const lastVisits = normalizeSummaryArray(s.recent_visits);
   const lifeEvents = normalizeSummaryArray(s.significant_life_events);
   const diagnoses = normalizeSummaryArray(s.diagnoses);
-  const prevHealth = normalizeSummaryArray(s.preventative_health_review);
 
-  const smoking = String(s.smoking_history || "").trim();
-  const alcohol = String(s.alcohol_use_history || "").trim();
-  const substances = String(s.other_substance_use_history || "").trim();
-
-  const med = (s.medication_review && typeof s.medication_review === "object") ? s.medication_review : {};
-  const medIssues = normalizeSummaryArray(med.issues);
-  const medHasIssues = !!med.has_issues || medIssues.length > 0;
+  const currentYear = new Date().getFullYear();
+  const hasRecentVisit = (() => {
+    if (!lastVisits.length) return false;
+    const years = lastVisits
+      .map(v => {
+        const m = String(v).match(/\b(20\d{2})\b/);
+        return m ? parseInt(m[1], 10) : null;
+      })
+      .filter(v => Number.isFinite(v));
+    if (!years.length) return true;
+    return years.some(y => y >= currentYear - 1);
+  })();
 
   const parts = [];
 
@@ -3321,87 +3310,48 @@ function renderPatientSummaryAI(summary) {
     `</div>`
   );
 
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-line"><span class="summary-label">Family members (incl. pets):</span> ${escapeHtml(family || "—")}</div>` +
-    `</div>`
-  );
-
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-line"><span class="summary-label">Occupation:</span> ${escapeHtml(occupation || "—")}</div>` +
-      `<div class="summary-line"><span class="summary-label">Hobbies and interests:</span> ${escapeHtml(hobbies || "—")}</div>` +
-    `</div>`
-  );
-
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-title">Summary of last 3 visits:</div>` +
-      `${renderSummaryList(lastVisits)}` +
-    `</div>`
-  );
-
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-title">Significant Life Events:</div>` +
-      `${renderSummaryList(lifeEvents)}` +
-    `</div>`
-  );
-
-  if (smoking) {
+  if (family) {
     parts.push(
       `<div class="summary-section">` +
-        `<div class="summary-line"><span class="summary-label">Smoking Hx:</span> ${escapeHtml(smoking)}</div>` +
-      `</div>`
-    );
-  }
-  if (alcohol) {
-    parts.push(
-      `<div class="summary-section">` +
-        `<div class="summary-line"><span class="summary-label">Alcohol Use Hx:</span> ${escapeHtml(alcohol)}</div>` +
-      `</div>`
-    );
-  }
-  if (substances) {
-    parts.push(
-      `<div class="summary-section">` +
-        `<div class="summary-line"><span class="summary-label">Other Substance Use Hx:</span> ${escapeHtml(substances)}</div>` +
+        `<div class="summary-line"><span class="summary-label">Family members names:</span> ${escapeHtml(family)}</div>` +
       `</div>`
     );
   }
 
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-title">Diagnoses:</div>` +
-      `${renderSummaryList(diagnoses)}` +
-    `</div>`
-  );
+  const socialLines = [];
+  if (occupation) socialLines.push(`<div class="summary-line"><span class="summary-label">Occupation:</span> ${escapeHtml(occupation)}</div>`);
+  if (hobbies) socialLines.push(`<div class="summary-line"><span class="summary-label">Hobbies and interests:</span> ${escapeHtml(hobbies)}</div>`);
+  if (social) socialLines.push(`<div class="summary-line"><span class="summary-label">Recent social life:</span> ${escapeHtml(social)}</div>`);
+  if (socialLines.length) {
+    parts.push(`<div class="summary-section">${socialLines.join("")}</div>`);
+  }
 
-  if (medHasIssues) {
-    const items = medIssues.length ? medIssues : ["Issue detected but details missing."];
+  if (hasRecentVisit) {
     parts.push(
       `<div class="summary-section">` +
-        `<div class="summary-title">Medication review:</div>` +
-        `<ul class="summary-list">` +
-          `${items.map(i => `<li class="summary-issue">${escapeHtml(i)}</li>`).join("")}` +
-        `</ul>` +
-      `</div>`
-    );
-  } else {
-    parts.push(
-      `<div class="summary-section">` +
-        `<div class="summary-title">Medication review:</div>` +
-        `<div class="summary-line">none</div>` +
+        `<div class="summary-title">Recent visits:</div>` +
+        `${renderSummaryList(lastVisits)}` +
       `</div>`
     );
   }
 
-  parts.push(
-    `<div class="summary-section">` +
-      `<div class="summary-title">Preventative Health Review:</div>` +
-      `${renderSummaryList(prevHealth, "Insufficient data to determine due items.")}` +
-    `</div>`
-  );
+  if (lifeEvents.length) {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-title">Significant Life Events:</div>` +
+        `${renderSummaryList(lifeEvents)}` +
+      `</div>`
+    );
+  }
+
+  if (diagnoses.length) {
+    parts.push(
+      `<div class="summary-section">` +
+        `<div class="summary-title">Diagnoses:</div>` +
+        `${renderSummaryList(diagnoses)}` +
+      `</div>`
+    );
+  }
 
   snapshotPanel.classList.add("summary-view");
   snapshotPanel.innerHTML = parts.join("").trim();
@@ -3433,11 +3383,7 @@ async function loadPatientSummaryAI(force=false) {
     const summary = (data && data.summary) ? data.summary : data;
     const hasText = (v) => String(v || "").trim().length > 0;
     const hasArr = (v) => Array.isArray(v) && v.length > 0;
-    const hasIssues =
-      summary && typeof summary === "object" &&
-      summary.medication_review &&
-      Array.isArray(summary.medication_review.issues) &&
-      summary.medication_review.issues.length > 0;
+    const hasIssues = false;
     const hasContent = summary && typeof summary === "object" && (
       hasText(summary.patient_name) ||
       hasText(summary.phn) ||
@@ -3446,14 +3392,10 @@ async function loadPatientSummaryAI(force=false) {
       hasText(summary.family_members) ||
       hasText(summary.occupation) ||
       hasText(summary.hobbies_and_interests) ||
-      hasText(summary.smoking_history) ||
-      hasText(summary.alcohol_use_history) ||
-      hasText(summary.other_substance_use_history) ||
-      hasArr(summary.last_three_visits) ||
+      hasText(summary.recent_social_life) ||
+      hasArr(summary.recent_visits) ||
       hasArr(summary.significant_life_events) ||
-      hasArr(summary.diagnoses) ||
-      hasArr(summary.preventative_health_review) ||
-      hasIssues
+      hasArr(summary.diagnoses)
     );
     if (!hasContent) {
       lastPatientSummaryHash = "";
@@ -4157,68 +4099,9 @@ async function ensureDraftUploadsComplete() {
 // -------------------------
 // Audio transcription
 // -------------------------
-function getStreamDeviceId(stream) {
-  try {
-    const track = stream?.getAudioTracks?.()[0];
-    const settings = track?.getSettings?.() || {};
-    return settings.deviceId || "";
-  } catch {
-    return "";
-  }
-}
-async function getAudioInputKey() {
-  if (!navigator.mediaDevices?.enumerateDevices) return "";
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  return devices
-    .filter(d => d.kind === "audioinput")
-    .map(d => `${d.deviceId}:${d.label}`)
-    .join("|");
-}
-function setPreferredAudioInput(id) {
-  preferredAudioInputId = String(id || "");
-  try {
-    if (preferredAudioInputId) localStorage.setItem(AUDIO_INPUT_PREF_KEY, preferredAudioInputId);
-    else localStorage.removeItem(AUDIO_INPUT_PREF_KEY);
-  } catch {}
-}
-async function refreshAudioInputs() {
-  if (!audioInputSelect || !navigator.mediaDevices?.enumerateDevices) return false;
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const inputs = devices.filter(d => d.kind === "audioinput");
-
-  const prev = preferredAudioInputId;
-  const hasPrev = prev && inputs.some(d => d.deviceId === prev);
-  if (!hasPrev && prev) setPreferredAudioInput("");
-
-  audioInputSelect.innerHTML = "";
-  const defOpt = document.createElement("option");
-  defOpt.value = "";
-  defOpt.textContent = "Mic: System Default";
-  audioInputSelect.appendChild(defOpt);
-
-  inputs.forEach((d, idx) => {
-    const opt = document.createElement("option");
-    const label = d.label || `Microphone ${idx + 1}`;
-    opt.value = d.deviceId;
-    opt.textContent = `Mic: ${label}`;
-    audioInputSelect.appendChild(opt);
-  });
-
-  audioInputSelect.value = preferredAudioInputId || "";
-  return preferredAudioInputId !== prev;
-}
 async function getPreferredAudioStream() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("Audio capture not supported.");
-  try {
-    if (preferredAudioInputId) {
-      return await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: preferredAudioInputId } }
-      });
-    }
-    return await navigator.mediaDevices.getUserMedia({ audio: { deviceId: "default" } });
-  } catch {
-    return await navigator.mediaDevices.getUserMedia({ audio: true });
-  }
+  return await navigator.mediaDevices.getUserMedia({ audio: true });
 }
 function activateAudioStream(stream) {
   if (!stream) return;
@@ -4233,49 +4116,13 @@ function releaseAudioStream() {
   audioStream = null;
 }
 async function getOrCreateAudioStream() {
-  const preferId = preferredAudioInputId || "";
   if (audioStream) {
     const track = audioStream.getAudioTracks?.()[0];
     if (track && track.readyState === "live") {
-      const currentId = getStreamDeviceId(audioStream);
-      if (!preferId || !currentId || currentId === preferId) {
-        return audioStream;
-      }
+      return audioStream;
     }
   }
   return await getPreferredAudioStream();
-}
-async function restartRecordingForDeviceChange() {
-  if (!isRecording) return;
-  let newStream = null;
-  try {
-    newStream = await getPreferredAudioStream();
-  } catch (err) {
-    console.warn("Audio device switch failed:", err);
-    return;
-  }
-  const oldStream = audioStream;
-  audioStream = newStream;
-  lastAudioDeviceId = getStreamDeviceId(newStream);
-  try { oldStream?.getTracks().forEach(t => t.stop()); } catch {}
-  try { if (recorder && recorder.state === "recording") recorder.stop(); } catch {}
-}
-async function handleDeviceChange() {
-  clearTimeout(audioDeviceChangeTimer);
-  audioDeviceChangeTimer = setTimeout(async () => {
-    let key = "";
-    let selectedChanged = false;
-    try { selectedChanged = await refreshAudioInputs(); } catch {}
-    try { key = await getAudioInputKey(); } catch {}
-    if (!selectedChanged && key && key === lastAudioInputKey) return;
-    lastAudioInputKey = key;
-    if (isRecording) await restartRecordingForDeviceChange();
-  }, 400);
-}
-if (navigator.mediaDevices?.addEventListener) {
-  navigator.mediaDevices.addEventListener("devicechange", handleDeviceChange);
-} else if (navigator.mediaDevices) {
-  navigator.mediaDevices.ondevicechange = handleDeviceChange;
 }
 
 function pickBestMime() {
@@ -4337,9 +4184,6 @@ async function startRecording() {
 
     audioStream = await getOrCreateAudioStream();
     activateAudioStream(audioStream);
-    lastAudioDeviceId = getStreamDeviceId(audioStream);
-    try { lastAudioInputKey = await getAudioInputKey(); } catch {}
-    try { await refreshAudioInputs(); } catch {}
     isRecording = true;
     await requestWakeLock();
 
@@ -5275,12 +5119,6 @@ macroPickerSelect?.addEventListener("change", () => {
     macroDeleteBtn.textContent = locked ? "Locked" : "Delete";
   }
 });
-audioInputSelect?.addEventListener("change", async () => {
-  setPreferredAudioInput(audioInputSelect.value || "");
-  try { await refreshAudioInputs(); } catch {}
-  await restartRecordingForDeviceChange();
-});
-
 recordBtn.addEventListener("click", async () => {
   if (recState === "idle") {
     recState = "recording";
@@ -5510,7 +5348,6 @@ window.addEventListener("beforeunload", () => {
     stopTimer(false);
     initTheme();
     initCqMode();
-    try { await refreshAudioInputs(); } catch {}
 
     const authed = await ensureAuth();
     if (authed) {
