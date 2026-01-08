@@ -152,6 +152,22 @@ def _is_repetitive_sentence(text: str) -> bool:
     return False
 
 
+def _has_repeated_ngram(tokens: list[str], n: int, min_count: int = 3, min_coverage: float = 0.35) -> bool:
+    if len(tokens) < n * min_count:
+        return False
+    counts = {}
+    for i in range(0, len(tokens) - n + 1):
+        key = " ".join(tokens[i:i + n])
+        counts[key] = counts.get(key, 0) + 1
+    if not counts:
+        return False
+    _, count = max(counts.items(), key=lambda kv: kv[1])
+    if count < min_count:
+        return False
+    coverage = (count * n) / max(1, len(tokens))
+    return coverage >= min_coverage
+
+
 def _should_drop_transcript(text: str) -> bool:
     if not text:
         return True
@@ -160,6 +176,12 @@ def _should_drop_transcript(text: str) -> bool:
         return False
     unique_ratio = len(set(tokens)) / max(1, len(tokens))
     if len(tokens) >= 10 and unique_ratio < 0.35:
+        return True
+    if "i am a student" in text.lower() and text.lower().count("i am a student") >= 2 and unique_ratio < 0.6:
+        return True
+    if _has_repeated_ngram(tokens, 3, min_count=3, min_coverage=0.35):
+        return True
+    if _has_repeated_ngram(tokens, 4, min_count=3, min_coverage=0.35):
         return True
     if _is_repetitive_phrase(tokens):
         return True

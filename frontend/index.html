@@ -4220,6 +4220,31 @@ async function getPreferredAudioStream() {
     return await navigator.mediaDevices.getUserMedia({ audio: true });
   }
 }
+function activateAudioStream(stream) {
+  if (!stream) return;
+  try { stream.getTracks().forEach(t => { t.enabled = true; }); } catch {}
+}
+function deactivateAudioStream(stream) {
+  if (!stream) return;
+  try { stream.getTracks().forEach(t => { t.enabled = false; }); } catch {}
+}
+function releaseAudioStream() {
+  try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+  audioStream = null;
+}
+async function getOrCreateAudioStream() {
+  const preferId = preferredAudioInputId || "";
+  if (audioStream) {
+    const track = audioStream.getAudioTracks?.()[0];
+    if (track && track.readyState === "live") {
+      const currentId = getStreamDeviceId(audioStream);
+      if (!preferId || !currentId || currentId === preferId) {
+        return audioStream;
+      }
+    }
+  }
+  return await getPreferredAudioStream();
+}
 async function restartRecordingForDeviceChange() {
   if (!isRecording) return;
   let newStream = null;
@@ -4310,7 +4335,8 @@ async function startRecording() {
     chosenMime = pick.mime;
     chosenExt = pick.ext;
 
-    audioStream = await getPreferredAudioStream();
+    audioStream = await getOrCreateAudioStream();
+    activateAudioStream(audioStream);
     lastAudioDeviceId = getStreamDeviceId(audioStream);
     try { lastAudioInputKey = await getAudioInputKey(); } catch {}
     try { await refreshAudioInputs(); } catch {}
@@ -4350,19 +4376,18 @@ async function startRecording() {
     isRecording = false;
     try { stopTimer(false); } catch {}
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
-    try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+    releaseAudioStream();
     recorder = null;
-    audioStream = null;
     updateRecUI();
   }
 }
-function stopRecording() {
+function stopRecording(releaseStream=false) {
   isRecording = false;
   clearTimeout(chunkStopTimeout);
   try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
-  try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+  if (releaseStream) releaseAudioStream();
+  else deactivateAudioStream(audioStream);
   recorder = null;
-  audioStream = null;
   setRecordingUI(false);
   stopTimer(false);
   releaseWakeLock();
@@ -5203,7 +5228,7 @@ newPatientConfirmProceedBtn?.addEventListener("click", async () => {
 newPatientConfirmOverlay?.addEventListener("click", () => closeNewPatientConfirm());
 signOutBtn?.addEventListener("click", async () => {
   closeProfilePopover();
-  try { stopRecording(); } catch {}
+  try { stopRecording(true); } catch {}
   try { await apiPost("/auth/logout"); } catch {}
   clearAuthToken();
   window.location.reload();
@@ -5283,9 +5308,8 @@ recordBtn.addEventListener("click", async () => {
     isRecording = false;
     clearTimeout(chunkStopTimeout);
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
-    try { audioStream?.getTracks().forEach(t => t.stop()); } catch {}
+    deactivateAudioStream(audioStream);
     recorder = null;
-    audioStream = null;
     stopTimer(true);
     releaseWakeLock();
   } else {
@@ -5482,7 +5506,7 @@ printBillingBtn.addEventListener("click", async () => {
 
 // Best-effort cleanup
 window.addEventListener("beforeunload", () => {
-  try { stopRecording(); } catch {}
+  try { stopRecording(true); } catch {}
   try { saveBillingToLocal(); } catch {}
   try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
 });
