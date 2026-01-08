@@ -2082,27 +2082,37 @@ async function copyRichText(plainText) {
       await navigator.clipboard.write([item]);
       return true;
     }
-  } catch (e) {}
-  const el = document.createElement("div");
-  el.contentEditable = "true";
-  el.style.position = "fixed";
-  el.style.left = "-9999px";
-  el.style.top = "0";
-  el.innerHTML = html;
-  document.body.appendChild(el);
-  const sel = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  sel.removeAllRanges();
-  sel.addRange(range);
+  } catch {}
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(plain);
+      return true;
+    }
+  } catch {}
+
+  const ta = document.createElement("textarea");
+  ta.value = plain;
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  ta.style.top = "0";
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
   let ok = false;
   try { ok = document.execCommand("copy"); } catch {}
-  sel.removeAllRanges();
-  document.body.removeChild(el);
-  if (!ok) {
-    try { await navigator.clipboard.writeText(plain); return true; } catch {}
-  }
+  document.body.removeChild(ta);
   return ok;
+}
+
+async function copyToClipboardWithStatus(label, text) {
+  const ok = await copyRichText(text);
+  if (ok) {
+    logChat("System", `${label} copied.`);
+    return true;
+  }
+  logChat("System", `${label} copy failed. Click Copy to copy manually.`);
+  return false;
 }
 
 let lastAssistantPlainText = "";
@@ -4874,8 +4884,7 @@ async function generateSoapToChat() {
       soapText = stripPairedMarkdownEmphasis(soapTextRaw);
     }
     logChat("SOAP", soapText);
-    await copyRichText(soapText);
-    logChat("System", "SOAP copied (rich formatting).");
+    await copyToClipboardWithStatus("SOAP", soapText);
   } catch (err) {
     uiError("SOAP", err);
   }
@@ -4933,8 +4942,7 @@ ${transcript || "[none]"}`;
     if (!letter) letter = String(content || "").trim();
     const cleanLetter = stripPairedMarkdownEmphasis(letter);
     logChat("Referral", cleanLetter);
-    await copyRichText(cleanLetter);
-    logChat("System", "Referral copied (rich formatting).");
+    await copyToClipboardWithStatus("Referral", cleanLetter);
     setPatientAnchorFromTextBestEffort(cleanLetter);
   } catch (err) {
     uiError("Referral", err);
