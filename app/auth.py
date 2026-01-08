@@ -273,12 +273,21 @@ def require_user(request: Request) -> AuthUser:
 
 
 @router.post("/auth/signup", response_model=AuthResponse)
-def signup(payload: SignupPayload):
+def signup(payload: SignupPayload, request: Request):
     username = _normalize_username(payload.username)
     email = (payload.email or "").strip().lower()
     _validate_username(username)
     _validate_email(email)
     _validate_password(payload.password)
+
+    if SIGNUP_MODE != "open":
+        allowlist = _load_signup_allowlist()
+        if username not in allowlist:
+            _send_signup_request_email(username, email, request)
+            raise HTTPException(
+                status_code=403,
+                detail="Signups are invite-only. Your request has been sent for approval.",
+            )
 
     with USERS_LOCK:
         data = _load_users()
@@ -296,6 +305,7 @@ def signup(payload: SignupPayload):
             "salt": base64.b64encode(salt).decode("ascii"),
             "created_at_utc": _utc_now_iso(),
             "updated_at_utc": _utc_now_iso(),
+            "approved": True,
         }
         _save_users(data)
 
