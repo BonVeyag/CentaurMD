@@ -2552,6 +2552,36 @@ def _format_billing_line(billing_items: List[Dict[str, str]]) -> str:
     return base.strip()
 
 
+def _fallback_icd9_from_transcript(transcript_text: str) -> List[Dict[str, str]]:
+    prompt = f"""
+Extract ICD-9 codes from the VISIT TRANSCRIPT below. Use best-guess codes based strictly on what was discussed today.
+Return STRICT JSON ONLY with schema:
+{{"icd9":[{{"code":"401","dx":"Hypertension"}}]}}
+- code must be digits only (no periods).
+- If nothing is clearly discussed, return icd9=[].
+
+VISIT TRANSCRIPT:
+{_clip_text(transcript_text or "", 5200) if (transcript_text or "").strip() else "None"}
+""".strip()
+    try:
+        resp = client.chat.completions.create(
+            model=BILLING_MODEL,
+            messages=[
+                {"role": "system", "content": "Return STRICT JSON only. Transcript-only ICD-9 extraction."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        obj = json.loads(raw)
+        if isinstance(obj, dict) and isinstance(obj.get("icd9"), list):
+            return obj.get("icd9") or []
+    except Exception:
+        return []
+    return []
+
+
 def billing_generate_entry_lines(
     context: SessionContext,
     billing_model: str = "FFS",
@@ -2622,6 +2652,8 @@ def billing_generate_entry_lines(
 
     icd9 = parsed.get("icd9") if isinstance(parsed.get("icd9"), list) else []
     billing_items = parsed.get("billing") if isinstance(parsed.get("billing"), list) else []
+    if tx and not icd9:
+        icd9 = _fallback_icd9_from_transcript(tx)
     line2 = _format_icd9_line(icd9)
     line3 = _format_billing_line(billing_items)
 
