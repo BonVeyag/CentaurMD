@@ -40,7 +40,7 @@ CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL",
 PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-4.1-mini")
 
 # Billing model (use a smaller model; upgrade if you prefer)
-BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-4.1-mini")
+BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5.2")
 
 # Web search (guidelines)
 WEB_SEARCH_ENABLED = (os.getenv("CENTAUR_WEB_SEARCH", "1").strip() == "1")
