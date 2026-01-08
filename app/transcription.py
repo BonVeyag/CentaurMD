@@ -224,6 +224,9 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
         if SUPPRESS_NOISE:
             text = _suppress_nonsense(text)
 
+        if _should_drop_transcript(text):
+            return ""
+
         if not text:
             return ""
 
