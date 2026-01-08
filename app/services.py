@@ -28,16 +28,14 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # =========================
 # Model selection
 # =========================
-CLINICAL_QUERY_TEXT_MODEL = "gpt-5.2"
-# Fast/Think toggles for Clinical Query
-CLINICAL_QUERY_FAST_MODEL = os.getenv("CLINICAL_QUERY_FAST_MODEL", "gpt-4o-mini")
+CLINICAL_QUERY_TEXT_MODEL = "gpt-5-nano"
+CLINICAL_QUERY_FAST_MODEL = os.getenv("CLINICAL_QUERY_FAST_MODEL", "gpt-5-nano")
 CLINICAL_QUERY_THINK_MODEL = os.getenv("CLINICAL_QUERY_THINK_MODEL", CLINICAL_QUERY_TEXT_MODEL)
-# If GPT-5.2 vision is not available, set to "gpt-4o-mini"
-CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5.2")
-CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL", "gpt-4o-mini")
+CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5-nano")
+CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL", "gpt-5-nano")
 
 # Patient summary model
-PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-4.1-mini")
+PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-5-nano")
 
 # Billing model (use a smaller model; upgrade if you prefer)
 BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5.2")
