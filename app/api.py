@@ -1018,25 +1018,25 @@ class MacroPayload(BaseModel):
 
 
 @router.get("/macros")
-def list_macros():
-    return {"macros": store_list_macros()}
+def list_macros(user: AuthUser = Depends(require_user)):
+    return {"macros": store_list_macros_for_user(user.username)}
 
 
 @router.post("/macros")
-def create_macro(payload: MacroPayload):
+def create_macro(payload: MacroPayload, user: AuthUser = Depends(require_user)):
     name = (payload.name or "").strip()
     content = (payload.content or "").strip()
     if not name or not content:
         raise HTTPException(status_code=400, detail="Macro name and content are required")
     try:
-        macro = store_save_macro(None, name, content)
+        macro = store_save_macro_for_user(user.username, None, name, content)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"macro": macro}
 
 
 @router.put("/macros/{macro_id}")
-def update_macro(macro_id: str, payload: MacroPayload):
+def update_macro(macro_id: str, payload: MacroPayload, user: AuthUser = Depends(require_user)):
     name = (payload.name or "").strip()
     content = (payload.content or "").strip()
     if not macro_id:
@@ -1044,18 +1044,18 @@ def update_macro(macro_id: str, payload: MacroPayload):
     if not name or not content:
         raise HTTPException(status_code=400, detail="Macro name and content are required")
     try:
-        macro = store_save_macro(macro_id, name, content)
+        macro = store_save_macro_for_user(user.username, macro_id, name, content)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"macro": macro}
 
 
 @router.delete("/macros/{macro_id}")
-def delete_macro(macro_id: str):
+def delete_macro(macro_id: str, user: AuthUser = Depends(require_user)):
     if not macro_id:
         raise HTTPException(status_code=400, detail="Macro id is required")
     try:
-        ok = store_delete_macro(macro_id)
+        ok = store_delete_macro_for_user(user.username, macro_id)
     except ValueError as e:
         raise HTTPException(status_code=403, detail=str(e))
     if not ok:
