@@ -50,6 +50,11 @@ WEB_SEARCH_USER_AGENT = os.getenv(
     "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
 )
 
+# Clinical Query speed controls
+CLINICAL_QUERY_SERVICE_TIER = os.getenv("CENTAUR_CQ_SERVICE_TIER", "priority").strip() or "priority"
+CLINICAL_QUERY_MAX_TOKENS = int(os.getenv("CENTAUR_CQ_MAX_TOKENS", "450"))
+CLINICAL_QUERY_USE_WEB = (os.getenv("CENTAUR_CQ_WEB", "0").strip() == "1")
+
 
 # =========================
 # Time helpers (timezone-safe)

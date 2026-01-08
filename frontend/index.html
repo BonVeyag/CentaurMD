@@ -4583,7 +4583,8 @@ async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOver
   const attachment_ids = ready.map(d => d.serverId).filter(Boolean);
   const payload = { query: q, mode };
   if (macroText) payload.macro = macroText;
-  if (modelOverride) payload.model = modelOverride;
+  const model = modelOverride || (macroText ? "gpt-5.2" : "");
+  if (model) payload.model = model;
   if (attachment_ids.length) payload.attachment_ids = attachment_ids;
 
   cqDraft = [];
