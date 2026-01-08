@@ -1269,7 +1269,7 @@ def generate_referral_letter(context: SessionContext) -> str:
     re_line = _build_re_line(context)
 
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-5.2",
         messages=[
             {"role": "system", "content": "Write a clean consultant referral letter. Plain text only."},
             {"role": "user", "content": build_referral_prompt(context)},
