@@ -3242,10 +3242,10 @@ function buildPatientSummaryText(backgroundText, transcriptText) {
 
   const sections = [];
   sections.push([
-    `Patient Name: ${name}`,
-    `PHN: ${phn}`,
-    `Age: ${ageDisp}`,
-    `Gender: ${gender}`,
+    `Patient Name: ${name || "—"}`,
+    `PHN: ${phn || "—"}`,
+    `Age: ${ageDisp || "—"}`,
+    `Gender: ${gender || "—"}`,
   ].join("\n"));
 
   if (famNames) sections.push(`Family members names: ${famNames}`);
