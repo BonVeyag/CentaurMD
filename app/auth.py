@@ -4,11 +4,15 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import secrets
+import smtplib
+import ssl
 import time
 from datetime import datetime, timezone
+from email.message import EmailMessage
 from threading import Lock as ThreadLock
 from typing import Optional, Dict, Any
 
@@ -22,6 +26,12 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 USERS_PATH = os.path.join(DATA_DIR, "users.json")
 USER_ROOT_DIR = os.path.join(DATA_DIR, "users")
+SIGNUP_ALLOWLIST_PATH = os.path.join(DATA_DIR, "signup_allowlist.json")
+
+ADMIN_EMAIL = os.getenv("CENTAUR_ADMIN_EMAIL", "thapa.rajat@gmail.com").strip()
+SIGNUP_MODE = os.getenv("CENTAUR_SIGNUP_MODE", "invite_only").strip().lower()
+
+logger = logging.getLogger(__name__)
 
 USERS_LOCK = ThreadLock()
 SESSIONS_LOCK = ThreadLock()
@@ -135,6 +145,72 @@ def _public_user(username: str, rec: Dict[str, Any]) -> AuthUser:
 def _ensure_user_dir(username: str) -> None:
     path = os.path.join(USER_ROOT_DIR, username)
     os.makedirs(path, exist_ok=True)
+
+
+def _load_signup_allowlist() -> set[str]:
+    if not os.path.exists(SIGNUP_ALLOWLIST_PATH):
+        return set()
+    try:
+        with open(SIGNUP_ALLOWLIST_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return set()
+    raw = data.get("usernames", [])
+    if not isinstance(raw, list):
+        return set()
+    return {str(u).strip().lower() for u in raw if str(u).strip()}
+
+
+def _send_signup_request_email(username: str, email: str, request: Request) -> None:
+    host = os.getenv("CENTAUR_SMTP_HOST", "").strip()
+    if not host or not ADMIN_EMAIL:
+        logger.warning("Signup request email skipped: SMTP host or admin email not configured.")
+        return
+
+    port = int(os.getenv("CENTAUR_SMTP_PORT", "587"))
+    smtp_user = os.getenv("CENTAUR_SMTP_USER", "").strip()
+    smtp_pass = os.getenv("CENTAUR_SMTP_PASS", "").strip()
+    use_tls = os.getenv("CENTAUR_SMTP_TLS", "true").strip().lower() in {"1", "true", "yes"}
+    use_ssl = os.getenv("CENTAUR_SMTP_SSL", "false").strip().lower() in {"1", "true", "yes"}
+    from_addr = os.getenv("CENTAUR_SMTP_FROM", ADMIN_EMAIL).strip() or ADMIN_EMAIL
+
+    ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("User-Agent", "")
+    now = _utc_now_iso()
+
+    msg = EmailMessage()
+    msg["Subject"] = "CentaurMD signup request"
+    msg["From"] = from_addr
+    msg["To"] = ADMIN_EMAIL
+    msg.set_content(
+        "\n".join(
+            [
+                "A new signup request was received.",
+                f"Username: {username}",
+                f"Email: {email}",
+                f"IP: {ip}",
+                f"User-Agent: {user_agent}",
+                f"Time (UTC): {now}",
+            ]
+        )
+    )
+
+    try:
+        if use_ssl:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(host, port, context=context) as server:
+                if smtp_user and smtp_pass:
+                    server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port) as server:
+                if use_tls:
+                    server.starttls(context=ssl.create_default_context())
+                if smtp_user and smtp_pass:
+                    server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+    except Exception as e:
+        logger.warning(f"Signup request email failed: {e}")
 
 
 def user_storage_dir(username: str) -> str:
