@@ -1049,151 +1049,6 @@ textarea::-webkit-scrollbar-track{
 }
 
 /* =====================
-   Attachments UI (ChatGPT-like)
-===================== */
-.cq-plus{
-  position:absolute;
-  bottom:20px;
-  right:80px;
-  left:auto;
-  width:26px;
-  height:26px;
-  padding:0;
-  border-radius:9px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-weight:800;
-  font-size:18px;
-  line-height:1;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-}
-
-.cq-menu{
-  position:absolute;
-  right:80px;
-  left:auto;
-  bottom:66px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  border:none;
-  border-radius:14px;
-  padding:6px;
-  box-shadow: var(--shadow-lg),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  min-width:200px;
-  z-index:50;
-}
-
-/* solid menu background in dark mode */
-:root[data-theme="dark"] .cq-menu{ background: var(--panel); }
-
-.cq-menu-item{
-  width:100%;
-  text-align:left;
-  padding:10px 10px;
-  border-radius:12px;
-  background: transparent;
-  border:1px solid transparent;
-  box-shadow: none;
-}
-.cq-menu-item:hover{
-  background: color-mix(in oklab, var(--panel) 70%, transparent);
-  border-color:var(--border);
-}
-.cq-draft{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  padding:10px 0 10px 0;
-}
-.cq-draft-item{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  border:none;
-  border-radius:16px;
-  padding:8px 10px;
-  max-width:100%;
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.cq-thumb{
-  width:46px;
-  height:46px;
-  border-radius:12px;
-  overflow:hidden;
-  border:1px solid rgba(0,0,0,.06);
-  background: color-mix(in oklab, var(--panel) 85%, transparent);
-  flex:0 0 auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:12px;
-  color:var(--muted);
-}
-:root[data-theme="dark"] .cq-thumb{ border-color: rgba(255,255,255,.10); }
-.cq-thumb img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  display:block;
-}
-.cq-draft-meta{
-  display:flex;
-  flex-direction:column;
-  min-width:0;
-}
-.cq-draft-name{
-  font-size:13px;
-  font-weight:700;
-  max-width:360px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-.cq-draft-sub{
-  font-size:12px;
-  color:var(--muted);
-}
-.cq-draft-actions{
-  margin-left:6px;
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.cq-pill{
-  font-size:12px;
-  color:var(--muted);
-  border:none;
-  border-radius:999px;
-  padding:4px 9px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  box-shadow: inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.cq-x{
-  border:none;
-  background:transparent;
-  padding:0 2px;
-  font-size:18px;
-  cursor:pointer;
-  color:var(--muted);
-  line-height:1;
-  box-shadow:none;
-}
-.cq-x:hover{ color: var(--danger); }
-.chatinput.dragover textarea{
-  outline:2px solid rgba(37,99,235,.35);
-  outline-offset:2px;
-}
-
-/* =====================
    CHAT BUBBLES
 ===================== */
 .msg{ display:flex; width:100%; }
@@ -1241,59 +1096,6 @@ textarea::-webkit-scrollbar-track{
   margin-bottom:6px;
 }
 
-.bubble-attachments{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-bottom:8px;
-}
-.bubble-attach-img{
-  width:190px;
-  max-width:100%;
-  border-radius:16px;
-  overflow:hidden;
-  border:none;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  box-shadow: inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.bubble-attach-img img{
-  width:100%;
-  height:auto;
-  display:block;
-}
-.bubble-attach-file{
-  display:inline-flex;
-  align-items:center;
-  gap:10px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  border:none;
-  border-radius:16px;
-  padding:10px 12px;
-  max-width:100%;
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.bubble-attach-file .badge{
-  font-size:12px;
-  color:var(--muted);
-  border:1px solid var(--border);
-  border-radius:999px;
-  padding:4px 9px;
-}
-.bubble-attach-file .fname{
-  max-width:360px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:13px;
-  font-weight:700;
-}
-.bubble-attach-file .fmeta{
-  font-size:12px;
-  color:var(--muted);
-}
 
 .mono{
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
@@ -1377,8 +1179,6 @@ textarea::-webkit-scrollbar-track{
   .transcript-btnrow{ grid-template-columns: 1fr; }
   .timer{ font-size:inherit; }
   .cq-draft-name{ max-width: 220px; }
-  .bubble-attach-img{ width: 100%; }
-  .bubble-attach-file .fname{ max-width: 220px; }
   .chatinput{ position: relative; bottom: auto; }
   .popover{ right:0; }
 }
@@ -1516,25 +1316,8 @@ textarea::-webkit-scrollbar-track{
       <div class="chatlog" aria-live="polite"></div>
 
       <div class="chatinput" id="cqChatInputWrap">
-        <button id="cqPlusBtn" class="cq-plus" type="button" title="Add attachment" aria-label="Add attachment">+</button>
-        <div id="cqPlusMenu" class="cq-menu" style="display:none">
-          <button id="cqUploadPdfBtn" class="cq-menu-item" type="button">Upload PDF</button>
-          <button id="cqUploadImageBtn" class="cq-menu-item" type="button">Upload image</button>
-        </div>
-
-        <!-- Draft attachments live inside composer (ChatGPT-style) -->
-        <div id="cqDraftAttachments" class="cq-draft" style="display:none"></div>
-
         <textarea id="cqTextArea" placeholder="Ask a clinical question, or paste EMR/background…" spellcheck="false"></textarea>
         <button class="send-btn" id="cqSendBtn" type="button">Send</button>
-
-        <input
-          id="cqFileInput"
-          type="file"
-          multiple
-          accept="application/pdf,image/png,image/jpeg,image/webp"
-          style="display:none"
-        />
       </div>
 
       <div class="query-actions">
@@ -1753,11 +1536,6 @@ let patientName = "";
 let patientPHN = "";
 let patientAge = ""; // years as string, e.g. "27"
 
-// Draft attachments (Clinical Query)
-let cqDraft = []; // [{localId, file, kind, mime, filename, size, previewUrl, status, serverId, uploadPromise}]
-let cqPickKind = "all"; // "pdf" | "image" | "all"
-const uploadedAttachmentIdsEver = new Set(); // best-effort cleanup on New
-
 // -------------------------
 // DOM refs
 // -------------------------
@@ -1775,14 +1553,7 @@ const sendBtn   = document.getElementById("cqSendBtn");
 const soapBtn       = document.querySelector(".query-actions button:nth-child(1)");
 const referralBtn   = document.querySelector(".query-actions button:nth-child(2)");
 
-// Attachments UI refs
-const cqPlusBtn = document.getElementById("cqPlusBtn");
-const cqPlusMenu = document.getElementById("cqPlusMenu");
-const cqUploadPdfBtn = document.getElementById("cqUploadPdfBtn");
-const cqUploadImageBtn = document.getElementById("cqUploadImageBtn");
-const cqFileInput = document.getElementById("cqFileInput");
 const cqChatInputWrap = document.getElementById("cqChatInputWrap");
-const cqDraftEl = document.getElementById("cqDraftAttachments");
 
 // Billing UI refs (SIMPLIFIED)
 const dailyBillingText = document.getElementById("dailyBillingText");
@@ -2089,46 +1860,6 @@ function safeSubsetFormat(text) {
   s = s.replace(/\*\*([^\n*]+)\*\*/g, "$1").replace(/__([^\n_]+)__/g, "$1");
   s = s.replace(/[ \t]+\n/g, "\n");
   return s;
-}
-
-function bytesToHuman(n) {
-  const x = Number(n || 0);
-  if (!Number.isFinite(x) || x <= 0) return "0 B";
-  const units = ["B","KB","MB","GB"];
-  let v = x;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-  return `${(i === 0 ? v.toFixed(0) : v.toFixed(1))} ${units[i]}`;
-}
-
-function kindFromFile(file) {
-  const t = String(file?.type || "").toLowerCase();
-  if (t.includes("pdf") || String(file?.name || "").toLowerCase().endsWith(".pdf")) return "pdf";
-  if (t.startsWith("image/")) return "image";
-  return "file";
-}
-function isAllowedKind(file) {
-  const k = kindFromFile(file);
-  return (k === "pdf" || k === "image");
-}
-function closePlusMenu() { cqPlusMenu.style.display = "none"; }
-
-/* FIXED: restore previous + menu toggle behaviour */
-function togglePlusMenu() {
-  const open = cqPlusMenu.style.display !== "none";
-  cqPlusMenu.style.display = open ? "none" : "flex";
-}
-
-function makeLocalId() { return `loc_${Date.now()}_${Math.random().toString(16).slice(2)}`; }
-function normalizeAttachmentForDisplay(d) {
-  return {
-    kind: d.kind,
-    filename: d.filename,
-    size_bytes: d.size,
-    mime: d.mime,
-    previewUrl: d.previewUrl || "",
-    serverId: d.serverId || null,
-  };
 }
 
 // -------------------------
@@ -3327,9 +3058,9 @@ async function loadPatientSummaryAI(force=false) {
 }
 
 // -------------------------
-// Chat message rendering (supports attachments inside bubble)
+// Chat message rendering
 // -------------------------
-function addMessage(role, text, attachments=[]) {
+function addMessage(role, text) {
   const r = String(role || "").toLowerCase();
   const kind =
     (r === "you" || r === "user") ? "user" :
@@ -3347,50 +3078,6 @@ function addMessage(role, text, attachments=[]) {
     meta.className = "bubble-meta";
     meta.textContent = (kind === "user") ? "You" : "Centaur";
     bubble.appendChild(meta);
-  }
-
-  if (kind === "user" && Array.isArray(attachments) && attachments.length) {
-    const wrap = document.createElement("div");
-    wrap.className = "bubble-attachments";
-    for (const a of attachments) {
-      const ak = String(a?.kind || "").toLowerCase();
-      if (ak === "image" && a?.previewUrl) {
-        const tile = document.createElement("div");
-        tile.className = "bubble-attach-img";
-        const img = document.createElement("img");
-        img.src = a.previewUrl;
-        img.alt = a?.filename || "image";
-        tile.appendChild(img);
-        wrap.appendChild(tile);
-      } else {
-        const file = document.createElement("div");
-        file.className = "bubble-attach-file";
-        const badge = document.createElement("span");
-        badge.className = "badge";
-        badge.textContent = (ak === "pdf") ? "PDF" : "FILE";
-
-        const stack = document.createElement("div");
-        stack.style.display = "flex";
-        stack.style.flexDirection = "column";
-        stack.style.minWidth = "0";
-
-        const fn = document.createElement("div");
-        fn.className = "fname";
-        fn.textContent = a?.filename || "attachment";
-
-        const fm = document.createElement("div");
-        fm.className = "fmeta";
-        fm.textContent = bytesToHuman(a?.size_bytes || 0);
-
-        stack.appendChild(fn);
-        stack.appendChild(fm);
-
-        file.appendChild(badge);
-        file.appendChild(stack);
-        wrap.appendChild(file);
-      }
-    }
-    bubble.appendChild(wrap);
   }
 
   const content = document.createElement("div");
@@ -3413,7 +3100,7 @@ function addMessage(role, text, attachments=[]) {
   }
   return content;
 }
-function logChat(role, text, attachments=[]) { addMessage(role, text, attachments); }
+function logChat(role, text) { addMessage(role, text); }
 
 function scrollChatToMessageStart(contentEl) {
   if (!chatLog || !contentEl) return;
@@ -3445,25 +3132,10 @@ function extractClinicalQueryText() {
     if (role === "System") continue;
     const bubble = row.querySelector(".bubble");
     if (!bubble) continue;
-    const attachments = [];
-    const fileNodes = bubble.querySelectorAll(".bubble-attach-file");
-    fileNodes.forEach((node) => {
-      const name = (node.querySelector(".fname")?.textContent || "attachment").trim();
-      const meta = (node.querySelector(".fmeta")?.textContent || "").trim();
-      attachments.push(meta ? `${name} (${meta})` : name);
-    });
-    const imageNodes = bubble.querySelectorAll(".bubble-attach-img img");
-    imageNodes.forEach((img) => {
-      const name = (img.getAttribute("alt") || "image").trim();
-      attachments.push(name);
-    });
     const contentEl = bubble.lastElementChild;
     const text = (contentEl?.textContent || "").trim();
-    if (!text && attachments.length === 0) continue;
-    const lines = [];
-    if (text) lines.push(text);
-    if (attachments.length) lines.push(`Attachments: ${attachments.join("; ")}`);
-    parts.push(`${role}: ${lines.join("\n")}`);
+    if (!text) continue;
+    parts.push(`${role}: ${text}`);
   }
   return parts.join("\n\n").trim();
 }
@@ -3472,8 +3144,7 @@ function hasCurrentPatientData() {
   const hasTranscript = (transcriptBox?.value || "").trim().length > 0;
   const hasEmr = (emrBackgroundText || "").trim().length > 0;
   const hasChat = (chatLog?.querySelectorAll(".msg.user, .msg.assistant") || []).length > 0;
-  const hasDraft = Array.isArray(cqDraft) && cqDraft.length > 0;
-  return hasTranscript || hasEmr || hasChat || hasDraft;
+  return hasTranscript || hasEmr || hasChat;
 }
 
 async function copyFullContextToClipboard() {
@@ -3605,9 +3276,6 @@ async function startNewPatientSession() {
   recState = "idle";
   updateRecUI();
 
-  const oldSid = sessionId;
-  if (oldSid) { try { await deleteAllUploadedAttachmentsBestEffort(oldSid); } catch {} }
-
   transcriptBox.value = "";
   chatLog.innerHTML = "";
   snapshotPanel.textContent = "";
@@ -3631,11 +3299,6 @@ async function startNewPatientSession() {
   patientName = "";
   patientPHN = "";
   patientAge = "";
-
-  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
-  cqDraft = [];
-  renderDraft();
-  closePlusMenu();
 
   await createSession();
   logChat("System", "New patient session created.");
@@ -3747,19 +3410,6 @@ async function apiPut(path, bodyObj) {
   if (!txt) return {};
   try { return JSON.parse(txt); } catch { return { raw: txt }; }
 }
-async function apiPostForm(path, formData) {
-  const res = await fetchWithTimeout(`${API_BASE}${path}`, { method: "POST", body: formData, headers: { ...authHeaders() } });
-  if (res.status === 401) {
-    handleAuthRequired();
-    throw new Error("401 Unauthorized");
-  }
-  if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
-  }
-  return await res.json();
-}
-
 async function apiPostStreamNDJSON(path, bodyObj, onChunk) {
   const hasBody = !(bodyObj === undefined || bodyObj === null);
   const opts = { method: "POST" };
@@ -3844,173 +3494,6 @@ async function createSession() {
   return sessionId;
 }
 async function ensureSession() { if (!sessionId) await createSession(); }
-
-// -------------------------
-// Attachments (Draft)
-// -------------------------
-function setDraftVisible() {
-  const has = Array.isArray(cqDraft) && cqDraft.length > 0;
-  cqDraftEl.style.display = has ? "flex" : "none";
-}
-function renderDraft() {
-  cqDraftEl.innerHTML = "";
-  if (!Array.isArray(cqDraft) || cqDraft.length === 0) { setDraftVisible(); return; }
-  for (const d of cqDraft) {
-    const item = document.createElement("div");
-    item.className = "cq-draft-item";
-
-    const thumb = document.createElement("div");
-    thumb.className = "cq-thumb";
-    if (d.kind === "image" && d.previewUrl) {
-      const img = document.createElement("img");
-      img.src = d.previewUrl;
-      img.alt = d.filename || "image";
-      thumb.appendChild(img);
-    } else {
-      thumb.textContent = (d.kind === "pdf") ? "PDF" : "FILE";
-    }
-
-    const meta = document.createElement("div");
-    meta.className = "cq-draft-meta";
-
-    const name = document.createElement("div");
-    name.className = "cq-draft-name";
-    name.textContent = d.filename || "attachment";
-
-    const sub = document.createElement("div");
-    sub.className = "cq-draft-sub";
-    const size = bytesToHuman(d.size || 0);
-    const st =
-      (d.status === "uploading") ? "Uploading…" :
-      (d.status === "ready") ? "Ready" :
-      (d.status === "error") ? "Upload failed" :
-      "Pending";
-    sub.textContent = `${size} • ${st}`;
-
-    meta.appendChild(name);
-    meta.appendChild(sub);
-
-    const actions = document.createElement("div");
-    actions.className = "cq-draft-actions";
-
-    const pill = document.createElement("span");
-    pill.className = "cq-pill";
-    pill.textContent = (d.kind === "pdf") ? "PDF" : (d.kind === "image") ? "IMG" : "FILE";
-
-    const x = document.createElement("button");
-    x.className = "cq-x";
-    x.type = "button";
-    x.textContent = "×";
-    x.title = "Remove";
-    x.addEventListener("click", async (e) => {
-      e.preventDefault(); e.stopPropagation();
-      await removeDraftItem(d.localId);
-    });
-
-    actions.appendChild(pill);
-    actions.appendChild(x);
-
-    item.appendChild(thumb);
-    item.appendChild(meta);
-    item.appendChild(actions);
-    cqDraftEl.appendChild(item);
-  }
-  setDraftVisible();
-}
-async function uploadDraftItem(d) {
-  await ensureSession();
-  d.status = "uploading";
-  renderDraft();
-
-  const fd = new FormData();
-  fd.append("file", d.file, d.filename || "upload");
-
-  const data = await apiPostForm(`/session/${sessionId}/attachments`, fd);
-  const att = data?.attachment || data || null;
-  const sid = String(att?.id || att?.attachment_id || att?.file_id || "").trim();
-  if (!sid) throw new Error("No attachment id returned from backend.");
-  d.serverId = sid;
-  uploadedAttachmentIdsEver.add(sid);
-  d.status = "ready";
-  renderDraft();
-}
-function shouldAcceptByPickKind(file) {
-  const k = kindFromFile(file);
-  if (cqPickKind === "pdf") return k === "pdf";
-  if (cqPickKind === "image") return k === "image";
-  return (k === "pdf" || k === "image");
-}
-async function addDraftFiles(files) {
-  const list = Array.from(files || []).filter(Boolean);
-  if (!list.length) return;
-
-  const accepted = [];
-  for (const f of list) {
-    if (!isAllowedKind(f)) continue;
-    if (!shouldAcceptByPickKind(f)) continue;
-    accepted.push(f);
-  }
-  if (!accepted.length) {
-    logChat("System", "No supported files detected. Supported: PDF, PNG/JPG/WEBP.");
-    return;
-  }
-
-  for (const file of accepted) {
-    const kind = kindFromFile(file);
-    const previewUrl = (kind === "image") ? URL.createObjectURL(file) : "";
-    const d = {
-      localId: makeLocalId(),
-      file,
-      kind,
-      mime: String(file.type || ""),
-      filename: String(file.name || "upload"),
-      size: Number(file.size || 0),
-      previewUrl,
-      status: "pending",
-      serverId: null,
-      uploadPromise: null
-    };
-    cqDraft.push(d);
-  }
-  renderDraft();
-
-  for (const d of cqDraft) {
-    if (d.status === "pending") {
-      d.uploadPromise = (async () => {
-        try { await uploadDraftItem(d); }
-        catch (err) { d.status = "error"; renderDraft(); console.error("Attachment upload failed:", err); }
-      })();
-    }
-  }
-}
-async function removeDraftItem(localId) {
-  const idx = cqDraft.findIndex(x => x.localId === localId);
-  if (idx < 0) return;
-  const d = cqDraft[idx];
-
-  try { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } catch {}
-
-  const aid = String(d.serverId || "").trim();
-  if (aid) {
-    try { await apiDelete(`/session/${sessionId}/attachments/${aid}`); } catch {}
-    uploadedAttachmentIdsEver.delete(aid);
-  }
-  cqDraft.splice(idx, 1);
-  renderDraft();
-}
-async function clearDraftAttachments() {
-  const items = [...cqDraft];
-  for (const d of items) { try { await removeDraftItem(d.localId); } catch {} }
-  cqDraft = [];
-  renderDraft();
-}
-async function ensureDraftUploadsComplete() {
-  const promises = cqDraft.map(d => d.uploadPromise).filter(Boolean);
-  if (promises.length) await Promise.allSettled(promises);
-  const ready = cqDraft.filter(d => d.status === "ready" && d.serverId);
-  const failed = cqDraft.filter(d => d.status === "error");
-  return { ready, failed };
-}
 
 // -------------------------
 // Audio transcription
@@ -4561,34 +4044,24 @@ async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOver
   const overrideText = String(macroOverride || "").trim();
   const selectedMacro = overrideText ? null : getSelectedMacro();
   const macroText = overrideText || (selectedMacro?.content || "").trim();
-  if (!q && cqDraft.length === 0 && !macroText) return;
+  if (!q && !macroText) return;
 
   // If EMR/background paste: display only and do not generate an answer
-  if (looksLikeEmrPaste(q) && cqDraft.length === 0) {
+  if (looksLikeEmrPaste(q)) {
     await handleEmrBackgroundPasteOnly(q);
     logChat("You", "[EMR/Background pasted]");
     return;
   }
 
-  const { ready, failed } = await ensureDraftUploadsComplete();
-  const displayAtt = ready.map(normalizeAttachmentForDisplay);
-
   const logText = q || "";
-  if (logText || displayAtt.length) {
-    logChat("You", logText, displayAtt);
+  if (logText) {
+    logChat("You", logText);
   }
 
-  if (failed.length) logChat("System", `Note: ${failed.length} attachment(s) failed to upload and were not sent.`);
-
-  const attachment_ids = ready.map(d => d.serverId).filter(Boolean);
   const payload = { query: q, mode };
   if (macroText) payload.macro = macroText;
   const model = modelOverride || (macroText ? "gpt-5.2" : "");
   if (model) payload.model = model;
-  if (attachment_ids.length) payload.attachment_ids = attachment_ids;
-
-  cqDraft = [];
-  renderDraft();
 
   const contentEl = addMessage("Centaur", "…");
   scrollChatToMessageStart(contentEl);
@@ -5064,12 +4537,6 @@ recordBtn.addEventListener("click", async () => {
 snapshotPanel.addEventListener("dblclick", () => loadPatientSummaryAI(true));
 coachPanel.addEventListener("dblclick", () => loadCoach(true));
 
-async function deleteAllUploadedAttachmentsBestEffort(oldSid) {
-  const ids = Array.from(uploadedAttachmentIdsEver);
-  for (const id of ids) { try { await apiDelete(`/session/${oldSid}/attachments/${id}`); } catch {} }
-  uploadedAttachmentIdsEver.clear();
-}
-
 newBtn.addEventListener("click", async () => {
   if (hasCurrentPatientData() && !hasBilledCurrentPatient) {
     openNewPatientConfirm();
@@ -5106,72 +4573,13 @@ chatInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Attachments: + menu open/close
-cqPlusBtn.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); togglePlusMenu(); });
-document.addEventListener("click", () => { closePlusMenu(); closeMenuPopover(); closeProfilePopover(); });
+document.addEventListener("click", () => { closeMenuPopover(); closeProfilePopover(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    closePlusMenu();
     closeMenuPopover();
     closeMacroPanel();
     closeProfilePopover();
     closeBillingArchivePanel();
-  }
-});
-cqPlusMenu.addEventListener("click", (e) => { e.stopPropagation(); });
-
-cqUploadPdfBtn.addEventListener("click", (e) => {
-  e.preventDefault(); e.stopPropagation();
-  cqPickKind = "pdf";
-  cqFileInput.accept = "application/pdf";
-  cqFileInput.click();
-  closePlusMenu();
-});
-cqUploadImageBtn.addEventListener("click", (e) => {
-  e.preventDefault(); e.stopPropagation();
-  cqPickKind = "image";
-  cqFileInput.accept = "image/png,image/jpeg,image/webp";
-  cqFileInput.click();
-  closePlusMenu();
-});
-
-cqFileInput.addEventListener("change", async () => {
-  try {
-    const files = Array.from(cqFileInput.files || []);
-    if (!files.length) return;
-    await runWithButtonBusy(cqPlusBtn, "…", async () => { await addDraftFiles(files); });
-  } catch (err) {
-    uiError("Attachment add", err);
-  } finally {
-    cqFileInput.value = "";
-    cqPickKind = "all";
-    cqFileInput.accept = "application/pdf,image/png,image/jpeg,image/webp";
-  }
-});
-
-// Drag/drop into composer
-cqChatInputWrap.addEventListener("dragover", (e) => {
-  if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files")) {
-    e.preventDefault();
-    cqChatInputWrap.classList.add("dragover");
-  }
-});
-cqChatInputWrap.addEventListener("dragleave", () => cqChatInputWrap.classList.remove("dragover"));
-cqChatInputWrap.addEventListener("drop", async (e) => {
-  cqChatInputWrap.classList.remove("dragover");
-  if (!e.dataTransfer) return;
-  const files = Array.from(e.dataTransfer.files || []).filter(isAllowedKind);
-  if (!files.length) return;
-  e.preventDefault();
-  try {
-    await runWithButtonBusy(cqPlusBtn, "…", async () => {
-      const prevPick = cqPickKind;
-      cqPickKind = "all";
-      await addDraftFiles(files);
-      cqPickKind = prevPick;
-    });
-  } catch (err) {
-    uiError("Attachment drop", err);
   }
 });
 
@@ -5244,7 +4652,6 @@ printBillingBtn.addEventListener("click", async () => {
 window.addEventListener("beforeunload", () => {
   try { stopRecording(true); } catch {}
   try { saveBillingToLocal(); } catch {}
-  try { for (const d of cqDraft) { if (d.previewUrl) URL.revokeObjectURL(d.previewUrl); } } catch {}
 });
 
 // -------------------------
