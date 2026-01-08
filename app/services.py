@@ -1965,6 +1965,7 @@ def run_clinical_query_stream(
     mode: str = "brief",
     attachments_text: str = "",
     attachments: Optional[List[Dict[str, Any]]] = None,
+    model_override: Optional[str] = None,
 ) -> Generator[str, None, None]:
     """
     Stream tokens from the clinical query response.
@@ -1974,13 +1975,13 @@ def run_clinical_query_stream(
 
     q_lower = (query or "").lower()
     mode_norm = (mode or "").strip().lower()
-    fast_mode = mode_norm == "fast"
-    expand = ("expand" in q_lower) or (mode_norm in ("expand", "think", "thinking"))
+    fast_mode = True
+    expand = ("expand" in q_lower) or (mode_norm == "expand")
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
 
     web_context = ""
-    if WEB_SEARCH_ENABLED:
+    if WEB_SEARCH_ENABLED and CLINICAL_QUERY_USE_WEB:
         try:
             web_query = _build_web_query_for_clinical_query(context, query)
             results = _web_search(web_query)
@@ -2011,9 +2012,37 @@ def run_clinical_query_stream(
                 break
 
     user_content = _build_multimodal_user_content(prompt, attachments if has_images else None)
-    text_model = CLINICAL_QUERY_FAST_MODEL if fast_mode else CLINICAL_QUERY_THINK_MODEL
-    vision_model = CLINICAL_QUERY_VISION_FAST_MODEL if fast_mode else CLINICAL_QUERY_VISION_MODEL
+    text_model = (model_override or CLINICAL_QUERY_TEXT_MODEL).strip()
+    vision_model = (model_override or CLINICAL_QUERY_VISION_MODEL).strip()
     model = vision_model if (has_images and isinstance(user_content, list)) else text_model
+
+    def _unique_models(models: List[str]) -> List[str]:
+        seen = set()
+        out: List[str] = []
+        for m in models:
+            m = (m or "").strip()
+            if not m or m in seen:
+                continue
+            seen.add(m)
+            out.append(m)
+        return out
+
+    if has_images:
+        candidates = _unique_models([
+            model,
+            CLINICAL_QUERY_VISION_MODEL,
+            "gpt-5.2",
+            "gpt-4o-mini",
+        ])
+    else:
+        candidates = _unique_models([
+            model,
+            CLINICAL_QUERY_TEXT_MODEL,
+            "gpt-5-nano",
+            "gpt-5-mini",
+            "gpt-4o-mini",
+            "gpt-5.2",
+        ])
 
     system_msg = (
         "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
@@ -2030,7 +2059,10 @@ def run_clinical_query_stream(
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_content},
         ],
+        "max_tokens": CLINICAL_QUERY_MAX_TOKENS,
     }
+    if CLINICAL_QUERY_SERVICE_TIER:
+        base_kwargs["service_tier"] = CLINICAL_QUERY_SERVICE_TIER
     if temperature is not None:
         base_kwargs["temperature"] = temperature
 
@@ -2074,6 +2106,47 @@ def run_clinical_query_stream(
         except Exception:
             continue
 
+    if "service_tier" in base_kwargs:
+        base_kwargs.pop("service_tier", None)
+        for cand in candidates:
+            try:
+                base_kwargs["model"] = cand
+                response = client.chat.completions.create(
+                    **base_kwargs,
+                    response_format={"type": "json_object"},
+                    stream=True,
+                )
+                for chunk in response:
+                    try:
+                        delta = chunk.choices[0].delta
+                        piece = getattr(delta, "content", None)
+                    except Exception:
+                        piece = None
+                    if piece:
+                        yield piece
+                return
+            except Exception:
+                continue
+
+        for cand in candidates:
+            try:
+                base_kwargs["model"] = cand
+                response = client.chat.completions.create(
+                    **base_kwargs,
+                    stream=True,
+                )
+                for chunk in response:
+                    try:
+                        delta = chunk.choices[0].delta
+                        piece = getattr(delta, "content", None)
+                    except Exception:
+                        piece = None
+                    if piece:
+                        yield piece
+                return
+            except Exception:
+                continue
+
     # Final fallback: return non-streaming output as a single chunk
     yield run_clinical_query(
         context=context,
@@ -2081,6 +2154,7 @@ def run_clinical_query_stream(
         mode=mode,
         attachments_text=attachments_text,
         attachments=attachments,
+        model_override=model_override,
     )
 
 # =========================
