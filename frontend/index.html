@@ -4508,20 +4508,10 @@ function renderCoachOutput(rawText) {
     `.trim());
   };
 
-  addSection("Can't miss questions", parsed.cant_miss_questions, "coach-cant-miss");
-  addSection("Key questions to refine ddx", parsed.key_questions_to_refine_ddx);
-  addSection("Suggested plan", parsed.suggested_plan);
   addSection("Differential", parsed.ddx);
-
-  const confidence = String(parsed.confidence || "").trim();
-  if (confidence) {
-    sections.push(`
-      <div class="coach-section">
-        <div class="coach-title">Confidence</div>
-        <div>${escapeHtml(confidence)}</div>
-      </div>
-    `.trim());
-  }
+  addSection("Key questions to refine DDx", parsed.key_questions_to_refine_ddx);
+  addSection("Safety / Red flag / Can't miss", parsed.cant_miss_questions, "coach-cant-miss");
+  addSection("Suggested Plan", parsed.suggested_plan);
 
   if (!sections.length) {
     coachPanel.textContent = t;

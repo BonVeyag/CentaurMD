@@ -1413,7 +1413,8 @@ Hard rules:
 - Every list item MUST be a plain string (no dict/object items).
 - Ddx must be ordered most important/likely → least.
 - cant_miss_questions and key_questions_to_refine_ddx MUST be written as questions ending with "?".
-- Keep it succinct for live use.
+- Keep it succinct for live use (short phrases, avoid long clauses).
+- Each item should be <= 12 words when possible.
 
 Hard maxima:
 - ddx: max {DDX_MAX}
@@ -1476,7 +1477,16 @@ def _fallback_waiting_payload(reason: str) -> str:
     return json.dumps(waiting, ensure_ascii=False, indent=2)
 
 
-def _coerce_str_list(x, max_n: int, ensure_question: bool = False) -> List[str]:
+def _truncate_words(text: str, max_words: int) -> str:
+    if not text or not max_words or max_words <= 0:
+        return text
+    parts = text.split()
+    if len(parts) <= max_words:
+        return text
+    return " ".join(parts[:max_words]).rstrip(".,;:") + "..."
+
+
+def _coerce_str_list(x, max_n: int, ensure_question: bool = False, max_words: int = 0) -> List[str]:
     if x is None:
         items = []
     elif isinstance(x, list):
@@ -1502,6 +1512,9 @@ def _coerce_str_list(x, max_n: int, ensure_question: bool = False) -> List[str]:
 
         if not s:
             continue
+
+        if max_words and max_words > 0:
+            s = _truncate_words(s, max_words)
 
         if ensure_question and not s.endswith("?"):
             s = s.rstrip(".")
@@ -1570,10 +1583,10 @@ def run_differential_coach(context: SessionContext) -> str:
             "meta": {"raw_model_output": response_text[:2000] + ("..." if len(response_text) > 2000 else "")},
         }
 
-    ddx = _coerce_str_list(parsed.get("ddx"), DDX_MAX, ensure_question=False)
-    cant_miss = _coerce_str_list(parsed.get("cant_miss_questions"), CANT_MISS_MAX, ensure_question=True)
-    key_q = _coerce_str_list(parsed.get("key_questions_to_refine_ddx"), KEY_Q_MAX, ensure_question=True)
-    plan = _coerce_str_list(parsed.get("suggested_plan"), PLAN_MAX, ensure_question=False)
+    ddx = _coerce_str_list(parsed.get("ddx"), DDX_MAX, ensure_question=False, max_words=10)
+    cant_miss = _coerce_str_list(parsed.get("cant_miss_questions"), CANT_MISS_MAX, ensure_question=True, max_words=12)
+    key_q = _coerce_str_list(parsed.get("key_questions_to_refine_ddx"), KEY_Q_MAX, ensure_question=True, max_words=12)
+    plan = _coerce_str_list(parsed.get("suggested_plan"), PLAN_MAX, ensure_question=False, max_words=14)
     confidence = (parsed.get("confidence") or "").strip()
     if confidence:
         confidence = re.sub(r"\s+", " ", confidence).strip()
