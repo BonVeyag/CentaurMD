@@ -2111,8 +2111,20 @@ async function copyToClipboardWithStatus(label, text) {
     logChat("System", `${label} copied.`);
     return true;
   }
-  logChat("System", `${label} copy failed. Click Copy to copy manually.`);
+  logChat("System", `${label} copy blocked. Click anywhere to finish copy.`);
+  scheduleClipboardRetry(label, text);
   return false;
+}
+
+function scheduleClipboardRetry(label, text) {
+  const payload = { label, text };
+  const handler = async () => {
+    const ok = await copyRichText(payload.text);
+    if (ok) logChat("System", `${payload.label} copied.`);
+    else logChat("System", `${payload.label} copy failed. Click Copy to copy manually.`);
+  };
+  document.addEventListener("click", handler, { once: true, capture: true });
+  document.addEventListener("keydown", handler, { once: true, capture: true });
 }
 
 let lastAssistantPlainText = "";
