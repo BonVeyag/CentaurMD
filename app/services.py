@@ -1315,7 +1315,7 @@ Generate the SOAP note now.
 
 def make_soap(context: SessionContext) -> dict:
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-5.2",
         messages=[
             {"role": "system", "content": "Be conservative and factual."},
             {"role": "user", "content": build_make_soap_prompt(context)},
