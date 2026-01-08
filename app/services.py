@@ -2182,20 +2182,10 @@ def generate_patient_summary(context: SessionContext) -> Dict[str, Any]:
     data.setdefault("family_members", "")
     data.setdefault("occupation", "")
     data.setdefault("hobbies_and_interests", "")
-    data.setdefault("last_three_visits", [])
+    data.setdefault("recent_social_life", "")
+    data.setdefault("recent_visits", [])
     data.setdefault("significant_life_events", [])
-    data.setdefault("smoking_history", "")
-    data.setdefault("alcohol_use_history", "")
-    data.setdefault("other_substance_use_history", "")
     data.setdefault("diagnoses", [])
-    data.setdefault("preventative_health_review", [])
-
-    mr = data.get("medication_review")
-    if not isinstance(mr, dict):
-        mr = {"has_issues": False, "issues": []}
-    mr.setdefault("has_issues", False)
-    mr.setdefault("issues", [])
-    data["medication_review"] = mr
 
     return data
 
