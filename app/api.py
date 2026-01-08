@@ -69,7 +69,7 @@ logger = logging.getLogger("centaurweb.api")
 # Billing model + reference
 # =========================
 
-BILLING_MODEL_NAME = os.getenv("BILLING_MODEL", "gpt-4.1-mini")
+BILLING_MODEL_NAME = os.getenv("BILLING_MODEL", "gpt-5.2")
 DEFAULT_BILLING_REFERENCE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "data",
