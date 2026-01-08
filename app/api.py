@@ -38,9 +38,9 @@ from app.attachment_store import (
 )
 from app.auth import require_user, user_billing_dir, AuthUser
 from app.macro_store import (
-    list_macros as store_list_macros,
-    save_macro as store_save_macro,
-    delete_macro as store_delete_macro,
+    list_macros_for_user as store_list_macros_for_user,
+    save_macro_for_user as store_save_macro_for_user,
+    delete_macro_for_user as store_delete_macro_for_user,
 )
 from app.models import (
     SessionContext,
