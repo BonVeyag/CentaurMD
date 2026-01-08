@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
+from app.auth import user_storage_dir
 
 DEFAULT_STORE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -118,8 +119,7 @@ class MacroEntry:
         return asdict(self)
 
 
-def _load_entries() -> List[MacroEntry]:
-    path = _store_path()
+def _load_entries_from(path: str) -> List[MacroEntry]:
     data = _safe_json_load(path)
     raw = data.get("macros", [])
     if not isinstance(raw, list):
@@ -153,8 +153,7 @@ def _load_entries() -> List[MacroEntry]:
     return out
 
 
-def _save_entries(entries: List[MacroEntry]) -> None:
-    path = _store_path()
+def _save_entries_to(path: str, entries: List[MacroEntry]) -> None:
     payload = {"macros": [e.to_dict() for e in entries]}
     _safe_json_write(path, payload)
 
@@ -228,10 +227,10 @@ def _ensure_defaults(entries: List[MacroEntry]) -> tuple[List[MacroEntry], bool]
 
 def list_macros() -> List[Dict[str, Any]]:
     with _LOCK:
-        entries = _load_entries()
+        entries = _load_entries_from(_store_path())
         entries, changed = _ensure_defaults(entries)
         if changed:
-            _save_entries(entries)
+            _save_entries_to(_store_path(), entries)
     entries.sort(key=lambda m: m.updated_at_utc, reverse=True)
     return [e.to_dict() for e in entries]
 
@@ -243,7 +242,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
         raise ValueError("Macro name and content are required")
 
     with _LOCK:
-        entries = _load_entries()
+        entries = _load_entries_from(_store_path())
         entries, _ = _ensure_defaults(entries)
         now = _utcnow_iso()
         mid = _clean_str(macro_id) or str(uuid4())
@@ -264,7 +263,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
                 locked=e.locked,
             )
             entries[idx] = updated
-            _save_entries(entries)
+            _save_entries_to(_store_path(), entries)
             return updated.to_dict()
 
         created = MacroEntry(
@@ -276,7 +275,7 @@ def save_macro(macro_id: Optional[str], name: str, content: str) -> Dict[str, An
             locked=False,
         )
         entries.append(created)
-        _save_entries(entries)
+        _save_entries_to(_store_path(), entries)
         return created.to_dict()
 
 
@@ -285,7 +284,7 @@ def delete_macro(macro_id: str) -> bool:
     if not mid:
         return False
     with _LOCK:
-        entries = _load_entries()
+        entries = _load_entries_from(_store_path())
         entries, _ = _ensure_defaults(entries)
         for e in entries:
             if e.id == mid and e.locked:
@@ -293,5 +292,96 @@ def delete_macro(macro_id: str) -> bool:
         kept = [e for e in entries if e.id != mid]
         if len(kept) == len(entries):
             return False
-        _save_entries(kept)
+        _save_entries_to(_store_path(), kept)
+        return True
+
+
+def _user_store_path(username: str) -> str:
+    base = user_storage_dir(username)
+    return os.path.join(base, "macros.json")
+
+
+def list_macros_for_user(username: str) -> List[Dict[str, Any]]:
+    path = _user_store_path(username)
+    with _LOCK:
+        entries = _load_entries_from(path)
+        if not entries:
+            seed = _load_entries_from(_store_path())
+            if seed:
+                entries = seed
+        entries, changed = _ensure_defaults(entries)
+        if changed or (entries and not os.path.exists(path)):
+            _save_entries_to(path, entries)
+    entries.sort(key=lambda m: m.updated_at_utc, reverse=True)
+    return [e.to_dict() for e in entries]
+
+
+def save_macro_for_user(username: str, macro_id: Optional[str], name: str, content: str) -> Dict[str, Any]:
+    name = _clean_str(name)
+    content = _clean_str(content)
+    if not name or not content:
+        raise ValueError("Macro name and content are required")
+
+    path = _user_store_path(username)
+    with _LOCK:
+        entries = _load_entries_from(path)
+        if not entries:
+            seed = _load_entries_from(_store_path())
+            if seed:
+                entries = seed
+        entries, _ = _ensure_defaults(entries)
+        now = _utcnow_iso()
+        mid = _clean_str(macro_id) or str(uuid4())
+        existing = None
+        for idx, e in enumerate(entries):
+            if e.id == mid:
+                existing = (idx, e)
+                break
+
+        if existing:
+            idx, e = existing
+            updated = MacroEntry(
+                id=e.id,
+                name=name,
+                content=content,
+                created_at_utc=e.created_at_utc,
+                updated_at_utc=now,
+                locked=e.locked,
+            )
+            entries[idx] = updated
+            _save_entries_to(path, entries)
+            return updated.to_dict()
+
+        created = MacroEntry(
+            id=mid,
+            name=name,
+            content=content,
+            created_at_utc=now,
+            updated_at_utc=now,
+            locked=False,
+        )
+        entries.append(created)
+        _save_entries_to(path, entries)
+        return created.to_dict()
+
+
+def delete_macro_for_user(username: str, macro_id: str) -> bool:
+    mid = _clean_str(macro_id)
+    if not mid:
+        return False
+    path = _user_store_path(username)
+    with _LOCK:
+        entries = _load_entries_from(path)
+        if not entries:
+            seed = _load_entries_from(_store_path())
+            if seed:
+                entries = seed
+        entries, _ = _ensure_defaults(entries)
+        for e in entries:
+            if e.id == mid and e.locked:
+                raise ValueError("Macro is locked and cannot be deleted")
+        kept = [e for e in entries if e.id != mid]
+        if len(kept) == len(entries):
+            return False
+        _save_entries_to(path, kept)
         return True
