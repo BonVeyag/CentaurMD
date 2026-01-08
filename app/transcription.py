@@ -120,6 +120,54 @@ def _suppress_nonsense(text: str) -> str:
     return _normalize_whitespace(t)
 
 
+def _is_repetitive_phrase(tokens: list[str], max_len: int = 4) -> bool:
+    if len(tokens) < 8:
+        return False
+    max_len = max(2, min(max_len, len(tokens) // 3))
+    for n in range(2, max_len + 1):
+        phrases = {}
+        for i in range(0, len(tokens) - n + 1):
+            key = " ".join(tokens[i:i + n])
+            phrases[key] = phrases.get(key, 0) + 1
+        if not phrases:
+            continue
+        phrase, count = max(phrases.items(), key=lambda kv: kv[1])
+        if count >= 3:
+            covered = count * n
+            if covered / max(1, len(tokens)) >= 0.6:
+                return True
+    return False
+
+
+def _is_repetitive_sentence(text: str) -> bool:
+    parts = [p.strip().lower() for p in re.split(r"[.!?]+", text) if p.strip()]
+    if len(parts) < 3:
+        return False
+    counts = {}
+    for p in parts:
+        counts[p] = counts.get(p, 0) + 1
+    sent, count = max(counts.items(), key=lambda kv: kv[1])
+    if count >= 3 and len(sent.split()) <= 8:
+        return True
+    return False
+
+
+def _should_drop_transcript(text: str) -> bool:
+    if not text:
+        return True
+    tokens = re.findall(r"[A-Za-z']+", text.lower())
+    if len(tokens) < 4:
+        return False
+    unique_ratio = len(set(tokens)) / max(1, len(tokens))
+    if len(tokens) >= 10 and unique_ratio < 0.35:
+        return True
+    if _is_repetitive_phrase(tokens):
+        return True
+    if _is_repetitive_sentence(text):
+        return True
+    return False
+
+
 def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
     """
     Transcribe audio bytes using OpenAI Speech-to-Text.

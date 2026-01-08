@@ -4896,7 +4896,6 @@ async function generateSoapToChat() {
       soapText = stripPairedMarkdownEmphasis(soapTextRaw);
     }
     logChat("SOAP", soapText);
-    await copyToClipboardWithStatus("SOAP", soapText);
   } catch (err) {
     uiError("SOAP", err);
   }
@@ -4954,7 +4953,6 @@ ${transcript || "[none]"}`;
     if (!letter) letter = String(content || "").trim();
     const cleanLetter = stripPairedMarkdownEmphasis(letter);
     logChat("Referral", cleanLetter);
-    await copyToClipboardWithStatus("Referral", cleanLetter);
     setPatientAnchorFromTextBestEffort(cleanLetter);
   } catch (err) {
     uiError("Referral", err);
