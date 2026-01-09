@@ -413,9 +413,20 @@ input[type="text"]:focus-visible{
   gap:10px;
   font-weight:700;
 }
-.brand span{
+.brand-text{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.brand-name{
   font-size:28px;
   line-height:1;
+  letter-spacing:.2px;
+}
+.brand-tagline{
+  font-size:12.5px;
+  font-weight:500;
+  color: var(--muted);
   letter-spacing:.2px;
 }
 
@@ -1216,7 +1227,10 @@ textarea::-webkit-scrollbar-track{
   <!-- TOP BAR -->
   <div class="card topbar">
     <div class="brand">
-      <span>CentaurMD</span>
+      <div class="brand-text">
+        <span class="brand-name">CentaurMD</span>
+        <span class="brand-tagline">Family medicine's assistant - built by family physicians, shaped by clinic life.</span>
+      </div>
     </div>
     <div class="actions">
       <button id="globalCopyBtn" type="button" title="Copy full context" aria-label="Copy full context">
@@ -4135,92 +4149,9 @@ async function generateSoapToChat() {
   try {
     await ensureSession();
     logChat("System", "Generating SOAP…");
-    const transcript = transcriptBox.value || "";
-    const prompt =
-`TASK=FM_NOTE_CANADA FORMAT=APSO AUTO_TIER=1 INPUT=TRANSCRIPT_ONLY
-
-TIER_RULES:
-- SHORT if (N_PROBLEMS<=2 AND COMPLEXITY_FLAGS=0 AND DATA_REVIEW_MINIMAL)
-- NORMAL if (2<=N_PROBLEMS<=4 AND COMPLEXITY_FLAGS=0)
-- COMPLEX if (ANY COMPLEXITY_FLAGS=1)
-COMPLEXITY_FLAGS = {MH_RISK_SCREEN, SAFETY_NET, SHARED_DECISION, HIGH_RISK_RX, DIAG_UNCERTAINTY_MAJOR, MULTIMORBID_INTERACTION, SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT}
-
-ANTI_INVENTION (HARD):
-- ALLOW_ONLY: facts explicitly spoken in TODAY transcript.
-- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives unless explicitly stated.
-- NEGATIVES: include only if explicitly asked+answered in transcript.
-- MISSING_FIELDS: SHORT=>omit; NORMAL/COMPLEX=>write "Not discussed" where header requires.
-- MEDS: use Canadian-available names; if dose absent => "dose not specified in transcript".
-
-OUTPUT (NO PREAMBLE/NO EPILOGUE; medical tone; succinct; no bullets; line breaks only; bold headers):
-Select tier then emit exactly one of these schemas:
-
-SCHEMA_SHORT:
-**Assessment**
-1. <problem impression based on transcript only>
-...
-**Plan**
-1. <actions discussed: Rx/tests/referrals/instructions/fu/safety-net only if stated>
-...
-**Subjective**
-1. <HPI statements/quotes/explicit negatives only>
-...
-**Objective**
-<only explicit vitals/exam/data in transcript; else "Not discussed">
-
-SCHEMA_NORMAL:
-**Assessment**
-1. ...
-2. ...
-**Plan**
-1. Medications: <or Not discussed>
-Investigations: <or Not discussed>
-Referrals: <or Not discussed>
-Patient instructions: <or Not discussed>
-Follow-up: <or Not discussed>
-2. ...
-**Subjective**
-1. ...
-2. ...
-**Objective**
-Vitals: <or Not discussed>
-Exam: <or Not discussed>
-Data reviewed today: <or Not discussed>
-
-SCHEMA_COMPLEX:
-**Assessment**
-1. ...
-2. ...
-**Plan**
-1. Medications: <or Not discussed>
-Investigations: <or Not discussed>
-Referrals/Resources: <or Not discussed>
-Follow-up: <or Not discussed>
-Safety-net: <or Not discussed>
-2. ...
-**Subjective**
-1. ...
-2. ...
-**Objective**
-Vitals: <or Not discussed>
-Exam: <or Not discussed>
-Data reviewed today: <or Not discussed>
-Tools/Scales: <or Not discussed>
-**Shared decision-making**
-<only if explicitly discussed; else "Not discussed">
-**Safety / Red flags**
-<only if explicitly discussed; else "Not discussed">
-**Social context**
-<only if explicitly discussed; else "Not discussed">
-
-INPUT:
-=== TODAY_TRANSCRIPT_VERBATIM ===
-${transcript}
-`;
-    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: prompt, model: "gpt-5.2" });
-    const rawContent = (data?.response !== undefined) ? data.response : data;
-    const readable = readableFromMaybeJson(rawContent);
-    const soapText = stripPairedMarkdownEmphasis(readable);
+    const data = await apiPost(`/session/${sessionId}/make_soap`);
+    const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
+    const soapText = stripPairedMarkdownEmphasis(soapTextRaw);
     logChat("SOAP", soapText);
   } catch (err) {
     uiError("SOAP", err);

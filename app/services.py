@@ -1289,81 +1289,103 @@ def build_make_soap_prompt(context: SessionContext) -> str:
 
     transcript = getattr(context.transcript, "raw_text", None) or ""
     return f"""
-TASK=FM_NOTE_CANADA FORMAT=APSO AUTO_TIER=1 INPUT=TRANSCRIPT_ONLY
+TASK=FM_NOTE_CANADA
+FORMAT=APSO
+INPUT=TODAY_TRANSCRIPT_ONLY
+AUTO_TIER=1
+STRICT=1
 
-TIER_RULES:
-- SHORT if (N_PROBLEMS<=2 AND COMPLEXITY_FLAGS=0 AND DATA_REVIEW_MINIMAL)
-- NORMAL if (2<=N_PROBLEMS<=4 AND COMPLEXITY_FLAGS=0)
-- COMPLEX if (ANY COMPLEXITY_FLAGS=1)
-COMPLEXITY_FLAGS = {{MH_RISK_SCREEN, SAFETY_NET, SHARED_DECISION, HIGH_RISK_RX, DIAG_UNCERTAINTY_MAJOR, MULTIMORBID_INTERACTION, SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT}}
+TIER_SELECT (deterministic):
+- Compute N_PROBLEMS = count of distinct problems actually discussed in transcript (symptom/condition/administrative request).
+- Set FLAGS=1 if ANY of:
+  MH_RISK_SCREEN (self-harm/suicide/violence risk asked or discussed)
+  SAFETY_NET (explicit return/ER precautions or “seek urgent help” discussed)
+  SHARED_DECISION (>=2 options compared AND patient preference stated)
+  HIGH_RISK_RX (opioids/benzos/anticoagulants/insulin/antipsychotics OR clinician frames med as high-risk/controlled)
+  MULTIMORBID_INTERACTION (explicit interaction between conditions/meds discussed)
+  SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT (work/school/ADLs/major caregiving/housing/financial barriers explicitly discussed)
+  MAJOR_DIAG_UNCERTAINTY (explicit broad differential OR “not sure” OR “rule out” OR escalation criteria for serious dx discussed)
+- Set DATA_REVIEW=1 if ANY objective data reviewed/obtained in transcript (vitals, exam findings, labs/imaging results, point-of-care tests).
+- Choose tier:
+  COMPLEX if FLAGS=1
+  else SHORT if (N_PROBLEMS<=2 AND DATA_REVIEW=0)
+  else NORMAL
 
 ANTI_INVENTION (HARD):
-- ALLOW_ONLY: facts explicitly spoken in TODAY transcript.
-- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives unless explicitly stated.
-- NEGATIVES: include only if explicitly asked+answered in transcript.
-- MISSING_FIELDS: SHORT=>omit; NORMAL/COMPLEX=>write "Not discussed" where header requires.
-- MEDS: use Canadian-available names; if dose absent => "dose not specified in transcript".
+- ALLOW_ONLY: information explicitly present in transcript text.
+- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives/social hx.
+- NEGATIVES: include ONLY if explicitly asked+answered (e.g., “Any fever?” “No.”).
+- DX: may state a diagnosis ONLY if clinician stated it OR transcript supports a limited working impression using explicit findings; otherwise write “etiology not specified in transcript”.
+- MEDS: include medications ONLY if explicitly mentioned in transcript. If dose/frequency/duration absent => write “dose not specified in transcript”. Do NOT add “typical” dosing. Use Canadian drug names/spelling when present.
 
-OUTPUT (NO PREAMBLE/NO EPILOGUE; medical tone; succinct; no bullets; line breaks only; bold headers):
-Select tier then emit exactly one of these schemas:
+MISSING_FIELDS:
+- SHORT: omit missing elements entirely (do NOT write “Not discussed” unless schema forces it).
+- NORMAL/COMPLEX: for required subfields write “Not discussed” if absent.
+
+STYLE:
+- Medical tone. No commentary before/after. No bullets. Line breaks only.
+- Bold headers exactly as schema.
+- Problem-oriented: numbering MUST match across Assessment/Plan/Subjective.
+- APSO order fixed: Assessment → Plan → Subjective → Objective.
+
+OUTPUT:
+- First line must be: TIER=<SHORT|NORMAL|COMPLEX>
+- Then emit EXACTLY one schema below.
 
 SCHEMA_SHORT:
 **Assessment**
-1. <problem impression based on transcript only>
-...
+1. ...
 **Plan**
-1. <actions discussed: Rx/tests/referrals/instructions/fu/safety-net only if stated>
-...
+1. ...
 **Subjective**
-1. <HPI statements/quotes/explicit negatives only>
-...
+1. ...
 **Objective**
-<only explicit vitals/exam/data in transcript; else "Not discussed">
+(only objective facts explicitly in transcript; if none, write: Not discussed)
 
 SCHEMA_NORMAL:
 **Assessment**
 1. ...
 2. ...
 **Plan**
-1. Medications: <or Not discussed>
-Investigations: <or Not discussed>
-Referrals: <or Not discussed>
-Patient instructions: <or Not discussed>
-Follow-up: <or Not discussed>
+1. Medications: ...
+Investigations: ...
+Referrals: ...
+Patient instructions: ...
+Follow-up: ...
 2. ...
 **Subjective**
 1. ...
 2. ...
 **Objective**
-Vitals: <or Not discussed>
-Exam: <or Not discussed>
-Data reviewed today: <or Not discussed>
+Vitals: ...
+Exam: ...
+Data reviewed today: ...
 
 SCHEMA_COMPLEX:
 **Assessment**
 1. ...
 2. ...
 **Plan**
-1. Medications: <or Not discussed>
-Investigations: <or Not discussed>
-Referrals/Resources: <or Not discussed>
-Follow-up: <or Not discussed>
-Safety-net: <or Not discussed>
+1. Medications: ...
+Investigations: ...
+Referrals/Resources: ...
+Follow-up: ...
+Safety-net: ...
 2. ...
 **Subjective**
 1. ...
 2. ...
 **Objective**
-Vitals: <or Not discussed>
-Exam: <or Not discussed>
-Data reviewed today: <or Not discussed>
-Tools/Scales: <or Not discussed>
+Vitals: ...
+Exam: ...
+Data reviewed today: ...
+Tools/Scales: ...
 **Shared decision-making**
-<only if explicitly discussed; else "Not discussed">
+...
 **Safety / Red flags**
-<only if explicitly discussed; else "Not discussed">
+...
 **Social context**
-<only if explicitly discussed; else "Not discussed">
+...
 
 INPUT:
 === TODAY_TRANSCRIPT_VERBATIM ===
