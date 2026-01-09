@@ -1287,32 +1287,87 @@ def generate_referral_letter(context: SessionContext) -> str:
 def build_make_soap_prompt(context: SessionContext) -> str:
     _hydrate_identifiers_best_effort(context)
 
+    transcript = getattr(context.transcript, "raw_text", None) or ""
     return f"""
-You are a Canadian family medicine clinical documentation assistant.
+TASK=FM_NOTE_CANADA FORMAT=APSO AUTO_TIER=1 INPUT=TRANSCRIPT_ONLY
 
-Jurisdiction: Alberta, Canada.
+TIER_RULES:
+- SHORT if (N_PROBLEMS<=2 AND COMPLEXITY_FLAGS=0 AND DATA_REVIEW_MINIMAL)
+- NORMAL if (2<=N_PROBLEMS<=4 AND COMPLEXITY_FLAGS=0)
+- COMPLEX if (ANY COMPLEXITY_FLAGS=1)
+COMPLEXITY_FLAGS = {{MH_RISK_SCREEN, SAFETY_NET, SHARED_DECISION, HIGH_RISK_RX, DIAG_UNCERTAINTY_MAJOR, MULTIMORBID_INTERACTION, SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT}}
 
-FORMATTING RULES:
-- Bold section titles
-- No bullets
-- One blank line between sections
-- Do NOT invent information
+ANTI_INVENTION (HARD):
+- ALLOW_ONLY: facts explicitly spoken in TODAY transcript.
+- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives unless explicitly stated.
+- NEGATIVES: include only if explicitly asked+answered in transcript.
+- MISSING_FIELDS: SHORT=>omit; NORMAL/COMPLEX=>write "Not discussed" where header requires.
+- MEDS: use Canadian-available names; if dose absent => "dose not specified in transcript".
 
-SECTIONS:
-Issues
-Subjective
-Safety / red flags
-Objective
-Assessment
-Plan
+OUTPUT (NO PREAMBLE/NO EPILOGUE; medical tone; succinct; no bullets; line breaks only; bold headers):
+Select tier then emit exactly one of these schemas:
 
-CLINICAL BACKGROUND:
-{getattr(context.clinical_background, "emr_dump", None) or "None"}
+SCHEMA_SHORT:
+**Assessment**
+1. <problem impression based on transcript only>
+...
+**Plan**
+1. <actions discussed: Rx/tests/referrals/instructions/fu/safety-net only if stated>
+...
+**Subjective**
+1. <HPI statements/quotes/explicit negatives only>
+...
+**Objective**
+<only explicit vitals/exam/data in transcript; else "Not discussed">
 
-VISIT TRANSCRIPT:
-{getattr(context.transcript, "raw_text", None) or "None"}
+SCHEMA_NORMAL:
+**Assessment**
+1. ...
+2. ...
+**Plan**
+1. Medications: <or Not discussed>
+Investigations: <or Not discussed>
+Referrals: <or Not discussed>
+Patient instructions: <or Not discussed>
+Follow-up: <or Not discussed>
+2. ...
+**Subjective**
+1. ...
+2. ...
+**Objective**
+Vitals: <or Not discussed>
+Exam: <or Not discussed>
+Data reviewed today: <or Not discussed>
 
-Generate the SOAP note now.
+SCHEMA_COMPLEX:
+**Assessment**
+1. ...
+2. ...
+**Plan**
+1. Medications: <or Not discussed>
+Investigations: <or Not discussed>
+Referrals/Resources: <or Not discussed>
+Follow-up: <or Not discussed>
+Safety-net: <or Not discussed>
+2. ...
+**Subjective**
+1. ...
+2. ...
+**Objective**
+Vitals: <or Not discussed>
+Exam: <or Not discussed>
+Data reviewed today: <or Not discussed>
+Tools/Scales: <or Not discussed>
+**Shared decision-making**
+<only if explicitly discussed; else "Not discussed">
+**Safety / Red flags**
+<only if explicitly discussed; else "Not discussed">
+**Social context**
+<only if explicitly discussed; else "Not discussed">
+
+INPUT:
+=== TODAY_TRANSCRIPT_VERBATIM ===
+{transcript}
 """.strip()
 
 
