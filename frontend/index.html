@@ -1881,6 +1881,10 @@ function normalizeMacroRecord(m) {
   return { id, name, content, updatedAt, locked };
 }
 
+function isMacroVisible(macro) {
+  return String(macro?.name || "").trim().toLowerCase() !== "soap";
+}
+
 function loadMacrosFromCache() {
   try {
     const raw = localStorage.getItem(MACROS_CACHE_KEY);
@@ -1914,7 +1918,8 @@ function getSelectedMacroId() {
 }
 
 function setSelectedMacroId(id) {
-  const valid = macros.some(m => m.id === id) ? id : "";
+  const visible = macros.filter(isMacroVisible);
+  const valid = visible.some(m => m.id === id) ? id : "";
   try { localStorage.setItem(MACRO_SELECTED_KEY, valid); } catch {}
   if (macroSelect) macroSelect.value = valid;
   return valid;
@@ -1933,13 +1938,13 @@ function refreshMacroDropdown() {
   optNone.value = "";
   optNone.textContent = "Macros";
   macroSelect.appendChild(optNone);
-  for (const m of macros) {
+  for (const m of macros.filter(isMacroVisible)) {
     const opt = document.createElement("option");
     opt.value = m.id;
     opt.textContent = m.name;
     macroSelect.appendChild(opt);
   }
-  const valid = macros.some(m => m.id === selectedId) ? selectedId : "";
+  const valid = macros.filter(isMacroVisible).some(m => m.id === selectedId) ? selectedId : "";
   macroSelect.value = valid;
   if (selectedId !== valid) {
     try { localStorage.setItem(MACRO_SELECTED_KEY, valid); } catch {}
@@ -1983,13 +1988,13 @@ function refreshMacroPicker(selectedId="") {
   optNone.value = "";
   optNone.textContent = "Select macro";
   macroPickerSelect.appendChild(optNone);
-  for (const m of macros) {
+  for (const m of macros.filter(isMacroVisible)) {
     const opt = document.createElement("option");
     opt.value = m.id;
     opt.textContent = m.name;
     macroPickerSelect.appendChild(opt);
   }
-  macroPickerSelect.value = macros.some(m => m.id === current) ? current : "";
+  macroPickerSelect.value = macros.filter(isMacroVisible).some(m => m.id === current) ? current : "";
   const selected = macros.find(m => m.id === macroPickerSelect.value);
   if (macroDeleteBtn) {
     const locked = Boolean(selected?.locked);
@@ -4130,23 +4135,92 @@ async function generateSoapToChat() {
   try {
     await ensureSession();
     logChat("System", "Generating SOAP…");
-    const macro = getMacroByName("SOAP");
-    let soapText = "";
-    if (macro?.content) {
-      const prompt = expandMacroTemplate(macro.content, {
-        EMR: emrBackgroundText || "[none]",
-        TRANSCRIPT: transcriptBox.value || "[none]",
-        EXTRA: "",
-      });
-      const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: prompt, model: "gpt-5.2" });
-      const rawContent = (data?.response !== undefined) ? data.response : data;
-      const readable = readableFromMaybeJson(rawContent);
-      soapText = stripPairedMarkdownEmphasis(readable);
-    } else {
-      const data = await apiPost(`/session/${sessionId}/make_soap`);
-      const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
-      soapText = stripPairedMarkdownEmphasis(soapTextRaw);
-    }
+    const transcript = transcriptBox.value || "";
+    const prompt =
+`TASK=FM_NOTE_CANADA FORMAT=APSO AUTO_TIER=1 INPUT=TRANSCRIPT_ONLY
+
+TIER_RULES:
+- SHORT if (N_PROBLEMS<=2 AND COMPLEXITY_FLAGS=0 AND DATA_REVIEW_MINIMAL)
+- NORMAL if (2<=N_PROBLEMS<=4 AND COMPLEXITY_FLAGS=0)
+- COMPLEX if (ANY COMPLEXITY_FLAGS=1)
+COMPLEXITY_FLAGS = {MH_RISK_SCREEN, SAFETY_NET, SHARED_DECISION, HIGH_RISK_RX, DIAG_UNCERTAINTY_MAJOR, MULTIMORBID_INTERACTION, SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT}
+
+ANTI_INVENTION (HARD):
+- ALLOW_ONLY: facts explicitly spoken in TODAY transcript.
+- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives unless explicitly stated.
+- NEGATIVES: include only if explicitly asked+answered in transcript.
+- MISSING_FIELDS: SHORT=>omit; NORMAL/COMPLEX=>write "Not discussed" where header requires.
+- MEDS: use Canadian-available names; if dose absent => "dose not specified in transcript".
+
+OUTPUT (NO PREAMBLE/NO EPILOGUE; medical tone; succinct; no bullets; line breaks only; bold headers):
+Select tier then emit exactly one of these schemas:
+
+SCHEMA_SHORT:
+**Assessment**
+1. <problem impression based on transcript only>
+...
+**Plan**
+1. <actions discussed: Rx/tests/referrals/instructions/fu/safety-net only if stated>
+...
+**Subjective**
+1. <HPI statements/quotes/explicit negatives only>
+...
+**Objective**
+<only explicit vitals/exam/data in transcript; else "Not discussed">
+
+SCHEMA_NORMAL:
+**Assessment**
+1. ...
+2. ...
+**Plan**
+1. Medications: <or Not discussed>
+Investigations: <or Not discussed>
+Referrals: <or Not discussed>
+Patient instructions: <or Not discussed>
+Follow-up: <or Not discussed>
+2. ...
+**Subjective**
+1. ...
+2. ...
+**Objective**
+Vitals: <or Not discussed>
+Exam: <or Not discussed>
+Data reviewed today: <or Not discussed>
+
+SCHEMA_COMPLEX:
+**Assessment**
+1. ...
+2. ...
+**Plan**
+1. Medications: <or Not discussed>
+Investigations: <or Not discussed>
+Referrals/Resources: <or Not discussed>
+Follow-up: <or Not discussed>
+Safety-net: <or Not discussed>
+2. ...
+**Subjective**
+1. ...
+2. ...
+**Objective**
+Vitals: <or Not discussed>
+Exam: <or Not discussed>
+Data reviewed today: <or Not discussed>
+Tools/Scales: <or Not discussed>
+**Shared decision-making**
+<only if explicitly discussed; else "Not discussed">
+**Safety / Red flags**
+<only if explicitly discussed; else "Not discussed">
+**Social context**
+<only if explicitly discussed; else "Not discussed">
+
+INPUT:
+=== TODAY_TRANSCRIPT_VERBATIM ===
+${transcript}
+`;
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: prompt, model: "gpt-5.2" });
+    const rawContent = (data?.response !== undefined) ? data.response : data;
+    const readable = readableFromMaybeJson(rawContent);
+    const soapText = stripPairedMarkdownEmphasis(readable);
     logChat("SOAP", soapText);
   } catch (err) {
     uiError("SOAP", err);
