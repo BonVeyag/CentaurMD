@@ -882,6 +882,20 @@ textarea::-webkit-scrollbar-track{
   box-shadow: var(--shadow-lg);
   z-index:90;
 }
+.about-panel{
+  width:min(720px, 94vw);
+}
+.about-body{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+.about-poem{
+  white-space: pre-line;
+}
 .confirm-panel{
   position:fixed;
   left:50%;
@@ -1252,6 +1266,7 @@ textarea::-webkit-scrollbar-track{
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
           <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
+          <button id="aboutBtn" type="button" class="menu-item">About</button>
         </div>
       </div>
       <div id="profilePopover" class="popover menu-popover" role="dialog" aria-label="Account" style="display:none">
@@ -1325,7 +1340,7 @@ textarea::-webkit-scrollbar-track{
       <div class="card-head">
         <div>
           <div class="headline">Clinical Query</div>
-          <div class="subhead">Up-to-date Alberta guideline-linked answers at point-of-care.<br>Medication safety: Auto allergy, interactions, and dose checks.</div>
+          <div class="subhead">Up-to-date Alberta guideline based answers at point-of-care.<br>Medication safety: Auto allergy, interactions, and dose checks.</div>
         </div>
         <div class="eyebrow"></div>
       </div>
@@ -1408,6 +1423,47 @@ textarea::-webkit-scrollbar-track{
     <div class="macro-editor-actions">
       <button id="macroSaveBtn" class="primary" type="button">Save</button>
       <button id="macroCancelBtn" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+<div id="aboutOverlay" class="macro-overlay" style="display:none"></div>
+<div id="aboutPanel" class="macro-panel about-panel" style="display:none" aria-label="About CentaurMD">
+  <div class="macro-head">
+    <h2>About</h2>
+    <button id="aboutCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section">
+    <div class="about-body">
+      <div class="about-poem">It listens for what matters, not just what's said,
+then shapes the visit into SOAP you'll want reread--
+carries the thread to referral letters, clear and true,
+macros that sound like you, and notes cross-checked by two.
+
+Before you knock, it hands you context, quick and bright:
+a ten-second "Know-Me" snapshot--set you right.
+Names and kin, work and wins, the worries in the noise,
+the human facts that turn a chart to an actual voice--
+so even if the patient's new to you today,
+you don't walk in cold; you walk in the right way.
+
+In the room it stays beside you--quiet, clinical, near:
+a DDx coach to sharpen what you're thinking, steer.
+A chart-query that answers from the record you already keep,
+and Alberta/Canada guidance, linked--so you can verify deep.
+When the question isn't "what do I remember?" in a rush,
+but "what fits this patient, now?"--it gives the clearest brush.
+
+It checks what must be checked before the plan is signed:
+allergies, interactions--med risks you can't leave behind.
+Then brings the visit home with billing that makes sense:
+ICD-9 and codes suggested from your actual evidence--
+so the work you truly did is visible, clean, complete,
+consistent across the day, from hallway to the charting seat.
+
+It is the space between the rush and the recall,
+the bridge from encounter to continuity for all--
+built for the realities family physicians live,
+and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
@@ -1593,6 +1649,10 @@ const macroPanel = document.getElementById("macroPanel");
 const macroCloseBtn = document.getElementById("macroCloseBtn");
 const macroAddBtn = document.getElementById("macroAddBtn");
 const macroPickerSelect = document.getElementById("macroPickerSelect");
+const aboutBtn = document.getElementById("aboutBtn");
+const aboutOverlay = document.getElementById("aboutOverlay");
+const aboutPanel = document.getElementById("aboutPanel");
+const aboutCloseBtn = document.getElementById("aboutCloseBtn");
 
 // Auth UI refs
 const authOverlay = document.getElementById("authOverlay");
@@ -2170,6 +2230,18 @@ function toggleProfilePopover() {
   closeMenuPopover();
   const open = profilePopover.style.display !== "none";
   profilePopover.style.display = open ? "none" : "block";
+}
+
+function openAboutPanel() {
+  if (!aboutPanel || !aboutOverlay) return;
+  aboutOverlay.style.display = "block";
+  aboutPanel.style.display = "flex";
+}
+
+function closeAboutPanel() {
+  if (!aboutPanel || !aboutOverlay) return;
+  aboutOverlay.style.display = "none";
+  aboutPanel.style.display = "none";
 }
 
 function openBillingArchivePanel() {
@@ -4432,8 +4504,15 @@ macroBuilderBtn?.addEventListener("click", (e) => {
   closeMenuPopover();
   openMacroPanel();
 });
+aboutBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  closeMenuPopover();
+  openAboutPanel();
+});
 macroCloseBtn?.addEventListener("click", () => closeMacroPanel());
 macroOverlay?.addEventListener("click", () => closeMacroPanel());
+aboutCloseBtn?.addEventListener("click", () => closeAboutPanel());
+aboutOverlay?.addEventListener("click", () => closeAboutPanel());
 billingArchiveCloseBtn?.addEventListener("click", () => closeBillingArchivePanel());
 billingArchiveOverlay?.addEventListener("click", () => closeBillingArchivePanel());
 billingArchivePanel?.addEventListener("click", (e) => e.stopPropagation());
