@@ -13,7 +13,7 @@ from typing import Optional, Dict, Any, List, Tuple
 from uuid import uuid4
 from threading import Lock as ThreadLock
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from zoneinfo import ZoneInfo
@@ -36,7 +36,7 @@ from app.attachment_store import (
     add_attachment as store_add_attachment,
     delete_attachment as store_delete_attachment,
 )
-from app.auth import require_user, user_billing_dir, AuthUser
+from app.auth import require_user, user_billing_dir, AuthUser, send_admin_email
 from app.macro_store import (
     list_macros_for_user as store_list_macros_for_user,
     save_macro_for_user as store_save_macro_for_user,
