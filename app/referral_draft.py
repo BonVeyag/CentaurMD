@@ -756,12 +756,14 @@ def render_referral_letter(draft: ReferralDraft) -> str:
     if (p.guardian_or_sdm or "").strip():
         lines.append(f"GUARDIAN / SDM: {p.guardian_or_sdm}")
 
+    return_target = (ref.clinic_name or ref.fax_or_econsult_inbox or "").strip()
+
     lines.extend(
         [
             "",
             f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} | CPSA: {_display(ref.cpsa, 'CPSA')}",
             f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
-            f"RETURN REPORT TO: {_display(ref.clinic_name, 'clinic name')}",
+            f"RETURN REPORT TO: {_display(return_target, 'return report to')}",
             "",
             "1) REFERRAL INTENT",
             f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
