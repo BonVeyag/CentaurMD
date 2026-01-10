@@ -36,6 +36,8 @@ CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL",
 
 # Patient summary model
 PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-5-nano")
+PATIENT_SUMMARY_FALLBACK_MODEL = os.getenv("PATIENT_SUMMARY_FALLBACK_MODEL", "gpt-5.2")
+PATIENT_SUMMARY_MAX_CHARS = int(os.getenv("PATIENT_SUMMARY_MAX_CHARS", "16000"))
 
 # Billing model (use a smaller model; upgrade if you prefer)
 BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5.2")
