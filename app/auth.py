@@ -229,7 +229,7 @@ def _load_smtp_config() -> Dict[str, Any]:
     ])
 
     config: Dict[str, Any] = {
-        "source": "env" if env_any else "file",
+        "source": "env" if env_any else "none",
         "host": env_host,
         "port": int(env_port or 587),
         "user": env_user,
