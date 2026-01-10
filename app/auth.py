@@ -30,6 +30,10 @@ SIGNUP_ALLOWLIST_PATH = os.path.join(DATA_DIR, "signup_allowlist.json")
 
 ADMIN_EMAIL = os.getenv("CENTAUR_ADMIN_EMAIL", "thapa.rajat@gmail.com").strip()
 SIGNUP_MODE = os.getenv("CENTAUR_SIGNUP_MODE", "invite_only").strip().lower()
+SMTP_CONFIG_PATH = os.getenv(
+    "CENTAUR_SMTP_CONFIG_PATH",
+    os.path.join(DATA_DIR, "smtp.json"),
+).strip()
 
 logger = logging.getLogger(__name__)
 
@@ -161,18 +165,56 @@ def _load_signup_allowlist() -> set[str]:
     return {str(u).strip().lower() for u in raw if str(u).strip()}
 
 
-def send_admin_email(subject: str, body: str, request: Request) -> None:
-    host = os.getenv("CENTAUR_SMTP_HOST", "").strip()
-    if not host or not ADMIN_EMAIL:
-        logger.warning("Admin email skipped: SMTP host or admin email not configured.")
-        return
+def _load_smtp_config() -> Dict[str, Any]:
+    config = {
+        "host": os.getenv("CENTAUR_SMTP_HOST", "").strip(),
+        "port": int(os.getenv("CENTAUR_SMTP_PORT", "587")),
+        "user": os.getenv("CENTAUR_SMTP_USER", "").strip(),
+        "pass": os.getenv("CENTAUR_SMTP_PASS", "").strip(),
+        "tls": os.getenv("CENTAUR_SMTP_TLS", "true").strip().lower() in {"1", "true", "yes"},
+        "ssl": os.getenv("CENTAUR_SMTP_SSL", "false").strip().lower() in {"1", "true", "yes"},
+        "from": os.getenv("CENTAUR_SMTP_FROM", "").strip(),
+        "admin_email": ADMIN_EMAIL,
+    }
 
-    port = int(os.getenv("CENTAUR_SMTP_PORT", "587"))
-    smtp_user = os.getenv("CENTAUR_SMTP_USER", "").strip()
-    smtp_pass = os.getenv("CENTAUR_SMTP_PASS", "").strip()
-    use_tls = os.getenv("CENTAUR_SMTP_TLS", "true").strip().lower() in {"1", "true", "yes"}
-    use_ssl = os.getenv("CENTAUR_SMTP_SSL", "false").strip().lower() in {"1", "true", "yes"}
-    from_addr = os.getenv("CENTAUR_SMTP_FROM", ADMIN_EMAIL).strip() or ADMIN_EMAIL
+    if config["host"]:
+        return config
+
+    if SMTP_CONFIG_PATH and os.path.exists(SMTP_CONFIG_PATH):
+        try:
+            with open(SMTP_CONFIG_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                config["host"] = str(data.get("host", "")).strip() or config["host"]
+                config["port"] = int(data.get("port", config["port"]))
+                config["user"] = str(data.get("user", "")).strip() or config["user"]
+                config["pass"] = str(data.get("pass", "")).strip() or config["pass"]
+                if "tls" in data:
+                    config["tls"] = bool(data.get("tls"))
+                if "ssl" in data:
+                    config["ssl"] = bool(data.get("ssl"))
+                config["from"] = str(data.get("from", "")).strip() or config["from"]
+                config["admin_email"] = str(data.get("admin_email", "")).strip() or config["admin_email"]
+        except Exception:
+            pass
+
+    return config
+
+
+def send_admin_email(subject: str, body: str, request: Request) -> bool:
+    config = _load_smtp_config()
+    host = config.get("host", "")
+    admin_email = config.get("admin_email", "")
+    if not host or not admin_email:
+        logger.warning("Admin email skipped: SMTP host or admin email not configured.")
+        return False
+
+    port = int(config.get("port", 587))
+    smtp_user = config.get("user", "")
+    smtp_pass = config.get("pass", "")
+    use_tls = bool(config.get("tls", True))
+    use_ssl = bool(config.get("ssl", False))
+    from_addr = (config.get("from", "") or admin_email).strip()
 
     ip = request.client.host if request.client else ""
     user_agent = request.headers.get("User-Agent", "")
@@ -181,7 +223,7 @@ def send_admin_email(subject: str, body: str, request: Request) -> None:
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = from_addr
-    msg["To"] = ADMIN_EMAIL
+    msg["To"] = admin_email
     msg.set_content(
         "\n".join(
             [
@@ -210,6 +252,8 @@ def send_admin_email(subject: str, body: str, request: Request) -> None:
                 server.send_message(msg)
     except Exception as e:
         logger.warning(f"Admin email failed: {e}")
+        return False
+    return True
 
 
 def _send_signup_request_email(username: str, email: str, request: Request) -> None:
