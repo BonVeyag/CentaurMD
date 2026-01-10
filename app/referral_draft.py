@@ -694,71 +694,84 @@ def render_referral_letter(draft: ReferralDraft) -> str:
     a = draft.assessment
     b = draft.background
     l = draft.logistics
-    att = draft.attachments
+    ref_line = _display(r.specialty_name, "specialty")
+    if (r.subspecialty_or_clinic or "").strip():
+        ref_line = f"{ref_line} ({r.subspecialty_or_clinic})"
 
     lines = [
-        f"REFERRAL TO: {_display(r.specialty_name, 'specialty')} ({_display(r.subspecialty_or_clinic, 'subspecialty or clinic')})",
+        f"REFERRAL TO: {ref_line}",
         f"DATE: {_display(draft.meta.generated_at.split('T')[0], 'date')}",
         "",
         f"PATIENT: {_display(p.full_name, 'patient name')} | DOB: {_display(p.dob, 'DOB')} | PHN: {_display(p.phn, 'PHN')}",
         f"CONTACT: {_display(p.phone, 'phone')} | ADDRESS: {_display(p.address, 'address')}",
         f"LANGUAGE / INTERPRETER: {_display(p.language, 'language')} / {_display(p.interpreter_needed, 'interpreter needed')}",
-        f"GUARDIAN / SDM (if applicable): {_display(p.guardian_or_sdm, 'guardian/SDM')}",
-        "",
-        f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} ({_display(ref.credentials, 'credentials')}) | CPSA: {_display(ref.cpsa, 'CPSA')}",
-        f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
-        f"RETURN REPORT TO: {_display(ref.fax_or_econsult_inbox, 'return inbox')}",
-        "",
-        "1) REFERRAL INTENT (read-me-first)",
-        f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
-        f"Specific request / question: {_display(r.consult_question, 'consult question')}",
-        f"Urgency: {_display(r.urgency_label, 'urgency')} (Target: {_display(r.target_timeframe, 'target timeframe')})",
-        f"Why this urgency: {_display(r.urgency_rationale, 'urgency rationale')}",
-        f"Patient aware of referral reason: {_display(r.patient_aware_yes_no, 'patient aware')}",
-        "",
-        "2) CLINICAL SUMMARY (focused)",
-        f"Presenting symptoms (onset/duration/severity): {_display(c.summary_symptoms, 'presenting symptoms')}",
-        f"Key positives: {_display(c.key_positives, 'key positives')}",
-        f"Key negatives / red flags (present or absent): {_display(c.key_negatives_and_redflags, 'key negatives/red flags')}",
-        f"Pertinent exam: {_display(c.pertinent_exam, 'pertinent exam')}",
-        "",
-        "3) OBJECTIVE DATA (with dates)",
-        "Pertinent labs:",
-        _display(o.labs_block, "labs"),
-        "",
-        "Pertinent imaging/procedures:",
-        _display(o.imaging_block, "imaging/procedures"),
-        "",
-        "Pathology (if any):",
-        _display(o.pathology_block, "pathology"),
-        "",
-        f"Availability of results: {_display(o.results_location, 'results location')}  (Attached vs Netcare vs Other)",
-        "",
-        "4) MANAGEMENT TO DATE",
-        f"Treatments tried (dose/duration/response): {_display(m.tried_block, 'treatments tried')}",
-        f"Pending investigations/referrals: {_display(m.pending_block, 'pending investigations/referrals')}",
-        f"Working diagnosis / differential: {_display(a.working_dx_and_ddx, 'working diagnosis/differential')}",
-        "",
-        "5) RELEVANT BACKGROUND",
-        f"PMHx relevant to this referral: {_display(b.pmHx_relevant, 'PMHx')}",
-        f"PSHx relevant: {_display(b.psHx_relevant, 'PSHx')}",
-        f"Medications (highlight high-impact meds): {_display(b.meds_relevant, 'medications')}",
-        f"Allergies/intolerances: {_display(b.allergies, 'allergies')}",
-        "",
-        "6) CONTEXT / LOGISTICS",
-        f"Comorbidities affecting care (e.g., anticoag, CKD, pregnancy, immunosuppression): {_display(l.high_risk_context, 'high-risk context')}",
-        f"Barriers (mobility, travel, cognition, supports): {_display(l.barriers, 'barriers')}",
-        f"Patient goals / expectations: {_display(l.patient_goals, 'patient goals')}",
-        "",
-        "7) ATTACHMENTS INCLUDED",
-        _display(att.list_block, "attachments"),
-        "",
-        "8) SAFETY",
-        _display(draft.safety.advice_line, "safety advice"),
-        "",
-        "Thank you for assessing. Please advise on diagnosis and management, and whether you recommend assuming ongoing specialty follow-up.",
-        "",
-        "Sincerely,",
-        _display(ref.signature_block, "signature"),
     ]
+
+    if (p.guardian_or_sdm or "").strip():
+        lines.append(f"GUARDIAN / SDM: {p.guardian_or_sdm}")
+
+    lines.extend(
+        [
+            "",
+            f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} ({_display(ref.credentials, 'credentials')}) | CPSA: {_display(ref.cpsa, 'CPSA')}",
+            f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
+            f"RETURN REPORT TO: {_display(ref.fax_or_econsult_inbox, 'return inbox')}",
+            "",
+            "1) REFERRAL INTENT",
+            f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
+            f"Specific request / question: {_display(r.consult_question, 'consult question')}",
+            f"Urgency: {_display(r.urgency_label, 'urgency')} — {_display(r.urgency_rationale, 'urgency rationale')}",
+            f"Patient aware of referral reason: {_display(r.patient_aware_yes_no, 'patient aware')}",
+            "",
+            "2) CLINICAL SUMMARY",
+            f"Presenting symptoms: {_display(c.summary_symptoms, 'presenting symptoms')}",
+            f"Key positives: {_display(c.key_positives, 'key positives')}",
+            f"Key negatives / red flags: {_display(c.key_negatives_and_redflags, 'key negatives/red flags')}",
+            f"Pertinent exam: {_display(c.pertinent_exam, 'pertinent exam')}",
+            "",
+            "3) OBJECTIVE DATA",
+            "Pertinent labs:",
+            _display(o.labs_block, "labs"),
+            "",
+            "Pertinent imaging/procedures:",
+            _display(o.imaging_block, "imaging/procedures"),
+            "",
+            "Pathology:",
+            _display(o.pathology_block, "pathology"),
+            "",
+            f"Availability of results: {_display(o.results_location, 'results location')}",
+            "",
+            "4) MANAGEMENT TO DATE",
+            f"Treatments tried: {_display(m.tried_block, 'treatments tried')}",
+            f"Pending investigations/referrals: {_display(m.pending_block, 'pending investigations/referrals')}",
+            f"Working diagnosis / differential: {_display(a.working_dx_and_ddx, 'working diagnosis/differential')}",
+            "",
+            "5) RELEVANT BACKGROUND",
+            f"PMHx relevant: {_display(b.pmHx_relevant, 'PMHx')}",
+            f"PSHx relevant: {_display(b.psHx_relevant, 'PSHx')}",
+            f"Medications: {_display(b.meds_relevant, 'medications')}",
+            f"Allergies/intolerances: {_display(b.allergies, 'allergies')}",
+            "",
+            "6) CONTEXT / LOGISTICS",
+            f"Comorbidities affecting care: {_display(l.high_risk_context, 'high-risk context')}",
+        ]
+    )
+
+    if (l.barriers or "").strip():
+        lines.append(f"Barriers: {l.barriers}")
+    if (l.patient_goals or "").strip():
+        lines.append(f"Patient goals / expectations: {l.patient_goals}")
+
+    lines.extend(
+        [
+            "",
+            "7) SAFETY",
+            _display(draft.safety.advice_line, "safety advice"),
+            "",
+            "Thank you for assessing. Please advise on diagnosis and management, and whether you recommend assuming ongoing specialty follow-up.",
+            "",
+            "Sincerely,",
+            (ref.signature_block or ""),
+        ]
+    )
     return "\n".join(lines).strip()
