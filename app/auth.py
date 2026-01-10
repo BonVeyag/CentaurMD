@@ -67,6 +67,7 @@ class AuthUser(BaseModel):
 
 class ProfilePayload(BaseModel):
     signature_name: str = ""
+    cpsa: str = ""
     clinic_name: str = ""
     clinic_address: str = ""
     clinic_phone: str = ""
@@ -174,6 +175,7 @@ def _normalize_profile(payload: ProfilePayload) -> Dict[str, str]:
         return str(val or "").strip()
     return {
         "signature_name": clean(payload.signature_name),
+        "cpsa": clean(payload.cpsa),
         "clinic_name": clean(payload.clinic_name),
         "clinic_address": clean(payload.clinic_address),
         "clinic_phone": clean(payload.clinic_phone),
@@ -190,6 +192,7 @@ def get_user_profile(username: str) -> Dict[str, str]:
         return {}
     return {
         "signature_name": str(profile.get("signature_name", "")).strip(),
+        "cpsa": str(profile.get("cpsa", "")).strip(),
         "clinic_name": str(profile.get("clinic_name", "")).strip(),
         "clinic_address": str(profile.get("clinic_address", "")).strip(),
         "clinic_phone": str(profile.get("clinic_phone", "")).strip(),
