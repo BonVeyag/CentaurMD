@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import router as api_router
-from app.auth import router as auth_router, require_user
+from app.auth import router as auth_router, require_user, validate_smtp_config, get_smtp_status
 import logging
 import os
 import subprocess
@@ -37,6 +37,15 @@ def ping():
 def startup_event():
     # Billing state is persisted per-user on disk in api.py.
     logger.info("CentaurWeb backend started (billing: per-user persisted)")
+    try:
+        validate_smtp_config()
+        smtp_status = get_smtp_status()
+        logger.info(
+            f"SMTP status: configured={smtp_status.get('configured')} source={smtp_status.get('source')}"
+        )
+    except Exception as e:
+        logger.error(f"SMTP validation failed: {e}")
+        raise
     _auto_commit_on_reload()
 
 
