@@ -817,12 +817,8 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         missing_critical.append("referral.specialty_name")
     if not draft.referral.reason_short:
         missing_critical.append("referral.reason_short")
-    if not draft.referral.consult_question:
-        missing_critical.append("referral.consult_question")
-    if not draft.referral.urgency_rationale:
-        missing_critical.append("referral.urgency_rationale")
-    if not draft.objective.results_location:
-        missing_critical.append("objective.results_location")
+    if not draft.referral.urgency_label:
+        missing_critical.append("referral.urgency_label")
 
     missing_recommended = []
     if not draft.patient.phone:
