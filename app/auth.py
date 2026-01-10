@@ -549,6 +549,25 @@ def me(user: AuthUser = Depends(require_user)):
     return {"user": user}
 
 
+@router.get("/auth/profile")
+def get_profile(user: AuthUser = Depends(require_user)):
+    return {"profile": get_user_profile(user.username)}
+
+
+@router.put("/auth/profile")
+def update_profile(payload: ProfilePayload, user: AuthUser = Depends(require_user)):
+    profile = _normalize_profile(payload)
+    with USERS_LOCK:
+        data = _load_users()
+        rec = data.get("users", {}).get(user.username)
+        if not rec:
+            raise HTTPException(status_code=404, detail="User not found.")
+        rec["profile"] = profile
+        rec["updated_at_utc"] = _utc_now_iso()
+        _save_users(data)
+    return {"profile": profile}
+
+
 @router.post("/auth/logout")
 def logout(request: Request):
     token = _extract_token(request)
