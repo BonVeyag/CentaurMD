@@ -1616,10 +1616,6 @@ and for the care, day after day, you give.</div>
         <label class="macro-label" for="referralQuestionInput">Consult question</label>
         <input id="referralQuestionInput" placeholder="Specific question for the consultant" />
       </div>
-      <label class="referral-checkbox full">
-        <input id="referralIncludeObjective" type="checkbox" checked />
-        Include objective data from EMR/Netcare if present
-      </label>
     </div>
     <div id="referralStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
@@ -1841,7 +1837,6 @@ const referralSubspecialtyInput = document.getElementById("referralSubspecialtyI
 const referralUrgencySelect = document.getElementById("referralUrgencySelect");
 const referralReasonInput = document.getElementById("referralReasonInput");
 const referralQuestionInput = document.getElementById("referralQuestionInput");
-const referralIncludeObjective = document.getElementById("referralIncludeObjective");
 const referralStatus = document.getElementById("referralStatus");
 const referralLetterText = document.getElementById("referralLetterText");
 const referralMissing = document.getElementById("referralMissing");
@@ -2576,7 +2571,6 @@ async function generateReferralDraft() {
   const reason_short = (referralReasonInput?.value || "").trim();
   const consult_question = (referralQuestionInput?.value || "").trim();
   const urgency_override = (referralUrgencySelect?.value || "").trim();
-  const include_objective = Boolean(referralIncludeObjective?.checked);
 
   if (!specialty) {
     setReferralStatus("Specialty is required.", true);
@@ -2594,7 +2588,7 @@ async function generateReferralDraft() {
       reason_short,
       consult_question,
       urgency_override: urgency_override || null,
-      include_objective,
+      include_objective: true,
     };
     const data = await apiPost("/referral_draft", payload);
     const letter = String(data?.letter_text || "").trim();

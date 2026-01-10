@@ -302,30 +302,43 @@ def _infer_patient_aware(transcript: str) -> str:
     return "Unclear"
 
 
-def _summarize_from_transcript(transcript: str) -> Dict[str, str]:
+def _summarize_from_transcript_and_emr(transcript: str, emr_text: str, netcare_text: str) -> Dict[str, str]:
     t = (transcript or "").strip()
-    if not t:
+    bg = (emr_text or "").strip()
+    nc = (netcare_text or "").strip()
+    if not (t or bg or nc):
         return {}
-    clip = _clip_text(t, max_chars=6000)
+    clip_t = _clip_text(t, max_chars=6000)
+    clip_bg = _clip_text(bg, max_chars=4000)
+    clip_nc = _clip_text(nc, max_chars=4000)
     prompt = f"""
 Return strict JSON only with keys:
-reason_short, consult_question, summary_symptoms, key_positives,
-key_negatives_and_redflags, pertinent_exam, treatments_tried,
-pending_items, working_dx_and_ddx, patient_goals.
+specialty_name, subspecialty_or_clinic, reason_short, consult_question,
+summary_symptoms, key_positives, key_negatives_and_redflags, pertinent_exam,
+treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timeframe.
 
 Rules:
-- Use ONLY the transcript below.
+- Use ONLY the transcript and EMR data below.
 - If a field is not explicitly stated, return an empty string.
 - Do NOT infer PMHx, meds, labs, imaging, or diagnoses not stated.
+- specialty_name: best-fit specialty when referral is implied by the case context.
+- subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
+- target_timeframe: only if explicitly stated; otherwise empty.
 
 TRANSCRIPT:
-{clip}
+{clip_t or "[none]"}
+
+EMR:
+{clip_bg or "[none]"}
+
+NETCARE:
+{clip_nc or "[none]"}
 """.strip()
     try:
         resp = client.chat.completions.create(
             model=REFERRAL_MODEL,
             messages=[
-                {"role": "system", "content": "Return strict JSON only. Use transcript only."},
+                {"role": "system", "content": "Return strict JSON only. Use transcript/EMR only."},
                 {"role": "user", "content": prompt},
             ],
             temperature=REFERRAL_TEMPERATURE,
@@ -478,12 +491,12 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
     phone = _extract_phone(emr_text)
     address = _extract_address(emr_text)
 
-    summary = _summarize_from_transcript(transcript) if transcript else {}
+    summary = _summarize_from_transcript_and_emr(transcript, emr_text, netcare_text)
     reason_short = (getattr(payload, "reason_short", "") or "").strip() or summary.get("reason_short", "")
     consult_question = (getattr(payload, "consult_question", "") or "").strip() or summary.get("consult_question", "")
 
-    specialty_name = (getattr(payload, "specialty", "") or "").strip()
-    subspecialty = (getattr(payload, "subspecialty_or_clinic", "") or "").strip()
+    specialty_name = (getattr(payload, "specialty", "") or "").strip() or summary.get("specialty_name", "")
+    subspecialty = (getattr(payload, "subspecialty_or_clinic", "") or "").strip() or summary.get("subspecialty_or_clinic", "")
     urgency_override = (getattr(payload, "urgency_override", None) or "").strip()
     include_objective = True
 
@@ -520,7 +533,7 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
         reason_short=reason_short,
         consult_question=consult_question,
         urgency_label=urgency_label,
-        target_timeframe="",
+        target_timeframe=summary.get("target_timeframe", ""),
         urgency_rationale=urgency_rationale,
         patient_aware_yes_no=patient_aware,
     )
