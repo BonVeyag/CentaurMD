@@ -564,8 +564,9 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
             results_location = "Netcare"
     else:
         labs_block = "Not included (per clinician choice)."
-        imaging_block = ""
-        pathology_block = ""
+        imaging_block = "Not included (per clinician choice)."
+        pathology_block = "Not included (per clinician choice)."
+        results_location = "Other"
 
     if include_objective and not (labs_block or imaging_block or pathology_block):
         labs_block = "No investigations to date."

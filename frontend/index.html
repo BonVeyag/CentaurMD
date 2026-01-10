@@ -943,6 +943,45 @@ textarea::-webkit-scrollbar-track{
   min-height:180px;
   resize:none;
 }
+.referral-panel{
+  width:min(760px, 94vw);
+}
+.referral-grid{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.referral-grid .full{
+  grid-column:1 / -1;
+}
+.referral-grid select{
+  width:100%;
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  color: var(--text);
+  font-size: var(--fs-body);
+  border:none;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.referral-grid select option{
+  color: var(--text);
+  background: var(--panel);
+}
+.referral-checkbox{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size:12px;
+  color: var(--muted);
+}
+.referral-editor textarea{
+  min-height:320px;
+  resize:none;
+}
+#referralMissing{
+  white-space:pre-line;
+}
 .confirm-panel{
   position:fixed;
   left:50%;
@@ -1532,6 +1571,71 @@ and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
+<div id="referralOverlay" class="macro-overlay" style="display:none"></div>
+<div id="referralPanel" class="macro-panel referral-panel" style="display:none" aria-label="Referral Draft">
+  <div class="macro-head">
+    <h2>Referral Draft</h2>
+    <button id="referralCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section">
+    <div class="referral-grid">
+      <div>
+        <label class="macro-label" for="referralSpecialtyInput">Specialty</label>
+        <input id="referralSpecialtyInput" list="referralSpecialtyOptions" placeholder="e.g., Gastroenterology" />
+        <datalist id="referralSpecialtyOptions">
+          <option value="Cardiology"></option>
+          <option value="Endocrinology"></option>
+          <option value="Gastroenterology"></option>
+          <option value="General Surgery"></option>
+          <option value="Hematology"></option>
+          <option value="Internal Medicine"></option>
+          <option value="Neurology"></option>
+          <option value="Orthopedics"></option>
+          <option value="Psychiatry"></option>
+          <option value="Respirology"></option>
+        </datalist>
+      </div>
+      <div>
+        <label class="macro-label" for="referralSubspecialtyInput">Subspecialty / Clinic (optional)</label>
+        <input id="referralSubspecialtyInput" placeholder="Clinic or subspecialty" />
+      </div>
+      <div>
+        <label class="macro-label" for="referralUrgencySelect">Urgency</label>
+        <select id="referralUrgencySelect">
+          <option value="">Suggested (auto)</option>
+          <option value="Routine">Routine</option>
+          <option value="Semi-urgent">Semi-urgent</option>
+          <option value="Urgent">Urgent</option>
+        </select>
+      </div>
+      <div class="full">
+        <label class="macro-label" for="referralReasonInput">Reason for referral</label>
+        <input id="referralReasonInput" placeholder="Short reason for referral" />
+      </div>
+      <div class="full">
+        <label class="macro-label" for="referralQuestionInput">Consult question</label>
+        <input id="referralQuestionInput" placeholder="Specific question for the consultant" />
+      </div>
+      <label class="referral-checkbox full">
+        <input id="referralIncludeObjective" type="checkbox" checked />
+        Include objective data from EMR/Netcare if present
+      </label>
+    </div>
+    <div id="referralStatus" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="referralGenerateBtn" class="primary" type="button">Generate Draft</button>
+      <button id="referralCloseBtn2" type="button">Close</button>
+    </div>
+  </div>
+  <div class="macro-section macro-editor referral-editor">
+    <div class="summary-title">Draft Letter</div>
+    <textarea id="referralLetterText" placeholder="Generate a draft to view or edit"></textarea>
+    <div id="referralMissing" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="referralCopyBtn" class="primary" type="button">Copy</button>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <div id="billingArchiveOverlay" class="macro-overlay" style="display:none"></div>
@@ -1728,6 +1832,21 @@ const feedbackMessage = document.getElementById("feedbackMessage");
 const feedbackStatus = document.getElementById("feedbackStatus");
 const feedbackSendBtn = document.getElementById("feedbackSendBtn");
 const feedbackCancelBtn = document.getElementById("feedbackCancelBtn");
+const referralOverlay = document.getElementById("referralOverlay");
+const referralPanel = document.getElementById("referralPanel");
+const referralCloseBtn = document.getElementById("referralCloseBtn");
+const referralCloseBtn2 = document.getElementById("referralCloseBtn2");
+const referralSpecialtyInput = document.getElementById("referralSpecialtyInput");
+const referralSubspecialtyInput = document.getElementById("referralSubspecialtyInput");
+const referralUrgencySelect = document.getElementById("referralUrgencySelect");
+const referralReasonInput = document.getElementById("referralReasonInput");
+const referralQuestionInput = document.getElementById("referralQuestionInput");
+const referralIncludeObjective = document.getElementById("referralIncludeObjective");
+const referralStatus = document.getElementById("referralStatus");
+const referralLetterText = document.getElementById("referralLetterText");
+const referralMissing = document.getElementById("referralMissing");
+const referralGenerateBtn = document.getElementById("referralGenerateBtn");
+const referralCopyBtn = document.getElementById("referralCopyBtn");
 const toastEl = document.getElementById("toast");
 
 // Auth UI refs
@@ -2404,6 +2523,114 @@ async function sendFeedback() {
   } catch (err) {
     setFeedbackStatus(err?.message || "Send failed.", true);
   }
+}
+
+const REFERRAL_SPECIALTY_KEY = "centaur_referral_specialty_v1";
+
+function openReferralPanel() {
+  if (!referralPanel || !referralOverlay) return;
+  const stored = localStorage.getItem(REFERRAL_SPECIALTY_KEY) || "";
+  if (referralSpecialtyInput && !referralSpecialtyInput.value && stored) {
+    referralSpecialtyInput.value = stored;
+  }
+  setReferralStatus("");
+  setReferralMissing(null);
+  referralOverlay.style.display = "block";
+  referralPanel.style.display = "flex";
+}
+
+function closeReferralPanel() {
+  if (!referralPanel || !referralOverlay) return;
+  referralOverlay.style.display = "none";
+  referralPanel.style.display = "none";
+}
+
+function setReferralStatus(message, isError=false) {
+  if (!referralStatus) return;
+  referralStatus.textContent = message || "";
+  referralStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setReferralMissing(quality) {
+  if (!referralMissing) return;
+  if (!quality) {
+    referralMissing.textContent = "";
+    referralMissing.className = "macro-status";
+    return;
+  }
+  const missingCritical = Array.isArray(quality.missing_critical) ? quality.missing_critical : [];
+  const missingRecommended = Array.isArray(quality.missing_recommended) ? quality.missing_recommended : [];
+  const warnings = Array.isArray(quality.warnings) ? quality.warnings : [];
+  const lines = [];
+  if (missingCritical.length) lines.push(`Missing (critical): ${missingCritical.join(", ")}`);
+  if (missingRecommended.length) lines.push(`Missing (recommended): ${missingRecommended.join(", ")}`);
+  if (warnings.length) lines.push(`Warnings: ${warnings.join(", ")}`);
+  referralMissing.textContent = lines.join("\n");
+  referralMissing.className = "macro-status" + (lines.length ? " error" : "");
+}
+
+async function generateReferralDraft() {
+  await ensureSession();
+  const specialty = (referralSpecialtyInput?.value || "").trim();
+  const subspecialty_or_clinic = (referralSubspecialtyInput?.value || "").trim();
+  const reason_short = (referralReasonInput?.value || "").trim();
+  const consult_question = (referralQuestionInput?.value || "").trim();
+  const urgency_override = (referralUrgencySelect?.value || "").trim();
+  const include_objective = Boolean(referralIncludeObjective?.checked);
+
+  if (!specialty) {
+    setReferralStatus("Specialty is required.", true);
+    return;
+  }
+
+  setReferralStatus("Generating…");
+  setReferralMissing(null);
+
+  try {
+    const payload = {
+      session_id: sessionId,
+      specialty,
+      subspecialty_or_clinic,
+      reason_short,
+      consult_question,
+      urgency_override: urgency_override || null,
+      include_objective,
+    };
+    const data = await apiPost("/referral_draft", payload);
+    const letter = String(data?.letter_text || "").trim();
+    if (referralLetterText) referralLetterText.value = letter;
+    const draft = data?.referral_json || {};
+    const ref = draft?.referral || {};
+    if (referralReasonInput && !reason_short && ref.reason_short) {
+      referralReasonInput.value = ref.reason_short;
+    }
+    if (referralQuestionInput && !consult_question && ref.consult_question) {
+      referralQuestionInput.value = ref.consult_question;
+    }
+    if (referralUrgencySelect && ref.urgency_label) {
+      referralUrgencySelect.value = ref.urgency_label;
+    }
+    localStorage.setItem(REFERRAL_SPECIALTY_KEY, specialty);
+    setReferralMissing(data?.quality || null);
+    setReferralStatus("Draft ready.");
+  } catch (err) {
+    setReferralStatus(err?.message || "Draft failed.", true);
+  }
+}
+
+async function copyReferralDraft() {
+  const text = (referralLetterText?.value || "").trim();
+  if (!text) {
+    setReferralStatus("Generate a draft first.", true);
+    return;
+  }
+  const ok = await copyRichText(text);
+  if (ok) {
+    showToast("Referral copied.", "ok");
+    setReferralStatus("");
+    return;
+  }
+  setReferralStatus("Copy blocked. Use manual copy.", true);
 }
 
 function openBillingArchivePanel() {
@@ -4687,6 +4914,16 @@ feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
 feedbackSendBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
 });
+referralCloseBtn?.addEventListener("click", () => closeReferralPanel());
+referralCloseBtn2?.addEventListener("click", () => closeReferralPanel());
+referralOverlay?.addEventListener("click", () => closeReferralPanel());
+referralPanel?.addEventListener("click", (e) => e.stopPropagation());
+referralGenerateBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(referralGenerateBtn, "Working…", generateReferralDraft);
+});
+referralCopyBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(referralCopyBtn, "Copying…", copyReferralDraft);
+});
 feedbackEmail?.addEventListener("change", () => {
   maybeStoreFeedbackEmail(feedbackEmail.value || "");
 });
@@ -4847,6 +5084,7 @@ document.addEventListener("keydown", (e) => {
     closeMacroPanel();
     closeProfilePopover();
     closeBillingArchivePanel();
+    closeReferralPanel();
   }
 });
 
@@ -4870,7 +5108,7 @@ document.addEventListener("keydown", (e) => {
 })();
 
 soapBtn.addEventListener("click", async () => { await runWithButtonBusy(soapBtn, "Working…", generateSoapToChat); });
-referralBtn.addEventListener("click", async () => { await runWithButtonBusy(referralBtn, "Working…", generateReferralToChat); });
+referralBtn.addEventListener("click", () => { openReferralPanel(); });
 
 // -------------------------
 // Billing wiring (SIMPLIFIED)
