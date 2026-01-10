@@ -966,6 +966,36 @@ textarea::-webkit-scrollbar-track{
 .referral-panel{
   width:min(760px, 94vw);
 }
+.referral-toolbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  margin:0 12px 8px 12px;
+  border-radius:14px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.referral-toolbar label{
+  font-size:13px;
+  color: var(--muted);
+  white-space:nowrap;
+}
+.referral-toolbar input{
+  flex:1;
+  border-radius:12px;
+  border:none;
+  padding:10px 12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
 #referralMissing{
   white-space:pre-line;
 }
@@ -1667,6 +1697,11 @@ and for the care, day after day, you give.</div>
     <h2>Referral Draft</h2>
     <button id="referralCloseBtn" type="button">✕</button>
   </div>
+  <div class="referral-toolbar">
+    <label for="referralSpecialtyInput">Refer to:</label>
+    <input id="referralSpecialtyInput" type="text" placeholder="Refer to:" />
+    <button id="referralGenerateBtn" class="primary" type="button">Generate Referral</button>
+  </div>
   <div class="macro-section macro-editor referral-editor">
     <div class="summary-title">Draft Letter</div>
     <div id="referralLoading" class="referral-loading" aria-hidden="true">
@@ -1901,6 +1936,8 @@ const referralLetterText = document.getElementById("referralLetterText");
 const referralMissing = document.getElementById("referralMissing");
 const referralLoading = document.getElementById("referralLoading");
 const referralCopyBtn = document.getElementById("referralCopyBtn");
+const referralSpecialtyInput = document.getElementById("referralSpecialtyInput");
+const referralGenerateBtn = document.getElementById("referralGenerateBtn");
 const toastEl = document.getElementById("toast");
 
 // Auth UI refs
@@ -2636,7 +2673,8 @@ function openReferralPanel() {
   setReferralMissing(null);
   referralOverlay.style.display = "block";
   referralPanel.style.display = "flex";
-  generateReferralDraft();
+  if (referralSpecialtyInput) referralSpecialtyInput.value = "";
+  generateReferralDraft("");
 }
 
 function closeReferralPanel() {
@@ -2701,7 +2739,7 @@ function setReferralMissing(quality) {
     .filter(Boolean);
 }
 
-async function generateReferralDraft() {
+async function generateReferralDraft(specialtyOverride="") {
   await ensureSession();
   setReferralStatus("Generating…");
   setReferralMissing(null);
@@ -2709,9 +2747,10 @@ async function generateReferralDraft() {
   if (referralLetterText) referralLetterText.innerHTML = "";
 
   try {
+    const override = String(specialtyOverride || "").trim();
     const payload = {
       session_id: sessionId,
-      specialty: "",
+      specialty: override,
       subspecialty_or_clinic: "",
       reason_short: "",
       consult_question: "",
@@ -2719,6 +2758,10 @@ async function generateReferralDraft() {
       include_objective: true,
     };
     const data = await apiPost("/referral_draft", payload);
+    const inferred = String(data?.referral_json?.referral?.specialty_name || "").trim();
+    if (referralSpecialtyInput && !override && inferred) {
+      referralSpecialtyInput.value = inferred;
+    }
     const letter = String(data?.letter_text || "").trim();
     setReferralMissing(data?.quality || null);
     if (referralLetterText) referralLetterText.innerHTML = referralTextToHtml(letter);
@@ -5034,6 +5077,15 @@ referralOverlay?.addEventListener("click", () => closeReferralPanel());
 referralPanel?.addEventListener("click", (e) => e.stopPropagation());
 referralCopyBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(referralCopyBtn, "Copying…", copyReferralDraft);
+});
+referralGenerateBtn?.addEventListener("click", async () => {
+  const override = (referralSpecialtyInput?.value || "").trim();
+  await runWithButtonBusy(referralGenerateBtn, "Generating…", () => generateReferralDraft(override));
+});
+referralSpecialtyInput?.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  referralGenerateBtn?.click();
 });
 feedbackEmail?.addEventListener("change", () => {
   maybeStoreFeedbackEmail(feedbackEmail.value || "");

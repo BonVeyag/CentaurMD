@@ -1028,7 +1028,7 @@ def update_clinical_background(session_id: str, payload: ClinicalBackgroundPaylo
 
 class ReferralDraftPayload(BaseModel):
     session_id: str
-    specialty: str
+    specialty: str = ""
     subspecialty_or_clinic: str = ""
     reason_short: str = ""
     consult_question: str = ""
