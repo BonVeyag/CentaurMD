@@ -82,6 +82,37 @@ FEEDBACK_RATE_LIMIT_MAX = 5
 FEEDBACK_RATE_LIMIT: Dict[str, List[float]] = {}
 FEEDBACK_RATE_LOCK = ThreadLock()
 
+
+def _is_admin(user: AuthUser) -> bool:
+    return bool(getattr(user, "is_admin", False))
+
+
+def _require_admin(user: AuthUser) -> None:
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+
+
+def _valid_email(email: str) -> bool:
+    e = (email or "").strip().lower()
+    return ("@" in e) and ("." in e.split("@")[-1])
+
+
+def _rate_limit_feedback(keys: List[str]) -> Optional[int]:
+    now = time.time()
+    retry_after = 0
+    with FEEDBACK_RATE_LOCK:
+        for key in keys:
+            bucket = FEEDBACK_RATE_LIMIT.get(key, [])
+            bucket = [t for t in bucket if (now - t) < FEEDBACK_RATE_LIMIT_WINDOW_SEC]
+            if len(bucket) >= FEEDBACK_RATE_LIMIT_MAX:
+                oldest = min(bucket) if bucket else now
+                retry_after = int(max(1, FEEDBACK_RATE_LIMIT_WINDOW_SEC - (now - oldest)))
+                FEEDBACK_RATE_LIMIT[key] = bucket
+                return retry_after
+            bucket.append(now)
+            FEEDBACK_RATE_LIMIT[key] = bucket
+    return None
+
 # =========================
 # Billing model + reference
 # =========================
