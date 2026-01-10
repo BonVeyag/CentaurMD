@@ -310,6 +310,8 @@ def validate_smtp_config(required: Optional[bool] = None) -> Dict[str, Any]:
     required_flag = SMTP_REQUIRED if required is None else bool(required)
     if required_flag and not config.get("configured"):
         raise RuntimeError(f"SMTP required but not configured. Missing: {config.get('missing', [])}")
+    if not required_flag and not config.get("configured"):
+        logger.warning(f"SMTP not configured. Missing: {config.get('missing', [])}")
     return config
 
 
