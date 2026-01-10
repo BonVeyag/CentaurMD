@@ -828,6 +828,10 @@ def _parse_date_any(s: str) -> Optional[date]:
     fmts = (
         "%Y-%m-%d",
         "%Y/%m/%d",
+        "%Y-%b-%d",
+        "%Y-%B-%d",
+        "%Y/%b/%d",
+        "%Y/%B/%d",
         "%d-%m-%Y",
         "%d/%m/%Y",
         "%m/%d/%Y",
