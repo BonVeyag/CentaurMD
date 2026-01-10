@@ -943,6 +943,26 @@ textarea::-webkit-scrollbar-track{
   min-height:180px;
   resize:none;
 }
+.profile-panel{
+  width:min(560px, 92vw);
+}
+.profile-panel .macro-section{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.profile-panel input{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  padding:12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
 .referral-panel{
   width:min(760px, 94vw);
 }
@@ -976,7 +996,7 @@ textarea::-webkit-scrollbar-track{
 }
 .referral-loading{
   position:absolute;
-  inset:44px 0 auto 0;
+  inset:44px 0 0 0;
   display:none;
   align-items:center;
   flex-direction:column;
@@ -1622,6 +1642,25 @@ and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
+<div id="profileOverlay" class="macro-overlay" style="display:none"></div>
+<div id="profilePanel" class="macro-panel profile-panel" style="display:none" aria-label="Personalization">
+  <div class="macro-head">
+    <h2>Personalization</h2>
+    <button id="profileCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section">
+    <input id="profileSignatureName" type="text" placeholder="Signature Name" />
+    <input id="profileClinicName" type="text" placeholder="Clinic Name" />
+    <input id="profileClinicAddress" type="text" placeholder="Clinic Address" />
+    <input id="profileClinicPhone" type="text" placeholder="Clinic Phone" />
+    <input id="profileClinicFax" type="text" placeholder="Clinic Fax" />
+    <div id="profileStatus" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="profileSaveBtn" class="primary" type="button">Save</button>
+      <button id="profileCancelBtn" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
 <div id="referralOverlay" class="macro-overlay" style="display:none"></div>
 <div id="referralPanel" class="macro-panel referral-panel" style="display:none" aria-label="Referral Draft">
   <div class="macro-head">
@@ -1842,6 +1881,17 @@ const feedbackMessage = document.getElementById("feedbackMessage");
 const feedbackStatus = document.getElementById("feedbackStatus");
 const feedbackSendBtn = document.getElementById("feedbackSendBtn");
 const feedbackCancelBtn = document.getElementById("feedbackCancelBtn");
+const profileOverlay = document.getElementById("profileOverlay");
+const profilePanel = document.getElementById("profilePanel");
+const profileCloseBtn = document.getElementById("profileCloseBtn");
+const profileSignatureName = document.getElementById("profileSignatureName");
+const profileClinicName = document.getElementById("profileClinicName");
+const profileClinicAddress = document.getElementById("profileClinicAddress");
+const profileClinicPhone = document.getElementById("profileClinicPhone");
+const profileClinicFax = document.getElementById("profileClinicFax");
+const profileStatus = document.getElementById("profileStatus");
+const profileSaveBtn = document.getElementById("profileSaveBtn");
+const profileCancelBtn = document.getElementById("profileCancelBtn");
 const referralOverlay = document.getElementById("referralOverlay");
 const referralPanel = document.getElementById("referralPanel");
 const referralCloseBtn = document.getElementById("referralCloseBtn");
@@ -2472,6 +2522,57 @@ function closeFeedbackPanel() {
   if (!feedbackPanel || !feedbackOverlay) return;
   feedbackOverlay.style.display = "none";
   feedbackPanel.style.display = "none";
+}
+
+function openProfilePanel() {
+  if (!profilePanel || !profileOverlay) return;
+  setProfileStatus("");
+  profileOverlay.style.display = "block";
+  profilePanel.style.display = "flex";
+  loadProfile();
+}
+
+function closeProfilePanel() {
+  if (!profilePanel || !profileOverlay) return;
+  profileOverlay.style.display = "none";
+  profilePanel.style.display = "none";
+}
+
+function setProfileStatus(message, isError=false) {
+  if (!profileStatus) return;
+  profileStatus.textContent = message || "";
+  profileStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+async function loadProfile() {
+  try {
+    const data = await apiGet("/auth/profile");
+    const profile = data?.profile || {};
+    if (profileSignatureName) profileSignatureName.value = profile.signature_name || "";
+    if (profileClinicName) profileClinicName.value = profile.clinic_name || "";
+    if (profileClinicAddress) profileClinicAddress.value = profile.clinic_address || "";
+    if (profileClinicPhone) profileClinicPhone.value = profile.clinic_phone || "";
+    if (profileClinicFax) profileClinicFax.value = profile.clinic_fax || "";
+  } catch (err) {
+    setProfileStatus(err?.message || "Failed to load profile.", true);
+  }
+}
+
+async function saveProfile() {
+  const payload = {
+    signature_name: (profileSignatureName?.value || "").trim(),
+    clinic_name: (profileClinicName?.value || "").trim(),
+    clinic_address: (profileClinicAddress?.value || "").trim(),
+    clinic_phone: (profileClinicPhone?.value || "").trim(),
+    clinic_fax: (profileClinicFax?.value || "").trim(),
+  };
+  try {
+    setProfileStatus("Saving…");
+    await apiPut("/auth/profile", payload);
+    setProfileStatus("Saved.");
+  } catch (err) {
+    setProfileStatus(err?.message || "Save failed.", true);
+  }
 }
 
 function setFeedbackStatus(message, isError=false) {
@@ -4909,6 +5010,13 @@ feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
 feedbackSendBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
 });
+profileCloseBtn?.addEventListener("click", () => closeProfilePanel());
+profileOverlay?.addEventListener("click", () => closeProfilePanel());
+profilePanel?.addEventListener("click", (e) => e.stopPropagation());
+profileCancelBtn?.addEventListener("click", () => closeProfilePanel());
+profileSaveBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(profileSaveBtn, "Saving…", saveProfile);
+});
 referralCloseBtn?.addEventListener("click", () => closeReferralPanel());
 referralCloseBtn2?.addEventListener("click", () => closeReferralPanel());
 referralOverlay?.addEventListener("click", () => closeReferralPanel());
@@ -4951,7 +5059,7 @@ reviewBillingBtn?.addEventListener("click", async () => {
 });
 personalizationBtn?.addEventListener("click", () => {
   closeProfilePopover();
-  logChat("System", "Personalization is coming soon.");
+  openProfilePanel();
 });
 coachReportBtn?.addEventListener("click", () => {
   closeProfilePopover();
@@ -5077,6 +5185,7 @@ document.addEventListener("keydown", (e) => {
     closeProfilePopover();
     closeBillingArchivePanel();
     closeReferralPanel();
+    closeProfilePanel();
   }
 });
 

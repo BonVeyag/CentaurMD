@@ -402,13 +402,13 @@ def _collect_high_risk_context(text: str) -> str:
         return ""
     tags = []
     if "anticoag" in t or "warfarin" in t or "rivaroxaban" in t or "apixaban" in t:
-        tags.append("Anticoagulation (per EMR)")
+        tags.append("Anticoagulation")
     if "ckd" in t or "dialysis" in t:
-        tags.append("CKD/dialysis (per EMR)")
+        tags.append("CKD/dialysis")
     if "pregnan" in t:
-        tags.append("Pregnancy (per EMR)")
+        tags.append("Pregnancy")
     if "immunosupp" in t or "transplant" in t or "chemo" in t:
-        tags.append("Immunosuppression (per EMR)")
+        tags.append("Immunosuppression")
     return "; ".join(tags)
 
 
