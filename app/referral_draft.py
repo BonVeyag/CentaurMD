@@ -502,11 +502,12 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
     phone = _extract_phone(emr_text)
     address = _extract_address(emr_text)
 
-    summary = _summarize_from_transcript_and_emr(transcript, emr_text, netcare_text)
+    specialty_override = (getattr(payload, "specialty", "") or "").strip()
+    summary = _summarize_from_transcript_and_emr(transcript, emr_text, netcare_text, specialty_override)
     reason_short = (getattr(payload, "reason_short", "") or "").strip() or summary.get("reason_short", "")
     consult_question = (getattr(payload, "consult_question", "") or "").strip() or summary.get("consult_question", "")
 
-    specialty_name = (getattr(payload, "specialty", "") or "").strip() or summary.get("specialty_name", "")
+    specialty_name = specialty_override or summary.get("specialty_name", "")
     subspecialty = (getattr(payload, "subspecialty_or_clinic", "") or "").strip() or summary.get("subspecialty_or_clinic", "")
     urgency_override = (getattr(payload, "urgency_override", None) or "").strip()
     include_objective = True
