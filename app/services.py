@@ -2562,25 +2562,14 @@ def generate_patient_summary(context: SessionContext) -> Dict[str, Any]:
         "gender": gender or "",
     }
 
-    emr_clip = _clip_text(emr, max_chars=12000)
-    prompt = _build_patient_summary_prompt(emr_clip, demo)
+    emr_focus = _build_patient_summary_source(emr)
+    prompt = _build_patient_summary_prompt(emr_focus, demo)
 
-    try:
-        resp = client.chat.completions.create(
-            model=PATIENT_SUMMARY_MODEL,
-            messages=[
-                {"role": "system", "content": "Return strict JSON only. Use EMR only."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.2,
-            response_format={"type": "json_object"},
-        )
-        raw = (resp.choices[0].message.content or "").strip()
-        data = json.loads(raw)
-        if not isinstance(data, dict):
-            data = {}
-    except Exception:
-        data = {}
+    data = _run_patient_summary_llm(prompt, PATIENT_SUMMARY_MODEL)
+    if (not _summary_has_details(data)) and PATIENT_SUMMARY_FALLBACK_MODEL != PATIENT_SUMMARY_MODEL:
+        fallback = _run_patient_summary_llm(prompt, PATIENT_SUMMARY_FALLBACK_MODEL)
+        if _summary_has_details(fallback):
+            data = fallback
 
     # Ensure required keys and inject deterministic demographics if missing
     for k, v in demo.items():
