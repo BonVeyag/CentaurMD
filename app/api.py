@@ -43,6 +43,7 @@ from app.auth import (
     AuthUser,
     send_admin_email,
     get_smtp_status,
+    get_user_profile,
 )
 from app.macro_store import (
     list_macros_for_user as store_list_macros_for_user,
@@ -1040,7 +1041,8 @@ def referral_draft(payload: ReferralDraftPayload, user: AuthUser = Depends(requi
     context = _get_context_or_404(payload.session_id)
     _ensure_anchor_hydrated_from_emr(context)
 
-    draft = build_referral_draft(context, payload)
+    profile = get_user_profile(user.username)
+    draft = build_referral_draft(context, payload, referrer_overrides=profile)
     letter_text = render_referral_letter(draft)
     _touch(context)
     return {
