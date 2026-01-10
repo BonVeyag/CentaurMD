@@ -931,7 +931,7 @@ def render_referral_letter(draft: ReferralDraft) -> str:
         f"REFERRAL TO: {ref_line}",
         f"DATE: {_display(draft.meta.generated_at.split('T')[0], 'date')}",
         "",
-        f"PATIENT: {_display(p.full_name, 'patient name')} | DOB: {_display(p.dob, 'DOB')} | PHN: {_display(p.phn, 'PHN')}",
+        f"PATIENT: {_display(p.full_name, 'patient name')} | PHN: {_display(p.phn, 'PHN')}",
         f"CONTACT: {_display(p.phone, 'phone')} | ADDRESS: {_display(p.address, 'address')}",
         f"LANGUAGE / INTERPRETER: {_display(p.language, 'language')} / {_display(p.interpreter_needed, 'interpreter needed')}",
     ]
@@ -946,46 +946,32 @@ def render_referral_letter(draft: ReferralDraft) -> str:
             "",
             f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} | CPSA: {_display(ref.cpsa, 'CPSA')}",
             f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
-            f"RETURN REPORT TO: {_display(return_target, 'return report to')}",
+            f"RETURN REPORT TO: {_display_soft(return_target)}",
             "",
             "1) REFERRAL INTENT",
             f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
-            f"Specific request / question: {_display(r.consult_question, 'consult question')}",
-            f"Urgency: {_display(r.urgency_label, 'urgency')} — {_display(r.urgency_rationale, 'urgency rationale')}",
+            f"Urgency: {_display(r.urgency_label, 'urgency')}",
             "",
             "2) CLINICAL SUMMARY",
-            f"Presenting symptoms: {_display_soft(c.summary_symptoms)}",
-            f"Key positives: {_display_soft(c.key_positives)}",
-            f"Key negatives / red flags: {_display_soft(c.key_negatives_and_redflags)}",
-            f"Pertinent exam: {_display_soft(c.pertinent_exam)}",
+            _build_clinical_summary_paragraph(c),
             "",
             "3) OBJECTIVE DATA",
             "Pertinent labs:",
-            _display_soft(o.labs_block, "No relevant labs documented in EMR/Netcare."),
+            _display_soft(o.labs_block, "No relevant labs documented."),
             "",
             "Pertinent imaging/procedures:",
-            _display_soft(o.imaging_block, "No relevant imaging/procedures documented in EMR/Netcare."),
+            _display_soft(o.imaging_block, "No relevant imaging/procedures documented."),
             "",
             "4) MANAGEMENT TO DATE",
-            f"Treatments tried: {_display_soft(m.tried_block)}",
-            f"Pending investigations/referrals: {_display_soft(m.pending_block)}",
-            f"Working diagnosis / differential: {_display_soft(a.working_dx_and_ddx)}",
+            _build_management_paragraph(m, a),
             "",
             "5) RELEVANT BACKGROUND",
-            f"PMHx relevant: {_display(b.pmHx_relevant, 'PMHx')}",
-            f"PSHx relevant: {_display(b.psHx_relevant, 'PSHx')}",
-            f"Medications: {_display(b.meds_relevant, 'medications')}",
-            f"Allergies/intolerances: {_display(b.allergies, 'allergies')}",
+            _build_background_paragraph(b),
             "",
             "6) CONTEXT / LOGISTICS",
-            f"Comorbidities affecting care: {_display(l.high_risk_context, 'high-risk context')}",
+            _build_context_paragraph(l),
         ]
     )
-
-    if (l.barriers or "").strip():
-        lines.append(f"Barriers: {l.barriers}")
-    if (l.patient_goals or "").strip():
-        lines.append(f"Patient goals / expectations: {l.patient_goals}")
 
     lines.extend(
         [
