@@ -1025,6 +1025,31 @@ def update_clinical_background(session_id: str, payload: ClinicalBackgroundPaylo
 # Referral Letter (plain text)
 # =========================
 
+class ReferralDraftPayload(BaseModel):
+    session_id: str
+    specialty: str
+    subspecialty_or_clinic: str = ""
+    reason_short: str = ""
+    consult_question: str = ""
+    urgency_override: Optional[str] = None
+    include_objective: bool = True
+
+
+@router.post("/referral_draft")
+def referral_draft(payload: ReferralDraftPayload, user: AuthUser = Depends(require_user)):
+    context = _get_context_or_404(payload.session_id)
+    _ensure_anchor_hydrated_from_emr(context)
+
+    draft = build_referral_draft(context, payload)
+    letter_text = render_referral_letter(draft)
+    _touch(context)
+    return {
+        "referral_json": draft.model_dump(),
+        "letter_text": letter_text,
+        "quality": draft.quality.model_dump(),
+    }
+
+
 @router.post("/session/{session_id}/referral")
 def referral_letter(session_id: str):
     context = _get_context_or_404(session_id)
