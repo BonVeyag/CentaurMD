@@ -383,6 +383,8 @@ Rules:
 - objective_imaging: list test + date + brief result summary if present; if report not present, state "report not available in EMR".
 - objective_pathology: only if pathology present; otherwise empty string.
 - safety_advice: issue-specific red flags and what to do (urgent care/ED) based on the presenting concern.
+- Do NOT add phrases like "date not listed", "report not available in EMR", or "not documented"—leave field empty instead.
+- Output plain text only, not list syntax like ["..."].
 
 SPECIALTY OVERRIDE:
 {specialty_hint or "[none]"}
