@@ -1123,16 +1123,48 @@ class FeedbackPayload(BaseModel):
 
 @router.post("/feedback")
 def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser = Depends(require_user)):
-    email = (payload.email or "").strip()
-    if not email:
-        email = (user.email or "").strip()
-    if not email:
-        raise HTTPException(status_code=400, detail="Email is required.")
-    message = (payload.message or "").strip()
-    if not message:
-        raise HTTPException(status_code=400, detail="Feedback message is required.")
-    category = (payload.category or "Enter Feedback").strip() or "Enter Feedback"
+    request_id = request.headers.get("X-Request-Id") or str(uuid4())
+    ip = request.client.host if request.client else ""
 
+    category = (payload.category or "Enter Feedback").strip() or "Enter Feedback"
+    email = (payload.email or "").strip() or (user.email or "").strip()
+    message = (payload.message or "").strip()
+
+    logger.info(
+        f"feedback.received request_id={request_id} user={user.username} ip={ip} category={category}"
+    )
+
+    if category not in FEEDBACK_ALLOWED_CATEGORIES:
+        raise HTTPException(status_code=400, detail={"code": "INVALID_CATEGORY", "message": "Invalid feedback category."})
+    if not email or not _valid_email(email):
+        raise HTTPException(status_code=400, detail={"code": "INVALID_EMAIL", "message": "Valid email is required."})
+    if not message:
+        raise HTTPException(status_code=400, detail={"code": "EMPTY_MESSAGE", "message": "Feedback message is required."})
+    if len(message) > FEEDBACK_MESSAGE_MAX_CHARS:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "MESSAGE_TOO_LONG", "message": f"Message too long (max {FEEDBACK_MESSAGE_MAX_CHARS} chars)."},
+        )
+
+    retry_after = _rate_limit_feedback([f"user:{user.username}", f"ip:{ip}"])
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "RATE_LIMITED", "message": "Too many feedback requests. Please try again soon."},
+            headers={"Retry-After": str(retry_after)},
+        )
+
+    smtp_status = get_smtp_status()
+    if not smtp_status.get("configured"):
+        logger.warning(
+            f"feedback.smtp_not_configured request_id={request_id} user={user.username} ip={ip}"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "SMTP_NOT_CONFIGURED", "message": "Email delivery is not configured."},
+        )
+
+    logger.info(f"feedback.send_attempt request_id={request_id} user={user.username}")
     body = "\n".join(
         [
             "Feedback received.",
@@ -1144,10 +1176,18 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
             message,
         ]
     )
-    sent = send_admin_email("CentaurMD feedback", body, request)
+    sent, err_code = send_admin_email("CentaurMD feedback", body, request)
     if not sent:
-        raise HTTPException(status_code=503, detail="Email delivery not configured.")
-    return {"ok": True}
+        logger.warning(
+            f"feedback.send_failed request_id={request_id} user={user.username} code={err_code}"
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={"code": err_code or "SMTP_SEND_FAILED", "message": "Email send failed."},
+        )
+
+    logger.info(f"feedback.sent request_id={request_id} user={user.username}")
+    return {"ok": True, "request_id": request_id}
 
 
 # =========================
