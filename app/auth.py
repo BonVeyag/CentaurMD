@@ -180,26 +180,75 @@ def _load_signup_allowlist() -> set[str]:
     return {str(u).strip().lower() for u in raw if str(u).strip()}
 
 
+def _env_first(*keys: str) -> str:
+    for key in keys:
+        val = os.getenv(key, "")
+        if val is not None:
+            val = val.strip()
+            if val:
+                return val
+    return ""
+
+
+def _format_from_header(name: str, email: str, fallback_email: str) -> str:
+    addr = (email or "").strip() or (fallback_email or "").strip()
+    if not addr:
+        return ""
+    display = (name or "").replace('"', "").strip()
+    if display:
+        return f"{display} <{addr}>"
+    return addr
+
+
+def _parse_from_header(raw: str) -> Dict[str, str]:
+    raw = (raw or "").strip()
+    if not raw:
+        return {"name": "", "email": ""}
+    if "<" in raw and ">" in raw:
+        name = raw.split("<", 1)[0].strip().strip('"')
+        email = raw.split("<", 1)[1].split(">", 1)[0].strip()
+        return {"name": name, "email": email}
+    return {"name": "", "email": raw}
+
+
 def _load_smtp_config() -> Dict[str, Any]:
-    config = {
-        "host": os.getenv("CENTAUR_SMTP_HOST", "").strip(),
-        "port": int(os.getenv("CENTAUR_SMTP_PORT", "587")),
-        "user": os.getenv("CENTAUR_SMTP_USER", "").strip(),
-        "pass": os.getenv("CENTAUR_SMTP_PASS", "").strip(),
-        "tls": os.getenv("CENTAUR_SMTP_TLS", "true").strip().lower() in {"1", "true", "yes"},
-        "ssl": os.getenv("CENTAUR_SMTP_SSL", "false").strip().lower() in {"1", "true", "yes"},
-        "from": os.getenv("CENTAUR_SMTP_FROM", "").strip(),
-        "admin_email": ADMIN_EMAIL,
+    env_host = _env_first("CENTAUR_SMTP_HOST", "SMTP_HOST")
+    env_user = _env_first("CENTAUR_SMTP_USER", "SMTP_USER")
+    env_pass = _env_first("CENTAUR_SMTP_PASS", "SMTP_PASS")
+    env_port = _env_first("CENTAUR_SMTP_PORT", "SMTP_PORT")
+    env_tls = _env_first("CENTAUR_SMTP_TLS", "SMTP_TLS")
+    env_ssl = _env_first("CENTAUR_SMTP_SSL", "SMTP_SSL")
+    env_from = _env_first("CENTAUR_SMTP_FROM", "SMTP_FROM")
+    env_from_name = _env_first("CENTAUR_SMTP_FROM_NAME", "SMTP_FROM_NAME")
+    env_from_email = _env_first("CENTAUR_SMTP_FROM_EMAIL", "SMTP_FROM_EMAIL")
+    env_admin = _env_first("CENTAUR_ADMIN_EMAIL", "ADMIN_EMAIL")
+    env_timeout = _env_first("CENTAUR_SMTP_TIMEOUT", "SMTP_TIMEOUT")
+
+    env_any = any([
+        env_host, env_user, env_pass, env_port, env_tls, env_ssl, env_from, env_from_name, env_from_email, env_admin, env_timeout
+    ])
+
+    config: Dict[str, Any] = {
+        "source": "env" if env_any else "file",
+        "host": env_host,
+        "port": int(env_port or 587),
+        "user": env_user,
+        "pass": env_pass,
+        "tls": (env_tls or "true").strip().lower() in {"1", "true", "yes"},
+        "ssl": (env_ssl or "false").strip().lower() in {"1", "true", "yes"},
+        "from_name": env_from_name,
+        "from_email": env_from_email,
+        "from_raw": env_from,
+        "admin_email": (env_admin or ADMIN_EMAIL).strip(),
+        "timeout": int(env_timeout or 10),
     }
 
-    if config["host"]:
-        return config
-
-    if SMTP_CONFIG_PATH and os.path.exists(SMTP_CONFIG_PATH):
+    if not env_any and SMTP_CONFIG_PATH and os.path.exists(SMTP_CONFIG_PATH):
         try:
             with open(SMTP_CONFIG_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
+                config["source"] = "file"
                 config["host"] = str(data.get("host", "")).strip() or config["host"]
                 config["port"] = int(data.get("port", config["port"]))
                 config["user"] = str(data.get("user", "")).strip() or config["user"]
@@ -208,28 +257,77 @@ def _load_smtp_config() -> Dict[str, Any]:
                     config["tls"] = bool(data.get("tls"))
                 if "ssl" in data:
                     config["ssl"] = bool(data.get("ssl"))
-                config["from"] = str(data.get("from", "")).strip() or config["from"]
+                if "timeout" in data:
+                    config["timeout"] = int(data.get("timeout"))
+                config["from_raw"] = str(data.get("from", "")).strip() or config["from_raw"]
+                config["from_name"] = str(data.get("from_name", "")).strip() or config["from_name"]
+                config["from_email"] = str(data.get("from_email", "")).strip() or config["from_email"]
                 config["admin_email"] = str(data.get("admin_email", "")).strip() or config["admin_email"]
         except Exception:
             pass
 
+    if config["from_raw"]:
+        parsed = _parse_from_header(config["from_raw"])
+        config["from_name"] = config["from_name"] or parsed["name"]
+        config["from_email"] = config["from_email"] or parsed["email"]
+
+    config["from_header"] = _format_from_header(
+        config.get("from_name", ""),
+        config.get("from_email", ""),
+        config.get("user", ""),
+    )
+
+    missing = []
+    if not config.get("host"):
+        missing.append("host")
+    if not config.get("user"):
+        missing.append("user")
+    if not config.get("pass"):
+        missing.append("pass")
+    if not config.get("port"):
+        missing.append("port")
+
+    config["missing"] = missing
+    config["configured"] = len(missing) == 0
     return config
 
 
-def send_admin_email(subject: str, body: str, request: Request) -> bool:
+def get_smtp_status() -> Dict[str, Any]:
+    config = _load_smtp_config()
+    return {
+        "configured": bool(config.get("configured")),
+        "source": config.get("source", "file"),
+        "missing": config.get("missing", []),
+        "tls": bool(config.get("tls", True)),
+        "ssl": bool(config.get("ssl", False)),
+        "from_set": bool(config.get("from_header")),
+        "admin_email_configured": bool(config.get("admin_email")),
+    }
+
+
+def validate_smtp_config(required: Optional[bool] = None) -> Dict[str, Any]:
+    config = _load_smtp_config()
+    required_flag = SMTP_REQUIRED if required is None else bool(required)
+    if required_flag and not config.get("configured"):
+        raise RuntimeError(f"SMTP required but not configured. Missing: {config.get('missing', [])}")
+    return config
+
+
+def send_admin_email(subject: str, body: str, request: Request) -> Tuple[bool, str]:
     config = _load_smtp_config()
     host = config.get("host", "")
     admin_email = config.get("admin_email", "")
-    if not host or not admin_email:
-        logger.warning("Admin email skipped: SMTP host or admin email not configured.")
-        return False
+    if not host or not admin_email or not config.get("configured"):
+        logger.warning("Admin email skipped: SMTP not configured.")
+        return False, "SMTP_NOT_CONFIGURED"
 
     port = int(config.get("port", 587))
     smtp_user = config.get("user", "")
     smtp_pass = config.get("pass", "")
     use_tls = bool(config.get("tls", True))
     use_ssl = bool(config.get("ssl", False))
-    from_addr = (config.get("from", "") or admin_email).strip()
+    from_addr = (config.get("from_header", "") or smtp_user).strip()
+    timeout = int(config.get("timeout", 10))
 
     ip = request.client.host if request.client else ""
     user_agent = request.headers.get("User-Agent", "")
