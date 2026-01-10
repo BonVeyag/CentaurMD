@@ -701,7 +701,7 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
     referrer = ReferrerInfo(
         name=overrides.get("signature_name") or os.getenv("REFERRER_NAME", "Dr. Rajat Thapa"),
         credentials=os.getenv("REFERRER_CREDENTIALS", "MD PhD CCFP"),
-        cpsa=os.getenv("REFERRER_CPSA", "032698"),
+        cpsa=overrides.get("cpsa") or os.getenv("REFERRER_CPSA", "032698"),
         clinic_name=overrides.get("clinic_name") or os.getenv("REFERRER_CLINIC_NAME", ""),
         clinic_address=overrides.get("clinic_address") or os.getenv("REFERRER_CLINIC_ADDRESS", ""),
         phone=overrides.get("clinic_phone") or os.getenv("REFERRER_PHONE", ""),
