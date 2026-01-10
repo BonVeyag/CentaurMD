@@ -1403,8 +1403,13 @@ def make_soap(context: SessionContext) -> dict:
         temperature=0.2,
     )
 
+    raw_text = (response.choices[0].message.content or "").strip()
+    if raw_text.upper().startswith("TIER="):
+        lines = raw_text.splitlines()
+        raw_text = "\n".join(lines[1:]).strip()
+
     return {
-        "soap_text": (response.choices[0].message.content or "").strip(),
+        "soap_text": raw_text,
         "generated_at": _now_utc(),
         "context_hash": _hash_context(context),
     }
