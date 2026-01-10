@@ -331,6 +331,136 @@ def _infer_patient_aware(transcript: str) -> str:
     return "Unclear"
 
 
+_SUMMARY_KEYS = [
+    "specialty_name",
+    "subspecialty_or_clinic",
+    "reason_short",
+    "consult_question",
+    "summary_symptoms",
+    "key_positives",
+    "key_negatives_and_redflags",
+    "pertinent_exam",
+    "treatments_tried",
+    "pending_items",
+    "working_dx_and_ddx",
+    "patient_goals",
+    "target_timeframe",
+    "objective_labs",
+    "objective_imaging",
+    "objective_pathology",
+    "safety_advice",
+]
+
+_UNWANTED_PHRASES = [
+    "report not available",
+    "not available in emr",
+    "date not listed",
+    "not listed",
+]
+
+
+def _normalize_list_text(value: str) -> str:
+    v = (value or "").strip()
+    if not v:
+        return ""
+    if v.startswith("[") and v.endswith("]"):
+        inner = v[1:-1].strip()
+        if not inner:
+            return ""
+        try:
+            data = json.loads(v)
+            if isinstance(data, list):
+                items = [str(x or "").strip() for x in data if str(x or "").strip()]
+                return "; ".join(items)
+        except Exception:
+            parts = [p.strip().strip("\"'") for p in inner.split(",")]
+            parts = [p for p in parts if p]
+            return "; ".join(parts)
+    return v
+
+
+def _sanitize_summary_text(value: str) -> str:
+    v = _normalize_list_text(value)
+    if not v:
+        return ""
+    lowered = v.lower()
+    if any(p in lowered for p in _UNWANTED_PHRASES):
+        chunks = re.split(r"[;\n]+", v)
+        keep = []
+        for c in chunks:
+            c_strip = c.strip()
+            if not c_strip:
+                continue
+            if any(p in c_strip.lower() for p in _UNWANTED_PHRASES):
+                continue
+            keep.append(c_strip)
+        v = "; ".join(keep)
+    return v.strip()
+
+
+def _clean_summary_dict(data: Dict[str, Any]) -> Dict[str, str]:
+    cleaned: Dict[str, str] = {}
+    for key in _SUMMARY_KEYS:
+        raw = data.get(key, "")
+        cleaned[key] = _sanitize_summary_text(str(raw or ""))
+    return cleaned
+
+
+def _audit_referral_summary(
+    draft: Dict[str, str],
+    transcript: str,
+    emr_text: str,
+    netcare_text: str,
+    focus_text: str,
+) -> Dict[str, str]:
+    if not draft:
+        return {}
+    draft_json = json.dumps({k: draft.get(k, "") for k in _SUMMARY_KEYS})
+    prompt = f"""
+You are a medical documentation auditor.
+Return strict JSON with the SAME keys as the draft.
+
+Rules:
+- Keep statements ONLY if explicitly supported by transcript or EMR/Netcare.
+- Do NOT add new facts.
+- If a field contains unsupported content, delete it (empty string).
+- Do NOT include phrases like "not documented", "date not listed", "report not available".
+
+TRANSCRIPT:
+{_clip_text(transcript, max_chars=6000) or "[none]"}
+
+EMR:
+{_clip_text(emr_text, max_chars=4000) or "[none]"}
+
+NETCARE:
+{_clip_text(netcare_text, max_chars=3000) or "[none]"}
+
+EMR FOCUS:
+{focus_text or "[none]"}
+
+DRAFT JSON:
+{draft_json}
+""".strip()
+    try:
+        resp = client.chat.completions.create(
+            model=REFERRAL_AUDIT_MODEL,
+            messages=[
+                {"role": "system", "content": "Return strict JSON only. Remove unsupported content."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=REFERRAL_AUDIT_TEMPERATURE,
+            top_p=1.0,
+            response_format={"type": "json_object"},
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return _clean_summary_dict(data)
+    except Exception as exc:
+        logger.warning("Referral audit failed: %s", exc)
+    return _clean_summary_dict(draft)
+
+
 def _summarize_from_transcript_and_emr(
     transcript: str,
     emr_text: str,
