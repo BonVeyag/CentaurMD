@@ -65,6 +65,14 @@ class AuthUser(BaseModel):
     is_admin: bool = False
 
 
+class ProfilePayload(BaseModel):
+    signature_name: str = ""
+    clinic_name: str = ""
+    clinic_address: str = ""
+    clinic_phone: str = ""
+    clinic_fax: str = ""
+
+
 class AuthResponse(BaseModel):
     token: str
     user: AuthUser
@@ -159,6 +167,34 @@ def _public_user(username: str, rec: Dict[str, Any]) -> AuthUser:
         created_at_utc=rec.get("created_at_utc", ""),
         is_admin=_is_admin_user(username, email),
     )
+
+
+def _normalize_profile(payload: ProfilePayload) -> Dict[str, str]:
+    def clean(val: str) -> str:
+        return str(val or "").strip()
+    return {
+        "signature_name": clean(payload.signature_name),
+        "clinic_name": clean(payload.clinic_name),
+        "clinic_address": clean(payload.clinic_address),
+        "clinic_phone": clean(payload.clinic_phone),
+        "clinic_fax": clean(payload.clinic_fax),
+    }
+
+
+def get_user_profile(username: str) -> Dict[str, str]:
+    with USERS_LOCK:
+        data = _load_users()
+        rec = data.get("users", {}).get(username, {})
+        profile = rec.get("profile", {}) if isinstance(rec, dict) else {}
+    if not isinstance(profile, dict):
+        return {}
+    return {
+        "signature_name": str(profile.get("signature_name", "")).strip(),
+        "clinic_name": str(profile.get("clinic_name", "")).strip(),
+        "clinic_address": str(profile.get("clinic_address", "")).strip(),
+        "clinic_phone": str(profile.get("clinic_phone", "")).strip(),
+        "clinic_fax": str(profile.get("clinic_fax", "")).strip(),
+    }
 
 
 def _ensure_user_dir(username: str) -> None:

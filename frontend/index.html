@@ -946,12 +946,92 @@ textarea::-webkit-scrollbar-track{
 .referral-panel{
   width:min(760px, 94vw);
 }
-.referral-editor textarea{
-  min-height:320px;
-  resize:none;
-}
 #referralMissing{
   white-space:pre-line;
+}
+.referral-editor{
+  position:relative;
+}
+.referral-letter{
+  flex:1;
+  min-height:360px;
+  padding:12px;
+  border-radius:16px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  overflow:auto;
+  white-space:pre-wrap;
+}
+.referral-letter:focus{
+  outline:none;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
+.referral-loading{
+  position:absolute;
+  inset:44px 0 auto 0;
+  display:none;
+  align-items:center;
+  flex-direction:column;
+  gap:10px;
+  padding:20px;
+  background: color-mix(in oklab, var(--panel) 70%, transparent);
+  backdrop-filter: blur(6px);
+  border-radius:16px;
+  z-index:2;
+}
+.referral-loading.active{
+  display:flex;
+}
+.referral-spinner{
+  width:28px;
+  height:28px;
+  border-radius:50%;
+  border:3px solid color-mix(in oklab, var(--muted) 70%, transparent);
+  border-top-color: var(--primary-border);
+  animation: referralSpin 0.9s linear infinite;
+}
+.referral-loading-text{
+  font-size:12px;
+  color: var(--muted);
+}
+.referral-skeleton{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:6px;
+}
+.referral-skeleton span{
+  height:10px;
+  border-radius:999px;
+  background: linear-gradient(90deg,
+    color-mix(in oklab, var(--panel2) 80%, transparent),
+    color-mix(in oklab, var(--panel2) 60%, transparent),
+    color-mix(in oklab, var(--panel2) 80%, transparent));
+  background-size:200% 100%;
+  animation: referralShimmer 1.4s ease-in-out infinite;
+}
+.referral-skeleton span:nth-child(2){ width:92%; }
+.referral-skeleton span:nth-child(3){ width:84%; }
+.referral-skeleton span:nth-child(4){ width:76%; }
+.missing-critical{
+  color: var(--danger);
+  font-weight:650;
+}
+@keyframes referralSpin{
+  to { transform: rotate(360deg); }
+}
+@keyframes referralShimmer{
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 .confirm-panel{
   position:fixed;
@@ -1548,19 +1628,21 @@ and for the care, day after day, you give.</div>
     <h2>Referral Draft</h2>
     <button id="referralCloseBtn" type="button">✕</button>
   </div>
-  <div class="macro-section">
-    <div id="referralStatus" class="macro-status"></div>
-    <div class="macro-editor-actions">
-      <button id="referralRefreshBtn" class="primary" type="button">Refresh Draft</button>
-      <button id="referralCloseBtn2" type="button">Close</button>
-    </div>
-  </div>
   <div class="macro-section macro-editor referral-editor">
     <div class="summary-title">Draft Letter</div>
-    <textarea id="referralLetterText" placeholder="Generate a draft to view or edit"></textarea>
+    <div id="referralLoading" class="referral-loading" aria-hidden="true">
+      <div class="referral-spinner"></div>
+      <div class="referral-loading-text">Generating draft…</div>
+      <div class="referral-skeleton">
+        <span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    <div id="referralLetterText" class="referral-letter" contenteditable="true" aria-label="Referral draft"></div>
     <div id="referralMissing" class="macro-status"></div>
+    <div id="referralStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
       <button id="referralCopyBtn" class="primary" type="button">Copy</button>
+      <button id="referralCloseBtn2" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -1767,7 +1849,7 @@ const referralCloseBtn2 = document.getElementById("referralCloseBtn2");
 const referralStatus = document.getElementById("referralStatus");
 const referralLetterText = document.getElementById("referralLetterText");
 const referralMissing = document.getElementById("referralMissing");
-const referralRefreshBtn = document.getElementById("referralRefreshBtn");
+const referralLoading = document.getElementById("referralLoading");
 const referralCopyBtn = document.getElementById("referralCopyBtn");
 const toastEl = document.getElementById("toast");
 
@@ -2468,6 +2550,23 @@ function setReferralStatus(message, isError=false) {
   referralStatus.className = "macro-status" + (isError ? " error" : "");
 }
 
+function setReferralLoading(on) {
+  if (!referralLoading) return;
+  referralLoading.classList.toggle("active", Boolean(on));
+}
+
+function referralTextToHtml(text) {
+  const esc = (s) =>
+    String(s || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  const html = esc(text).replace(/\n/g, "<br>");
+  return html.replace(/\[MISSING:[^\]]+\]/g, (match) => {
+    return `<span class="missing-critical">${match}</span>`;
+  });
+}
+
 function setReferralMissing(quality) {
   if (!referralMissing) return;
   if (!quality) {
@@ -2490,6 +2589,7 @@ async function generateReferralDraft() {
   await ensureSession();
   setReferralStatus("Generating…");
   setReferralMissing(null);
+  setReferralLoading(true);
 
   try {
     const payload = {
@@ -2503,16 +2603,18 @@ async function generateReferralDraft() {
     };
     const data = await apiPost("/referral_draft", payload);
     const letter = String(data?.letter_text || "").trim();
-    if (referralLetterText) referralLetterText.value = letter;
+    if (referralLetterText) referralLetterText.innerHTML = referralTextToHtml(letter);
     setReferralMissing(data?.quality || null);
     setReferralStatus("Draft ready.");
   } catch (err) {
     setReferralStatus(err?.message || "Draft failed.", true);
+  } finally {
+    setReferralLoading(false);
   }
 }
 
 async function copyReferralDraft() {
-  const text = (referralLetterText?.value || "").trim();
+  const text = (referralLetterText?.textContent || "").trim();
   if (!text) {
     setReferralStatus("Generate a draft first.", true);
     return;
@@ -4811,9 +4913,6 @@ referralCloseBtn?.addEventListener("click", () => closeReferralPanel());
 referralCloseBtn2?.addEventListener("click", () => closeReferralPanel());
 referralOverlay?.addEventListener("click", () => closeReferralPanel());
 referralPanel?.addEventListener("click", (e) => e.stopPropagation());
-referralRefreshBtn?.addEventListener("click", async () => {
-  await runWithButtonBusy(referralRefreshBtn, "Working…", generateReferralDraft);
-});
 referralCopyBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(referralCopyBtn, "Copying…", copyReferralDraft);
 });
