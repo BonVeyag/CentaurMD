@@ -629,9 +629,19 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         allergies=_extract_section_block(emr_text, ["Allergies", "Allergies/Intolerances"], max_lines=6),
     )
 
-    labs_block = _extract_section_block(emr_text, ["Labs", "Laboratory", "Calculated Results"], max_lines=10)
-    imaging_block = _extract_section_block(emr_text, ["Investigations", "Imaging"], max_lines=10)
-    pathology_block = _extract_section_block(emr_text, ["Pathology", "Biopsy"], max_lines=6)
+    objective_labs = (summary.get("objective_labs", "") or "").strip()
+    objective_imaging = (summary.get("objective_imaging", "") or "").strip()
+    objective_pathology = (summary.get("objective_pathology", "") or "").strip()
+
+    labs_block = objective_labs or _extract_section_block_last(
+        emr_text, ["Labs", "Laboratory", "Calculated Results"], max_lines=16
+    )
+    imaging_block = objective_imaging or _extract_section_block_last(
+        emr_text, ["Investigations", "Imaging"], max_lines=16
+    )
+    pathology_block = objective_pathology or _extract_section_block_last(
+        emr_text, ["Pathology", "Biopsy"], max_lines=10
+    )
 
     results_location = ""
     if include_objective:
@@ -653,32 +663,17 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         pathology_block=pathology_block,
     )
 
-    attachments_items: List[AttachmentItem] = []
-    list_lines: List[str] = []
-    for item in (getattr(context, "attachments", None) or []):
-        label = item.filename
-        date_str = item.uploaded_at.date().isoformat() if getattr(item, "uploaded_at", None) else ""
-        attachments_items.append(AttachmentItem(label=label, source="Uploaded", date=date_str))
-        list_lines.append(f"{label} (Uploaded{', ' + date_str if date_str else ''})")
-
-    if include_objective and not attachments_items:
-        if labs_block and labs_block != "No investigations to date.":
-            list_lines.append("Labs: Available in Netcare")
-        if imaging_block:
-            list_lines.append("Imaging/Procedures: Available in Netcare")
-        if pathology_block:
-            list_lines.append("Pathology: Available in Netcare")
-
-    attachments = AttachmentsBlock(
-        items=attachments_items,
-        list_block="\n".join(list_lines).strip() or "None.",
-    )
+    attachments = AttachmentsBlock(items=[], list_block="")
 
     logistics = LogisticsBlock(
         high_risk_context=_collect_high_risk_context(f"{emr_text}\n{netcare_text}"),
         barriers="",
         patient_goals=summary.get("patient_goals", ""),
     )
+
+    safety_text = (summary.get("safety_advice", "") or "").strip()
+    if not safety_text:
+        safety_text = "Seek urgent care/ED for worsening symptoms or new red-flag features related to the presenting concern."
 
     meta = ReferralMeta(
         generated_at=datetime.now(EDMONTON_TZ).isoformat(timespec="seconds"),
@@ -697,7 +692,7 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         background=background,
         logistics=logistics,
         attachments=attachments,
-        safety=SafetyBlock(),
+        safety=SafetyBlock(advice_line=safety_text),
         quality=quality,
     )
 
