@@ -485,7 +485,7 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
     specialty_name = (getattr(payload, "specialty", "") or "").strip()
     subspecialty = (getattr(payload, "subspecialty_or_clinic", "") or "").strip()
     urgency_override = (getattr(payload, "urgency_override", None) or "").strip()
-    include_objective = bool(getattr(payload, "include_objective", True))
+    include_objective = True
 
     urgency_label, urgency_rationale = _suggest_urgency(f"{transcript}\n{emr_text}\n{netcare_text}")
     if urgency_override in {"Routine", "Semi-urgent", "Urgent"}:
