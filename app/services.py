@@ -1288,10 +1288,11 @@ def build_make_soap_prompt(context: SessionContext) -> str:
     _hydrate_identifiers_best_effort(context)
 
     transcript = getattr(context.transcript, "raw_text", None) or ""
+    emr = getattr(context.clinical_background, "emr_dump", None) or ""
     return f"""
 TASK=FM_NOTE_CANADA
 FORMAT=APSO
-INPUT=TODAY_TRANSCRIPT_ONLY
+INPUT=TRANSCRIPT_AND_EMR
 AUTO_TIER=1
 STRICT=1
 
@@ -1312,11 +1313,12 @@ TIER_SELECT (deterministic):
   else NORMAL
 
 ANTI_INVENTION (HARD):
-- ALLOW_ONLY: information explicitly present in transcript text.
+- ALLOW_ONLY: information explicitly present in transcript text or EMR data.
 - DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives/social hx.
 - NEGATIVES: include ONLY if explicitly asked+answered (e.g., “Any fever?” “No.”).
 - DX: may state a diagnosis ONLY if clinician stated it OR transcript supports a limited working impression using explicit findings; otherwise write “etiology not specified in transcript”.
 - MEDS: include medications ONLY if explicitly mentioned in transcript. If dose/frequency/duration absent => write “dose not specified in transcript”. Do NOT add “typical” dosing. Use Canadian drug names/spelling when present.
+- EMR: if using EMR data not discussed today, label as "per chart".
 
 MISSING_FIELDS:
 - SHORT: omit missing elements entirely (do NOT write “Not discussed” unless schema forces it).
@@ -1388,28 +1390,130 @@ Tools/Scales: ...
 ...
 
 INPUT:
+=== EMR_DATA_VERBATIM ===
+{emr}
+
 === TODAY_TRANSCRIPT_VERBATIM ===
 {transcript}
 """.strip()
 
 
+SOAP_GENERATOR_SYSTEM = """You are a Canadian family medicine physician generating a SOAP note.
+
+Task:
+Generate a SOAP note strictly using the information provided.
+
+Rules:
+- Follow the provided SOAP formatting instructions exactly.
+- Use professional medical tone.
+- Do not mention uncertainty unless it is explicitly stated in the transcript.
+- Do not reference verification, auditing, or source checking.
+- Do not explain your reasoning.
+- Do not invent facts.
+
+Output:
+SOAP note only. No commentary.
+""".strip()
+
+SOAP_AUDITOR_SYSTEM = """You are a medical documentation auditor.
+
+Your role is NOT to rewrite creatively.
+Your role is to REMOVE or CORRECT hallucinations.
+
+Definition:
+A hallucination is any statement not explicitly supported by:
+1) The visit transcript, OR
+2) The provided EMR data.
+
+Hard Rules:
+- You may NOT invent new facts.
+- You may NOT add diagnoses, symptoms, meds, labs, or history.
+- You may ONLY:
+  a) Keep statements that are supported
+  b) Delete unsupported statements
+  c) Weaken statements using uncertainty language
+     (e.g., "reports", "per chart", "not discussed today")
+
+Every kept statement MUST be traceable to evidence.
+If evidence is absent → remove or weaken.
+
+You must preserve:
+- SOAP structure
+- Formatting rules
+- Clinical tone
+""".strip()
+
+SOAP_GENERATOR_TEMP = 0.4
+SOAP_GENERATOR_TOP_P = 0.9
+SOAP_AUDITOR_TEMP = 0.1
+SOAP_AUDITOR_TOP_P = 1.0
+SOAP_AUDITOR_SEED = 42
+
+
+def _strip_tier_header(text: str) -> str:
+    raw = (text or "").strip()
+    if raw.upper().startswith("TIER="):
+        lines = raw.splitlines()
+        return "\n".join(lines[1:]).strip()
+    return raw
+
+
+def _chat_complete_with_seed(**kwargs):
+    try:
+        return client.chat.completions.create(**kwargs)
+    except Exception as e:
+        msg = str(e).lower()
+        if "seed" in msg:
+            kwargs.pop("seed", None)
+            return client.chat.completions.create(**kwargs)
+        raise
+
+
+def build_soap_audit_prompt(context: SessionContext, draft_soap: str) -> str:
+    transcript = getattr(context.transcript, "raw_text", None) or ""
+    emr = getattr(context.clinical_background, "emr_dump", None) or ""
+    draft = draft_soap or ""
+    return f"""
+=== TRANSCRIPT ===
+{transcript}
+
+=== EMR DATA ===
+{emr}
+
+=== DRAFT SOAP ===
+{draft}
+""".strip()
+
+
 def make_soap(context: SessionContext) -> dict:
-    response = client.chat.completions.create(
+    generator_prompt = build_make_soap_prompt(context)
+    generator_response = client.chat.completions.create(
         model="gpt-5.2",
         messages=[
-            {"role": "system", "content": "Be conservative and factual."},
-            {"role": "user", "content": build_make_soap_prompt(context)},
+            {"role": "system", "content": SOAP_GENERATOR_SYSTEM},
+            {"role": "user", "content": generator_prompt},
         ],
-        temperature=0.2,
+        temperature=SOAP_GENERATOR_TEMP,
+        top_p=SOAP_GENERATOR_TOP_P,
     )
+    draft_text = (generator_response.choices[0].message.content or "").strip()
 
-    raw_text = (response.choices[0].message.content or "").strip()
-    if raw_text.upper().startswith("TIER="):
-        lines = raw_text.splitlines()
-        raw_text = "\n".join(lines[1:]).strip()
+    audit_prompt = build_soap_audit_prompt(context, draft_text)
+    auditor_response = _chat_complete_with_seed(
+        model="gpt-5.2",
+        messages=[
+            {"role": "system", "content": SOAP_AUDITOR_SYSTEM},
+            {"role": "user", "content": audit_prompt},
+        ],
+        temperature=SOAP_AUDITOR_TEMP,
+        top_p=SOAP_AUDITOR_TOP_P,
+        seed=SOAP_AUDITOR_SEED,
+    )
+    final_text = (auditor_response.choices[0].message.content or "").strip()
+    final_text = _strip_tier_header(final_text)
 
     return {
-        "soap_text": raw_text,
+        "soap_text": final_text,
         "generated_at": _now_utc(),
         "context_hash": _hash_context(context),
     }
