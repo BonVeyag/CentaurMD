@@ -503,41 +503,22 @@ def _detect_minimum_dataset(draft: ReferralDraft, warnings: List[str]) -> None:
             draft.objective.labs_block = _append_missing(draft.objective.labs_block, "ferritin")
         if "bleed" not in text and "melena" not in text and "hematochezia" not in text:
             warnings.append("IDA trigger: bleeding history not documented.")
-            draft.clinical.key_negatives_and_redflags = _append_missing(
-                draft.clinical.key_negatives_and_redflags, "bleeding history"
-            )
 
     if "diarrhea" in reason or "loose stool" in reason:
         if not re.search(r"\b(week|weeks|month|months|year|years)\b", text):
             warnings.append("Chronic diarrhea trigger: duration not documented.")
-            draft.clinical.summary_symptoms = _append_missing(draft.clinical.summary_symptoms, "diarrhea duration")
         if "weight loss" not in text:
             warnings.append("Chronic diarrhea trigger: weight loss status missing.")
-            draft.clinical.key_negatives_and_redflags = _append_missing(
-                draft.clinical.key_negatives_and_redflags, "weight loss yes/no"
-            )
         if "blood" not in text and "melena" not in text and "hematochezia" not in text:
             warnings.append("Chronic diarrhea trigger: blood in stool status missing.")
-            draft.clinical.key_negatives_and_redflags = _append_missing(
-                draft.clinical.key_negatives_and_redflags, "blood in stool yes/no"
-            )
 
     if "dysphagia" in reason or "swallow" in reason or "food stuck" in reason:
         if "solid" not in text and "liquid" not in text:
             warnings.append("Dysphagia trigger: solids vs liquids not documented.")
-            draft.clinical.summary_symptoms = _append_missing(
-                draft.clinical.summary_symptoms, "solids vs liquids"
-            )
         if "weight loss" not in text:
             warnings.append("Dysphagia trigger: weight loss status missing.")
-            draft.clinical.key_negatives_and_redflags = _append_missing(
-                draft.clinical.key_negatives_and_redflags, "weight loss yes/no"
-            )
         if "odynophagia" not in text and "painful swallow" not in text:
             warnings.append("Dysphagia trigger: odynophagia status missing.")
-            draft.clinical.key_negatives_and_redflags = _append_missing(
-                draft.clinical.key_negatives_and_redflags, "odynophagia yes/no"
-            )
 
 
 def build_referral_draft(context: SessionContext, payload: Any, referrer_overrides: Optional[Dict[str, str]] = None) -> ReferralDraft:
