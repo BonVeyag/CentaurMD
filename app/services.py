@@ -516,6 +516,9 @@ AGE_PATTERNS = [
 SEX_PATTERNS = [
     r"\bSex\b\s*[:#]?\s*(male|female|other|unknown|m|f)\b",
     r"\bGender\b\s*[:#]?\s*(male|female|other|unknown|m|f)\b",
+    r"\b(?:[0-9]{1,3}\s*(?:yr|yrs|year|years)\s*old)\s*(male|female)\b",
+    r"\b(?:[0-9]{1,3}\s*(?:yo|y/o))\s*(male|female)\b",
+    r"\b(?:[0-9]{1,3}[- ]?year[- ]?old)\s*(male|female)\b",
 ]
 
 # Phone numbers: exclude from PHN candidate selection
