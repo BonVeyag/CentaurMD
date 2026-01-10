@@ -744,6 +744,11 @@ def _display(value: str, label: str) -> str:
     return f"[MISSING: {label}]"
 
 
+def _display_soft(value: str, fallback: str = "Not documented in available record.") -> str:
+    v = (value or "").strip()
+    return v if v else fallback
+
+
 def render_referral_letter(draft: ReferralDraft) -> str:
     r = draft.referral
     p = draft.patient
