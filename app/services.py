@@ -2353,6 +2353,152 @@ def run_clinical_query_stream(
 # Patient Summary (EMR-only)
 # =========================
 
+_SUMMARY_HEADERS = {
+    "family hx",
+    "family history",
+    "social history",
+    "social hx",
+    "health profile",
+    "problem list",
+    "diagnoses",
+    "allergies",
+    "allergies/intolerances",
+    "medications",
+    "clinical notes",
+    "patient notes",
+    "notes",
+    "active & past medical conditions",
+    "active medical conditions",
+    "surgical / procedural history",
+    "surgical history",
+    "review of systems",
+    "objective data",
+    "assessment",
+    "plan",
+    "subjective",
+    "objective",
+    "soap",
+    "labs",
+    "investigations",
+    "imaging",
+    "letters",
+}
+
+
+def _summary_norm_line(line: str) -> str:
+    return re.sub(r"\s+", " ", (line or "").strip())
+
+
+def _summary_is_header(line: str) -> bool:
+    raw = _summary_norm_line(line).lower().rstrip(":")
+    if not raw:
+        return False
+    if raw in _SUMMARY_HEADERS:
+        return True
+    for h in _SUMMARY_HEADERS:
+        if raw.startswith(h + " "):
+            return True
+    return False
+
+
+def _extract_section_block_last(text: str, headers: List[str], max_lines: int = 12) -> str:
+    if not text:
+        return ""
+    header_set = {h.lower() for h in headers}
+    lines = text.splitlines()
+    matches: List[int] = []
+    for i, line in enumerate(lines):
+        norm = _summary_norm_line(line).lower().rstrip(":")
+        if norm in header_set:
+            matches.append(i + 1)
+    if not matches:
+        return ""
+    start_idx = matches[-1]
+    collected: List[str] = []
+    for j in range(start_idx, len(lines)):
+        line = _summary_norm_line(lines[j])
+        if not line:
+            continue
+        if _summary_is_header(line):
+            break
+        collected.append(line)
+        if len(collected) >= max_lines:
+            break
+    return "\n".join(collected).strip()
+
+
+def _build_patient_summary_source(emr_text: str) -> str:
+    t = (emr_text or "").strip()
+    if not t:
+        return ""
+
+    head = t[:2000].strip()
+    tail = t[-2000:].strip() if len(t) > 2000 else ""
+
+    parts: List[str] = []
+
+    def add(label: str, block: str) -> None:
+        if not block:
+            return
+        parts.append(f"[{label}]\n{block}".strip())
+
+    add("HEADER", head)
+    add("FAMILY HISTORY", _extract_section_block_last(t, ["Family Hx", "Family History"], max_lines=14))
+    add("SOCIAL HISTORY", _extract_section_block_last(t, ["Social History", "Social Hx"], max_lines=25))
+    add("HEALTH PROFILE", _extract_section_block_last(t, ["Health Profile", "Problem List", "Diagnoses"], max_lines=20))
+    add("ACTIVE CONDITIONS", _extract_section_block_last(t, ["Active & Past Medical Conditions", "Active Medical Conditions"], max_lines=80))
+    add("CLINICAL NOTES", _extract_section_block_last(t, ["Clinical Notes"], max_lines=60))
+    add("PATIENT NOTES", _extract_section_block_last(t, ["Patient Notes"], max_lines=200))
+    if tail:
+        add("TAIL", tail)
+
+    merged = "\n\n".join(parts).strip()
+    return _clip_text(merged, max_chars=PATIENT_SUMMARY_MAX_CHARS)
+
+
+def _summary_has_details(data: Dict[str, Any]) -> bool:
+    if not isinstance(data, dict):
+        return False
+    text_fields = [
+        "family_members",
+        "occupation",
+        "hobbies_and_interests",
+        "recent_social_life",
+    ]
+    for k in text_fields:
+        if str(data.get(k) or "").strip():
+            return True
+    array_fields = [
+        "recent_visits",
+        "significant_life_events",
+        "diagnoses",
+    ]
+    for k in array_fields:
+        v = data.get(k)
+        if isinstance(v, list) and any(str(x or "").strip() for x in v):
+            return True
+    return False
+
+
+def _run_patient_summary_llm(prompt: str, model: str) -> Dict[str, Any]:
+    if not model:
+        return {}
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Return strict JSON only. Use EMR only."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+        raw = (resp.choices[0].message.content or "").strip()
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
 def _build_patient_summary_prompt(emr_text: str, demographics: Dict[str, Any]) -> str:
     demo_block = "\n".join([
         f"Patient Name (source of truth): {demographics.get('patient_name','')}",
