@@ -5,6 +5,8 @@
   "pass": "app_password_here",
   "tls": true,
   "ssl": false,
-  "from": "CentaurMD <your@gmail.com>",
+  "timeout": 10,
+  "from_name": "CentaurMD",
+  "from_email": "your@gmail.com",
   "admin_email": "thapa.rajat@gmail.com"
 }

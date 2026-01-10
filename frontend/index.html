@@ -398,6 +398,27 @@ input[type="email"]:focus-visible{
 .badge.ok{ color: var(--ok); border-color: rgba(5,150,105,.35); background: rgba(5,150,105,.10); }
 .badge.warn{ color: var(--warn); border-color: rgba(180,83,9,.35); background: rgba(180,83,9,.10); }
 .badge.err{ color: var(--danger); border-color: rgba(220,38,38,.35); background: rgba(220,38,38,.10); }
+.toast{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  padding:10px 14px;
+  border-radius:12px;
+  background: color-mix(in oklab, var(--panel2) 94%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-md),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  display:none;
+  z-index:120;
+  font-size:13px;
+}
+.toast.ok{
+  color: var(--ok);
+}
+.toast.err{
+  color: var(--danger);
+}
 
 /* =====================
    TOP BAR (Premium app header)
@@ -1532,6 +1553,7 @@ and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <div id="billingArchiveOverlay" class="macro-overlay" style="display:none"></div>
 <div id="billingArchivePanel" class="macro-panel billing-archive-panel" style="display:none" aria-label="Saved billings">
@@ -1728,6 +1750,7 @@ const feedbackMessage = document.getElementById("feedbackMessage");
 const feedbackStatus = document.getElementById("feedbackStatus");
 const feedbackSendBtn = document.getElementById("feedbackSendBtn");
 const feedbackCancelBtn = document.getElementById("feedbackCancelBtn");
+const toastEl = document.getElementById("toast");
 
 // Auth UI refs
 const authOverlay = document.getElementById("authOverlay");
@@ -2022,6 +2045,7 @@ function safeSubsetFormat(text) {
 // -------------------------
 const MACROS_CACHE_KEY = "centaur_macros_cache_v1";
 const MACRO_SELECTED_KEY = "centaur_macro_selected_v1";
+const FEEDBACK_EMAIL_KEY = "centaur_feedback_email_v1";
 
 function normalizeMacroRecord(m) {
   const id = String(m?.id || "").trim();
@@ -2319,10 +2343,24 @@ function closeAboutPanel() {
   aboutPanel.style.display = "none";
 }
 
+let toastTimer = null;
+function showToast(message, kind="ok") {
+  if (!toastEl) return;
+  toastEl.textContent = message || "";
+  toastEl.className = `toast ${kind}`;
+  toastEl.style.display = "block";
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.style.display = "none";
+  }, 2200);
+}
+
 function openFeedbackPanel() {
   if (!feedbackPanel || !feedbackOverlay) return;
-  if (feedbackEmail && !feedbackEmail.value && authUser?.email) {
-    feedbackEmail.value = authUser.email;
+  const stored = localStorage.getItem(FEEDBACK_EMAIL_KEY) || "";
+  if (feedbackEmail && !feedbackEmail.value) {
+    if (stored) feedbackEmail.value = stored;
+    else if (authUser?.email) feedbackEmail.value = authUser.email;
   }
   setFeedbackStatus("");
   feedbackOverlay.style.display = "block";
@@ -2341,6 +2379,14 @@ function setFeedbackStatus(message, isError=false) {
   feedbackStatus.className = "macro-status" + (isError ? " error" : "");
 }
 
+function maybeStoreFeedbackEmail(email) {
+  const value = (email || "").trim();
+  if (!value) return;
+  const adminEmail = (authUser?.is_admin && authUser?.email) ? authUser.email.trim().toLowerCase() : "";
+  if (adminEmail && value.toLowerCase() === adminEmail) return;
+  try { localStorage.setItem(FEEDBACK_EMAIL_KEY, value); } catch {}
+}
+
 async function sendFeedback() {
   const email = (feedbackEmail?.value || "").trim();
   const message = (feedbackMessage?.value || "").trim();
@@ -2357,9 +2403,27 @@ async function sendFeedback() {
   }
 
   try {
-    await apiPost("/feedback", { email: resolvedEmail, category, message });
-    setFeedbackStatus("Sent. Thank you.");
+    const headers = { "Content-Type": "application/json", ...authHeaders() };
+    if (sessionId) headers["X-Session-Id"] = sessionId;
+    const res = await fetchWithTimeout(`${API_BASE}/feedback`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ email: resolvedEmail, category, message }),
+    });
+    if (!res.ok) {
+      let detail = null;
+      try { detail = await res.json(); } catch {}
+      const code = detail?.detail?.code || detail?.code || "";
+      const msg = detail?.detail?.message || detail?.message || detail?.detail || res.statusText;
+      const label = code ? `Error (${code}): ${msg}` : `Error: ${msg}`;
+      setFeedbackStatus(label, true);
+      return;
+    }
+    setFeedbackStatus("");
     if (feedbackMessage) feedbackMessage.value = "";
+    maybeStoreFeedbackEmail(resolvedEmail);
+    showToast("Feedback sent.", "ok");
+    closeFeedbackPanel();
   } catch (err) {
     setFeedbackStatus(err?.message || "Send failed.", true);
   }
@@ -4645,6 +4709,9 @@ feedbackPanel?.addEventListener("click", (e) => e.stopPropagation());
 feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
 feedbackSendBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
+});
+feedbackEmail?.addEventListener("change", () => {
+  maybeStoreFeedbackEmail(feedbackEmail.value || "");
 });
 billingArchiveCloseBtn?.addEventListener("click", () => closeBillingArchivePanel());
 billingArchiveOverlay?.addEventListener("click", () => closeBillingArchivePanel());

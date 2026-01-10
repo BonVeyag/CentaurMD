@@ -1125,6 +1125,7 @@ class FeedbackPayload(BaseModel):
 def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser = Depends(require_user)):
     request_id = request.headers.get("X-Request-Id") or str(uuid4())
     ip = request.client.host if request.client else ""
+    session_header = (request.headers.get("X-Session-Id") or "").strip()
 
     category = (payload.category or "Enter Feedback").strip() or "Enter Feedback"
     email = (payload.email or "").strip() or (user.email or "").strip()
@@ -1146,7 +1147,10 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
             detail={"code": "MESSAGE_TOO_LONG", "message": f"Message too long (max {FEEDBACK_MESSAGE_MAX_CHARS} chars)."},
         )
 
-    retry_after = _rate_limit_feedback([f"user:{user.username}", f"ip:{ip}"])
+    rl_keys = [f"user:{user.username}", f"ip:{ip}"]
+    if session_header:
+        rl_keys.append(f"session:{session_header}")
+    retry_after = _rate_limit_feedback(rl_keys)
     if retry_after is not None:
         raise HTTPException(
             status_code=429,
