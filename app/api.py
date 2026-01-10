@@ -1147,6 +1147,10 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
             detail={"code": "MESSAGE_TOO_LONG", "message": f"Message too long (max {FEEDBACK_MESSAGE_MAX_CHARS} chars)."},
         )
 
+    logger.info(
+        f"feedback.validated request_id={request_id} user={user.username} ip={ip}"
+    )
+
     rl_keys = [f"user:{user.username}", f"ip:{ip}"]
     if session_header:
         rl_keys.append(f"session:{session_header}")
