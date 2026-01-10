@@ -36,7 +36,13 @@ from app.attachment_store import (
     add_attachment as store_add_attachment,
     delete_attachment as store_delete_attachment,
 )
-from app.auth import require_user, user_billing_dir, AuthUser, send_admin_email
+from app.auth import (
+    require_user,
+    user_billing_dir,
+    AuthUser,
+    send_admin_email,
+    get_smtp_status,
+)
 from app.macro_store import (
     list_macros_for_user as store_list_macros_for_user,
     save_macro_for_user as store_save_macro_for_user,
