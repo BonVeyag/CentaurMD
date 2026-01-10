@@ -352,21 +352,21 @@ def send_admin_email(subject: str, body: str, request: Request) -> Tuple[bool, s
     try:
         if use_ssl:
             context = ssl.create_default_context()
-            with smtplib.SMTP_SSL(host, port, context=context) as server:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=timeout) as server:
                 if smtp_user and smtp_pass:
                     server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
         else:
-            with smtplib.SMTP(host, port) as server:
+            with smtplib.SMTP(host, port, timeout=timeout) as server:
                 if use_tls:
                     server.starttls(context=ssl.create_default_context())
                 if smtp_user and smtp_pass:
                     server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
     except Exception as e:
-        logger.warning(f"Admin email failed: {e}")
-        return False
-    return True
+        logger.warning(f"Admin email failed: {e.__class__.__name__}: {e}")
+        return False, "SMTP_SEND_FAILED"
+    return True, ""
 
 
 def _send_signup_request_email(username: str, email: str, request: Request) -> None:
