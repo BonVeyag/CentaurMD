@@ -2533,6 +2533,7 @@ RULES:
 - Use the source-of-truth demographics if provided.
 - Age must be shown as "X years" or "X months" if under 2 years.
 - Gender must be one of: "Male", "Female", "Non-binary" (leave blank if unknown). If source-of-truth is blank, you may use explicit gender stated in EMR text.
+- Prefer details explicitly stated in Social History, Family History, and recent note content (e.g., Patient Notes/Clinical Notes).
 - Family members: include names if present; otherwise "".
 - Recent social life: brief phrase if present; otherwise "".
 - Recent visits: include only if the most recent visit is within the last 12 months. One short sentence per visit; most recent first.

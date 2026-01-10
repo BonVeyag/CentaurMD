@@ -3628,12 +3628,7 @@ async function loadPatientSummaryAI(force=false) {
     const summary = (data && data.summary) ? data.summary : data;
     const hasText = (v) => String(v || "").trim().length > 0;
     const hasArr = (v) => Array.isArray(v) && v.length > 0;
-    const hasIssues = false;
-    const hasContent = summary && typeof summary === "object" && (
-      hasText(summary.patient_name) ||
-      hasText(summary.phn) ||
-      hasText(summary.age_display) ||
-      hasText(summary.gender) ||
+    const hasDetails = summary && typeof summary === "object" && (
       hasText(summary.family_members) ||
       hasText(summary.occupation) ||
       hasText(summary.hobbies_and_interests) ||
@@ -3642,7 +3637,7 @@ async function loadPatientSummaryAI(force=false) {
       hasArr(summary.significant_life_events) ||
       hasArr(summary.diagnoses)
     );
-    if (!hasContent) {
+    if (!hasDetails) {
       lastPatientSummaryHash = "";
       return;
     }
