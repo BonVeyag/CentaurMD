@@ -1064,6 +1064,43 @@ def delete_macro(macro_id: str, user: AuthUser = Depends(require_user)):
 
 
 # =========================
+# Feedback
+# =========================
+
+class FeedbackPayload(BaseModel):
+    email: str = ""
+    category: str = ""
+    message: str
+
+
+@router.post("/feedback")
+def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser = Depends(require_user)):
+    email = (payload.email or "").strip()
+    if not email:
+        email = (user.email or "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required.")
+    message = (payload.message or "").strip()
+    if not message:
+        raise HTTPException(status_code=400, detail="Feedback message is required.")
+    category = (payload.category or "Enter Feedback").strip() or "Enter Feedback"
+
+    body = "\n".join(
+        [
+            "Feedback received.",
+            f"Username: {user.username}",
+            f"Email: {email}",
+            f"Category: {category}",
+            "",
+            "Message:",
+            message,
+        ]
+    )
+    send_admin_email("CentaurMD feedback", body, request)
+    return {"ok": True}
+
+
+# =========================
 # Clinical Query Console
 # =========================
 
