@@ -267,6 +267,32 @@ def _extract_section_block(text: str, headers: List[str], max_lines: int = 10) -
     return "\n".join(collected).strip()
 
 
+def _extract_section_block_last(text: str, headers: List[str], max_lines: int = 10) -> str:
+    if not text:
+        return ""
+    header_set = {h.lower() for h in headers}
+    lines = text.splitlines()
+    matches: List[int] = []
+    for i, line in enumerate(lines):
+        norm = _norm_line(line).lower().rstrip(":")
+        if norm in header_set:
+            matches.append(i + 1)
+    if not matches:
+        return ""
+    start_idx = matches[-1]
+    collected: List[str] = []
+    for j in range(start_idx, len(lines)):
+        line = _norm_line(lines[j])
+        if not line:
+            continue
+        if _is_header(line):
+            break
+        collected.append(line)
+        if len(collected) >= max_lines:
+            break
+    return "\n".join(collected).strip()
+
+
 PHONE_RE = re.compile(r"(?:\+?1[\s.-]*)?\(?\d{3}\)?[\s.-]*\d{3}[\s.-]*\d{4}")
 POSTAL_RE = re.compile(r"[A-Za-z]\d[A-Za-z][\s-]?\d[A-Za-z]\d")
 
