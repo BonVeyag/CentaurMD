@@ -2651,6 +2651,15 @@ function setReferralStatus(message, isError=false) {
   referralStatus.className = "macro-status" + (isError ? " error" : "");
 }
 
+const REFERRAL_MISSING_LABELS = {
+  "referral.specialty_name": "specialty",
+  "referral.reason_short": "reason for referral",
+  "referral.consult_question": "consult question",
+  "referral.urgency_rationale": "urgency rationale",
+  "objective.results_location": "results location",
+};
+let referralMissingCriticalLabels = [];
+
 function setReferralLoading(on) {
   if (!referralLoading) return;
   referralLoading.classList.toggle("active", Boolean(on));
@@ -2663,9 +2672,11 @@ function referralTextToHtml(text) {
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;");
   const html = esc(text).replace(/\n/g, "<br>");
-  return html.replace(/\[MISSING:[^\]]+\]/g, (match) => {
-    return `<span class="missing-critical">${match}</span>`;
-  });
+  if (!referralMissingCriticalLabels.length) return html;
+  return referralMissingCriticalLabels.reduce((acc, label) => {
+    const re = new RegExp(`\\[MISSING: ${label.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\]`, "g");
+    return acc.replace(re, (match) => `<span class="missing-critical">${match}</span>`);
+  }, html);
 }
 
 function setReferralMissing(quality) {
@@ -2673,6 +2684,7 @@ function setReferralMissing(quality) {
   if (!quality) {
     referralMissing.textContent = "";
     referralMissing.className = "macro-status";
+    referralMissingCriticalLabels = [];
     return;
   }
   const missingCritical = Array.isArray(quality.missing_critical) ? quality.missing_critical : [];
@@ -2684,6 +2696,9 @@ function setReferralMissing(quality) {
   if (warnings.length) lines.push(`Warnings: ${warnings.join(", ")}`);
   referralMissing.textContent = lines.join("\n");
   referralMissing.className = "macro-status" + (lines.length ? " error" : "");
+  referralMissingCriticalLabels = missingCritical
+    .map((key) => REFERRAL_MISSING_LABELS[key])
+    .filter(Boolean);
 }
 
 async function generateReferralDraft() {
@@ -2691,6 +2706,7 @@ async function generateReferralDraft() {
   setReferralStatus("Generating…");
   setReferralMissing(null);
   setReferralLoading(true);
+  if (referralLetterText) referralLetterText.innerHTML = "";
 
   try {
     const payload = {
@@ -2704,8 +2720,8 @@ async function generateReferralDraft() {
     };
     const data = await apiPost("/referral_draft", payload);
     const letter = String(data?.letter_text || "").trim();
-    if (referralLetterText) referralLetterText.innerHTML = referralTextToHtml(letter);
     setReferralMissing(data?.quality || null);
+    if (referralLetterText) referralLetterText.innerHTML = referralTextToHtml(letter);
     setReferralStatus("Draft ready.");
   } catch (err) {
     setReferralStatus(err?.message || "Draft failed.", true);

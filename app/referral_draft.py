@@ -579,7 +579,7 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         results_location = "Netcare"
 
     if include_objective and not (labs_block or imaging_block or pathology_block):
-        labs_block = "No investigations to date."
+        labs_block = ""
 
     objective = ObjectiveBlock(
         results_location=results_location,
