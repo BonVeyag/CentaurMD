@@ -29,11 +29,13 @@ USER_ROOT_DIR = os.path.join(DATA_DIR, "users")
 SIGNUP_ALLOWLIST_PATH = os.path.join(DATA_DIR, "signup_allowlist.json")
 
 ADMIN_EMAIL = os.getenv("CENTAUR_ADMIN_EMAIL", "thapa.rajat@gmail.com").strip()
+ADMIN_USERNAME = os.getenv("CENTAUR_ADMIN_USERNAME", "rajatthapa").strip().lower()
 SIGNUP_MODE = os.getenv("CENTAUR_SIGNUP_MODE", "invite_only").strip().lower()
 SMTP_CONFIG_PATH = os.getenv(
     "CENTAUR_SMTP_CONFIG_PATH",
     os.path.join(DATA_DIR, "smtp.json"),
 ).strip()
+SMTP_REQUIRED = os.getenv("CENTAUR_SMTP_REQUIRED", "0").strip().lower() in {"1", "true", "yes"}
 
 logger = logging.getLogger(__name__)
 

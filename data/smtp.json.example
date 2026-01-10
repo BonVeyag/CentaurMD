@@ -1,0 +1,10 @@
+{
+  "host": "smtp.gmail.com",
+  "port": 587,
+  "user": "your@gmail.com",
+  "pass": "app_password_here",
+  "tls": true,
+  "ssl": false,
+  "from": "CentaurMD <your@gmail.com>",
+  "admin_email": "thapa.rajat@gmail.com"
+}
