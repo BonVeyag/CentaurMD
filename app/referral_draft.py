@@ -56,6 +56,7 @@ class ReferrerInfo(StrictBaseModel):
     credentials: str = "MD PhD CCFP"
     cpsa: str = "032698"
     clinic_name: str = ""
+    clinic_address: str = ""
     phone: str = ""
     fax: str = ""
     fax_or_econsult_inbox: str = ""
