@@ -567,19 +567,13 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
 
     results_location = ""
     if include_objective:
-        has_emr = bool(emr_text or netcare_text)
         has_attach = bool(getattr(context, "attachments", None))
-        if has_emr and has_attach:
-            results_location = "Mixed"
-        elif has_attach:
-            results_location = "Attached"
-        elif has_emr:
-            results_location = "Netcare"
+        results_location = "Netcare + Attached" if has_attach else "Netcare"
     else:
         labs_block = "Not included (per clinician choice)."
         imaging_block = "Not included (per clinician choice)."
         pathology_block = "Not included (per clinician choice)."
-        results_location = "Other"
+        results_location = "Netcare"
 
     if include_objective and not (labs_block or imaging_block or pathology_block):
         labs_block = "No investigations to date."
