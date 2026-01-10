@@ -545,7 +545,8 @@ EMR FOCUS:
         raw = (resp.choices[0].message.content or "").strip()
         data = json.loads(raw)
         if isinstance(data, dict):
-            return {k: str(v or "").strip() for k, v in data.items()}
+            cleaned = _clean_summary_dict(data)
+            return _audit_referral_summary(cleaned, t, bg, nc, focus_text)
     except Exception as exc:
         logger.warning("Referral summary failed: %s", exc)
     return {}
