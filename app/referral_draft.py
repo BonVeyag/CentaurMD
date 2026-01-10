@@ -778,38 +778,32 @@ def render_referral_letter(draft: ReferralDraft) -> str:
     lines.extend(
         [
             "",
-            f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} ({_display(ref.credentials, 'credentials')}) | CPSA: {_display(ref.cpsa, 'CPSA')}",
+            f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} | CPSA: {_display(ref.cpsa, 'CPSA')}",
             f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
-            f"RETURN REPORT TO: {_display(ref.fax_or_econsult_inbox, 'return inbox')}",
+            f"RETURN REPORT TO: {_display(ref.clinic_name, 'clinic name')}",
             "",
             "1) REFERRAL INTENT",
             f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
             f"Specific request / question: {_display(r.consult_question, 'consult question')}",
             f"Urgency: {_display(r.urgency_label, 'urgency')} — {_display(r.urgency_rationale, 'urgency rationale')}",
-            f"Patient aware of referral reason: {_display(r.patient_aware_yes_no, 'patient aware')}",
             "",
             "2) CLINICAL SUMMARY",
-            f"Presenting symptoms: {_display(c.summary_symptoms, 'presenting symptoms')}",
-            f"Key positives: {_display(c.key_positives, 'key positives')}",
-            f"Key negatives / red flags: {_display(c.key_negatives_and_redflags, 'key negatives/red flags')}",
-            f"Pertinent exam: {_display(c.pertinent_exam, 'pertinent exam')}",
+            f"Presenting symptoms: {_display_soft(c.summary_symptoms)}",
+            f"Key positives: {_display_soft(c.key_positives)}",
+            f"Key negatives / red flags: {_display_soft(c.key_negatives_and_redflags)}",
+            f"Pertinent exam: {_display_soft(c.pertinent_exam)}",
             "",
             "3) OBJECTIVE DATA",
             "Pertinent labs:",
-            _display(o.labs_block, "labs"),
+            _display_soft(o.labs_block, "No relevant labs documented in EMR/Netcare."),
             "",
             "Pertinent imaging/procedures:",
-            _display(o.imaging_block, "imaging/procedures"),
-            "",
-            "Pathology:",
-            _display(o.pathology_block, "pathology"),
-            "",
-            f"Availability of results: {_display(o.results_location, 'results location')}",
+            _display_soft(o.imaging_block, "No relevant imaging/procedures documented in EMR/Netcare."),
             "",
             "4) MANAGEMENT TO DATE",
-            f"Treatments tried: {_display(m.tried_block, 'treatments tried')}",
-            f"Pending investigations/referrals: {_display(m.pending_block, 'pending investigations/referrals')}",
-            f"Working diagnosis / differential: {_display(a.working_dx_and_ddx, 'working diagnosis/differential')}",
+            f"Treatments tried: {_display_soft(m.tried_block)}",
+            f"Pending investigations/referrals: {_display_soft(m.pending_block)}",
+            f"Working diagnosis / differential: {_display_soft(a.working_dx_and_ddx)}",
             "",
             "5) RELEVANT BACKGROUND",
             f"PMHx relevant: {_display(b.pmHx_relevant, 'PMHx')}",
@@ -831,7 +825,7 @@ def render_referral_letter(draft: ReferralDraft) -> str:
         [
             "",
             "7) SAFETY",
-            _display(draft.safety.advice_line, "safety advice"),
+            _display_soft(draft.safety.advice_line),
             "",
             "Thank you for assessing. Please advise on diagnosis and management, and whether you recommend assuming ongoing specialty follow-up.",
             "",
@@ -839,4 +833,13 @@ def render_referral_letter(draft: ReferralDraft) -> str:
             (ref.signature_block or ""),
         ]
     )
+    if (o.pathology_block or "").strip():
+        insert_at = lines.index("4) MANAGEMENT TO DATE")
+        path_lines = ["Pathology:", _display_soft(o.pathology_block, "No pathology results documented in EMR/Netcare."), ""]
+        lines[insert_at:insert_at] = path_lines
+
+    clinic_bits = [ref.clinic_name, ref.clinic_address, ref.phone, ref.fax]
+    clinic_line = " | ".join([b for b in clinic_bits if (b or "").strip()])
+    if clinic_line:
+        lines.append(clinic_line)
     return "\n".join(lines).strip()
