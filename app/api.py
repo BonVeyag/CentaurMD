@@ -1122,7 +1122,7 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
     ip = request.client.host if request.client else ""
     session_header = (request.headers.get("X-Session-Id") or "").strip()
 
-    category = (payload.category or "Enter Feedback").strip() or "Enter Feedback"
+    category = (payload.category or "Feedback").strip() or "Feedback"
     email = (payload.email or "").strip() or (user.email or "").strip()
     message = (payload.message or "").strip()
 
@@ -1130,8 +1130,6 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
         f"feedback.received request_id={request_id} user={user.username} ip={ip} category={category}"
     )
 
-    if category not in FEEDBACK_ALLOWED_CATEGORIES:
-        raise HTTPException(status_code=400, detail={"code": "INVALID_CATEGORY", "message": "Invalid feedback category."})
     if not email or not _valid_email(email):
         raise HTTPException(status_code=400, detail={"code": "INVALID_EMAIL", "message": "Valid email is required."})
     if not message:
