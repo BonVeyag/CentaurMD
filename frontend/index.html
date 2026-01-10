@@ -1680,6 +1680,7 @@ and for the care, day after day, you give.</div>
   </div>
   <div class="macro-section">
     <input id="profileSignatureName" type="text" placeholder="Signature Name" />
+    <input id="profileCpsa" type="text" placeholder="CPSA Number" />
     <input id="profileClinicName" type="text" placeholder="Clinic Name" />
     <input id="profileClinicAddress" type="text" placeholder="Clinic Address" />
     <input id="profileClinicPhone" type="text" placeholder="Clinic Phone" />
@@ -1920,6 +1921,7 @@ const profileOverlay = document.getElementById("profileOverlay");
 const profilePanel = document.getElementById("profilePanel");
 const profileCloseBtn = document.getElementById("profileCloseBtn");
 const profileSignatureName = document.getElementById("profileSignatureName");
+const profileCpsa = document.getElementById("profileCpsa");
 const profileClinicName = document.getElementById("profileClinicName");
 const profileClinicAddress = document.getElementById("profileClinicAddress");
 const profileClinicPhone = document.getElementById("profileClinicPhone");
@@ -2586,6 +2588,7 @@ async function loadProfile() {
     const data = await apiGet("/auth/profile");
     const profile = data?.profile || {};
     if (profileSignatureName) profileSignatureName.value = profile.signature_name || "";
+    if (profileCpsa) profileCpsa.value = profile.cpsa || "";
     if (profileClinicName) profileClinicName.value = profile.clinic_name || "";
     if (profileClinicAddress) profileClinicAddress.value = profile.clinic_address || "";
     if (profileClinicPhone) profileClinicPhone.value = profile.clinic_phone || "";
@@ -2598,6 +2601,7 @@ async function loadProfile() {
 async function saveProfile() {
   const payload = {
     signature_name: (profileSignatureName?.value || "").trim(),
+    cpsa: (profileCpsa?.value || "").trim(),
     clinic_name: (profileClinicName?.value || "").trim(),
     clinic_address: (profileClinicAddress?.value || "").trim(),
     clinic_phone: (profileClinicPhone?.value || "").trim(),

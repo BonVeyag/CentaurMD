@@ -16,6 +16,7 @@ from app.services import client, extract_demographics_from_text, _clip_text
 logger = logging.getLogger("centaurweb.referral")
 
 REFERRAL_MODEL = os.getenv("REFERRAL_MODEL", "gpt-5.2")
+REFERRAL_AUDIT_MODEL = os.getenv("REFERRAL_AUDIT_MODEL", REFERRAL_MODEL)
 
 
 def _float_env(name: str, default: float) -> float:
@@ -30,6 +31,7 @@ def _float_env(name: str, default: float) -> float:
 
 REFERRAL_TEMPERATURE = _float_env("REFERRAL_TEMPERATURE", 0.3)
 REFERRAL_TOP_P = _float_env("REFERRAL_TOP_P", 0.9)
+REFERRAL_AUDIT_TEMPERATURE = _float_env("REFERRAL_AUDIT_TEMPERATURE", 0.1)
 
 EDMONTON_TZ = ZoneInfo("America/Edmonton")
 
