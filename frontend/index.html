@@ -364,11 +364,13 @@ input[type="text"]{
   transition: box-shadow var(--t) var(--ease), border-color var(--t) var(--ease), background-color var(--t) var(--ease);
 }
 textarea::placeholder,
-input[type="text"]::placeholder{ color: color-mix(in oklab, var(--muted) 92%, transparent); }
+input[type="text"]::placeholder,
+input[type="email"]::placeholder{ color: color-mix(in oklab, var(--muted) 92%, transparent); }
 
 button:focus-visible,
 textarea:focus-visible,
-input[type="text"]:focus-visible{
+input[type="text"]:focus-visible,
+input[type="email"]:focus-visible{
   outline:none;
   box-shadow: var(--focus),
               inset 0 0 0 1px color-mix(in oklab, var(--accent) 55%, var(--edge-soft)),
@@ -896,6 +898,46 @@ textarea::-webkit-scrollbar-track{
 .about-poem{
   white-space: pre-line;
 }
+.feedback-panel{
+  width:min(560px, 92vw);
+}
+.feedback-panel .macro-section{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.feedback-panel select{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  padding:12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.feedback-panel input[type="email"]{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  padding:12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.feedback-panel select option{
+  color: var(--text);
+  background: var(--panel);
+}
+#feedbackMessage{
+  min-height:180px;
+  resize:none;
+}
 .confirm-panel{
   position:fixed;
   left:50%;
@@ -1267,6 +1309,7 @@ textarea::-webkit-scrollbar-track{
         <div class="pop-row" style="margin-bottom:0;">
           <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
           <button id="aboutBtn" type="button" class="menu-item">About</button>
+          <button id="feedbackBtn" type="button" class="menu-item">Feedback</button>
         </div>
       </div>
       <div id="profilePopover" class="popover menu-popover" role="dialog" aria-label="Account" style="display:none">
@@ -1468,6 +1511,27 @@ and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
+<div id="feedbackOverlay" class="macro-overlay" style="display:none"></div>
+<div id="feedbackPanel" class="macro-panel feedback-panel" style="display:none" aria-label="Feedback">
+  <div class="macro-head">
+    <h2>Feedback</h2>
+    <button id="feedbackCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section">
+    <select id="feedbackType">
+      <option value="Enter Feedback">Enter Feedback</option>
+      <option value="Software errors">Software errors</option>
+      <option value="Feature request">Feature request</option>
+    </select>
+    <input id="feedbackEmail" type="email" placeholder="Your email" />
+    <textarea id="feedbackMessage" placeholder="Write feedback..."></textarea>
+    <div id="feedbackStatus" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="feedbackSendBtn" class="primary" type="button">Send</button>
+      <button id="feedbackCancelBtn" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <div id="billingArchiveOverlay" class="macro-overlay" style="display:none"></div>
 <div id="billingArchivePanel" class="macro-panel billing-archive-panel" style="display:none" aria-label="Saved billings">
@@ -1654,6 +1718,16 @@ const aboutBtn = document.getElementById("aboutBtn");
 const aboutOverlay = document.getElementById("aboutOverlay");
 const aboutPanel = document.getElementById("aboutPanel");
 const aboutCloseBtn = document.getElementById("aboutCloseBtn");
+const feedbackBtn = document.getElementById("feedbackBtn");
+const feedbackOverlay = document.getElementById("feedbackOverlay");
+const feedbackPanel = document.getElementById("feedbackPanel");
+const feedbackCloseBtn = document.getElementById("feedbackCloseBtn");
+const feedbackType = document.getElementById("feedbackType");
+const feedbackEmail = document.getElementById("feedbackEmail");
+const feedbackMessage = document.getElementById("feedbackMessage");
+const feedbackStatus = document.getElementById("feedbackStatus");
+const feedbackSendBtn = document.getElementById("feedbackSendBtn");
+const feedbackCancelBtn = document.getElementById("feedbackCancelBtn");
 
 // Auth UI refs
 const authOverlay = document.getElementById("authOverlay");
@@ -2243,6 +2317,52 @@ function closeAboutPanel() {
   if (!aboutPanel || !aboutOverlay) return;
   aboutOverlay.style.display = "none";
   aboutPanel.style.display = "none";
+}
+
+function openFeedbackPanel() {
+  if (!feedbackPanel || !feedbackOverlay) return;
+  if (feedbackEmail && !feedbackEmail.value && authUser?.email) {
+    feedbackEmail.value = authUser.email;
+  }
+  setFeedbackStatus("");
+  feedbackOverlay.style.display = "block";
+  feedbackPanel.style.display = "flex";
+}
+
+function closeFeedbackPanel() {
+  if (!feedbackPanel || !feedbackOverlay) return;
+  feedbackOverlay.style.display = "none";
+  feedbackPanel.style.display = "none";
+}
+
+function setFeedbackStatus(message, isError=false) {
+  if (!feedbackStatus) return;
+  feedbackStatus.textContent = message || "";
+  feedbackStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+async function sendFeedback() {
+  const email = (feedbackEmail?.value || "").trim();
+  const message = (feedbackMessage?.value || "").trim();
+  const category = (feedbackType?.value || "Enter Feedback").trim();
+
+  const resolvedEmail = email || (authUser?.email || "");
+  if (!resolvedEmail) {
+    setFeedbackStatus("Please enter your email.", true);
+    return;
+  }
+  if (!message) {
+    setFeedbackStatus("Please enter feedback.", true);
+    return;
+  }
+
+  try {
+    await apiPost("/feedback", { email: resolvedEmail, category, message });
+    setFeedbackStatus("Sent. Thank you.");
+    if (feedbackMessage) feedbackMessage.value = "";
+  } catch (err) {
+    setFeedbackStatus(err?.message || "Send failed.", true);
+  }
 }
 
 function openBillingArchivePanel() {
@@ -4510,10 +4630,22 @@ aboutBtn?.addEventListener("click", (e) => {
   closeMenuPopover();
   openAboutPanel();
 });
+feedbackBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  closeMenuPopover();
+  openFeedbackPanel();
+});
 macroCloseBtn?.addEventListener("click", () => closeMacroPanel());
 macroOverlay?.addEventListener("click", () => closeMacroPanel());
 aboutCloseBtn?.addEventListener("click", () => closeAboutPanel());
 aboutOverlay?.addEventListener("click", () => closeAboutPanel());
+feedbackCloseBtn?.addEventListener("click", () => closeFeedbackPanel());
+feedbackOverlay?.addEventListener("click", () => closeFeedbackPanel());
+feedbackPanel?.addEventListener("click", (e) => e.stopPropagation());
+feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
+feedbackSendBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
+});
 billingArchiveCloseBtn?.addEventListener("click", () => closeBillingArchivePanel());
 billingArchiveOverlay?.addEventListener("click", () => closeBillingArchivePanel());
 billingArchivePanel?.addEventListener("click", (e) => e.stopPropagation());
