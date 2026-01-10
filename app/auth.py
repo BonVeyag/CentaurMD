@@ -62,6 +62,7 @@ class AuthUser(BaseModel):
     username: str
     email: str
     created_at_utc: str
+    is_admin: bool = False
 
 
 class AuthResponse(BaseModel):
@@ -140,11 +141,23 @@ def _verify_password(password: str, salt_b64: str, hash_b64: str) -> bool:
     return hmac.compare_digest(calc, hash_b64 or "")
 
 
+def _is_admin_user(username: str, email: str) -> bool:
+    uname = (username or "").strip().lower()
+    eml = (email or "").strip().lower()
+    if ADMIN_USERNAME and uname == ADMIN_USERNAME:
+        return True
+    if ADMIN_EMAIL and eml == ADMIN_EMAIL.strip().lower():
+        return True
+    return False
+
+
 def _public_user(username: str, rec: Dict[str, Any]) -> AuthUser:
+    email = rec.get("email", "")
     return AuthUser(
         username=username,
-        email=rec.get("email", ""),
+        email=email,
         created_at_utc=rec.get("created_at_utc", ""),
+        is_admin=_is_admin_user(username, email),
     )
 
 
