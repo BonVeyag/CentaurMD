@@ -340,15 +340,33 @@ def _summarize_from_transcript_and_emr(
     nc = (netcare_text or "").strip()
     if not (t or bg or nc):
         return {}
-    clip_t = _clip_text(t, max_chars=6000)
-    clip_bg = _clip_text(bg, max_chars=4000)
+    clip_t = _clip_text(t, max_chars=7000)
+    clip_bg = _clip_text(bg, max_chars=5000)
     clip_nc = _clip_text(nc, max_chars=4000)
+    focus_parts: List[str] = []
+    def add_focus(label: str, block: str) -> None:
+        if not block:
+            return
+        focus_parts.append(f"[{label}]\n{block}".strip())
+
+    add_focus("PATIENT NOTES", _extract_section_block_last(bg, ["Patient Notes"], max_lines=120))
+    add_focus("CLINICAL NOTES", _extract_section_block_last(bg, ["Clinical Notes"], max_lines=60))
+    add_focus("ACTIVE CONDITIONS", _extract_section_block_last(bg, ["Active & Past Medical Conditions", "Active Medical Conditions"], max_lines=80))
+    add_focus("HEALTH PROFILE", _extract_section_block_last(bg, ["Health Profile", "Problem List", "Diagnoses"], max_lines=25))
+    add_focus("SOCIAL HISTORY", _extract_section_block_last(bg, ["Social History", "Social Hx"], max_lines=30))
+    add_focus("FAMILY HISTORY", _extract_section_block_last(bg, ["Family Hx", "Family History"], max_lines=20))
+    add_focus("OBJECTIVE DATA", _extract_section_block_last(bg, ["Objective Data", "Objective"], max_lines=40))
+    add_focus("INVESTIGATIONS", _extract_section_block_last(bg, ["Investigations", "Imaging", "Labs"], max_lines=30))
+    add_focus("ASSESSMENT", _extract_section_block_last(bg, ["Assessment"], max_lines=30))
+    add_focus("PLAN", _extract_section_block_last(bg, ["Plan"], max_lines=40))
+    focus_text = "\n\n".join(focus_parts).strip() or "[none]"
     specialty_hint = specialty_override.strip()
     prompt = f"""
 Return strict JSON only with keys:
 specialty_name, subspecialty_or_clinic, reason_short, consult_question,
 summary_symptoms, key_positives, key_negatives_and_redflags, pertinent_exam,
-treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timeframe.
+treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timeframe,
+objective_labs, objective_imaging, objective_pathology, safety_advice.
 
 Rules:
 - Use ONLY the transcript and EMR data below.
@@ -358,6 +376,11 @@ Rules:
 - Do NOT invent PMHx, meds, labs, imaging, or diagnoses not stated.
 - subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
 - target_timeframe: only if explicitly stated; otherwise empty.
+- clinical summary fields: prefer explicitly documented symptoms/findings from transcript/EMR notes.
+- objective_labs: list lab name + value + units + date if available; if only test name/date, state "value not listed in EMR".
+- objective_imaging: list test + date + brief result summary if present; if report not present, state "report not available in EMR".
+- objective_pathology: only if pathology present; otherwise empty string.
+- safety_advice: issue-specific red flags and what to do (urgent care/ED) based on the presenting concern.
 
 SPECIALTY OVERRIDE:
 {specialty_hint or "[none]"}
@@ -370,6 +393,9 @@ EMR:
 
 NETCARE:
 {clip_nc or "[none]"}
+
+EMR FOCUS:
+{focus_text}
 """.strip()
     try:
         resp = client.chat.completions.create(
