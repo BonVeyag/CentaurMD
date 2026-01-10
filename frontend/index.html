@@ -927,18 +927,6 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   gap:10px;
 }
-.feedback-panel select{
-  width:100%;
-  border-radius:14px;
-  border:none;
-  padding:12px;
-  font-size:14px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  color: var(--text);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
 .feedback-panel input[type="email"]{
   width:100%;
   border-radius:14px;
@@ -950,10 +938,6 @@ textarea::-webkit-scrollbar-track{
   box-shadow: var(--shadow-xs),
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
-}
-.feedback-panel select option{
-  color: var(--text);
-  background: var(--panel);
 }
 #feedbackMessage{
   min-height:180px;
@@ -1539,11 +1523,6 @@ and for the care, day after day, you give.</div>
     <button id="feedbackCloseBtn" type="button">✕</button>
   </div>
   <div class="macro-section">
-    <select id="feedbackType">
-      <option value="Enter Feedback">Enter Feedback</option>
-      <option value="Software errors">Software errors</option>
-      <option value="Feature request">Feature request</option>
-    </select>
     <input id="feedbackEmail" type="email" placeholder="Your email" />
     <textarea id="feedbackMessage" placeholder="Write feedback..."></textarea>
     <div id="feedbackStatus" class="macro-status"></div>
@@ -1744,7 +1723,6 @@ const feedbackBtn = document.getElementById("feedbackBtn");
 const feedbackOverlay = document.getElementById("feedbackOverlay");
 const feedbackPanel = document.getElementById("feedbackPanel");
 const feedbackCloseBtn = document.getElementById("feedbackCloseBtn");
-const feedbackType = document.getElementById("feedbackType");
 const feedbackEmail = document.getElementById("feedbackEmail");
 const feedbackMessage = document.getElementById("feedbackMessage");
 const feedbackStatus = document.getElementById("feedbackStatus");
@@ -2390,7 +2368,6 @@ function maybeStoreFeedbackEmail(email) {
 async function sendFeedback() {
   const email = (feedbackEmail?.value || "").trim();
   const message = (feedbackMessage?.value || "").trim();
-  const category = (feedbackType?.value || "Enter Feedback").trim();
 
   const resolvedEmail = email || (authUser?.email || "");
   if (!resolvedEmail) {
@@ -2408,7 +2385,7 @@ async function sendFeedback() {
     const res = await fetchWithTimeout(`${API_BASE}/feedback`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ email: resolvedEmail, category, message }),
+      body: JSON.stringify({ email: resolvedEmail, message }),
     });
     if (!res.ok) {
       let detail = null;

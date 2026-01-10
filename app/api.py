@@ -71,11 +71,6 @@ SESSION_STORE: dict[str, SessionContext] = {}
 router = APIRouter()
 logger = logging.getLogger("centaurweb.api")
 
-FEEDBACK_ALLOWED_CATEGORIES = {
-    "Enter Feedback",
-    "Software errors",
-    "Feature request",
-}
 FEEDBACK_MESSAGE_MAX_CHARS = 2000
 FEEDBACK_RATE_LIMIT_WINDOW_SEC = 60
 FEEDBACK_RATE_LIMIT_MAX = 5
