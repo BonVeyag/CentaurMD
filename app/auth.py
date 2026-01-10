@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timezone
 from email.message import EmailMessage
 from threading import Lock as ThreadLock
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Tuple
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
