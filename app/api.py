@@ -1191,6 +1191,36 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
 
 
 # =========================
+# Admin SMTP diagnostics
+# =========================
+
+@router.get("/admin/smtp_status")
+def smtp_status(user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    return get_smtp_status()
+
+
+@router.post("/admin/test_email")
+def smtp_test_email(request: Request, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    request_id = request.headers.get("X-Request-Id") or str(uuid4())
+    logger.info(f"smtp.test.request request_id={request_id} user={user.username}")
+    ok, err_code = send_admin_email(
+        "CentaurMD SMTP test",
+        "This is a test email from CentaurMD feedback system.",
+        request,
+    )
+    if not ok:
+        logger.warning(f"smtp.test.failed request_id={request_id} code={err_code}")
+        raise HTTPException(
+            status_code=502,
+            detail={"code": err_code or "SMTP_SEND_FAILED", "message": "Test email failed."},
+        )
+    logger.info(f"smtp.test.sent request_id={request_id}")
+    return {"ok": True, "request_id": request_id}
+
+
+# =========================
 # Clinical Query Console
 # =========================
 
