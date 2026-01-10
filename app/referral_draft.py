@@ -320,9 +320,9 @@ treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timef
 
 Rules:
 - Use ONLY the transcript and EMR data below.
-- If a field is not explicitly stated, return an empty string.
-- Do NOT infer PMHx, meds, labs, imaging, or diagnoses not stated.
-- specialty_name: best-fit specialty when referral is implied by the case context.
+- You MAY infer specialty_name, reason_short, and consult_question from the clinical context.
+- For all other fields, include only what is supported; if uncertain, return empty string.
+- Do NOT invent PMHx, meds, labs, imaging, or diagnoses not stated.
 - subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
 - target_timeframe: only if explicitly stated; otherwise empty.
 
