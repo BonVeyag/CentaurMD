@@ -441,9 +441,10 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
         "acute vision loss",
         "seizure",
     ]
-    for term in urgent_terms:
-        if term in t:
-            return ("Urgent", "Red flags mentioned in history.")
+    urgent_hits = [term for term in urgent_terms if term in t]
+    if urgent_hits:
+        unique = ", ".join(sorted(set(urgent_hits)))
+        return ("Urgent", f"Red flags noted: {unique}.")
     semi_terms = [
         "worsening",
         "progressive",
@@ -452,9 +453,10 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
         "functional decline",
         "significant pain",
     ]
-    for term in semi_terms:
-        if term in t:
-            return ("Semi-urgent", "Symptoms worsening or functionally limiting.")
+    semi_hits = [term for term in semi_terms if term in t]
+    if semi_hits:
+        unique = ", ".join(sorted(set(semi_hits)))
+        return ("Semi-urgent", f"Symptoms worsening or functionally limiting: {unique}.")
     return ("Routine", "No red flags identified; routine triage.")
 
 
