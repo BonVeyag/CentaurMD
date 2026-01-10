@@ -865,6 +865,54 @@ def _display_soft(value: str, fallback: str = "Not documented in available recor
     return v if v else fallback
 
 
+def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
+    parts: List[str] = []
+    if (c.summary_symptoms or "").strip():
+        parts.append(f"Presenting symptoms: {c.summary_symptoms.strip()}")
+    if (c.key_positives or "").strip():
+        parts.append(f"Key positives: {c.key_positives.strip()}")
+    if (c.key_negatives_and_redflags or "").strip():
+        parts.append(f"Key negatives / red flags: {c.key_negatives_and_redflags.strip()}")
+    if (c.pertinent_exam or "").strip():
+        parts.append(f"Pertinent exam: {c.pertinent_exam.strip()}")
+    return " ".join(parts).strip() or "Not documented."
+
+
+def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
+    parts: List[str] = []
+    if (m.tried_block or "").strip():
+        parts.append(f"Treatments tried: {m.tried_block.strip()}")
+    if (m.pending_block or "").strip():
+        parts.append(f"Pending investigations/referrals: {m.pending_block.strip()}")
+    if (a.working_dx_and_ddx or "").strip():
+        parts.append(f"Working diagnosis / differential: {a.working_dx_and_ddx.strip()}")
+    return " ".join(parts).strip() or "Not documented."
+
+
+def _build_background_paragraph(b: BackgroundBlock) -> str:
+    parts: List[str] = []
+    if (b.pmHx_relevant or "").strip():
+        parts.append(f"PMHx: {b.pmHx_relevant.strip()}")
+    if (b.psHx_relevant or "").strip():
+        parts.append(f"PSHx: {b.psHx_relevant.strip()}")
+    if (b.meds_relevant or "").strip():
+        parts.append(f"Medications: {b.meds_relevant.strip()}")
+    if (b.allergies or "").strip():
+        parts.append(f"Allergies/intolerances: {b.allergies.strip()}")
+    return " ".join(parts).strip() or "Not documented."
+
+
+def _build_context_paragraph(l: LogisticsBlock) -> str:
+    parts: List[str] = []
+    if (l.high_risk_context or "").strip():
+        parts.append(f"Comorbidities affecting care: {l.high_risk_context.strip()}")
+    if (l.barriers or "").strip():
+        parts.append(f"Barriers: {l.barriers.strip()}")
+    if (l.patient_goals or "").strip():
+        parts.append(f"Patient goals / expectations: {l.patient_goals.strip()}")
+    return " ".join(parts).strip() or "Not documented."
+
+
 def render_referral_letter(draft: ReferralDraft) -> str:
     r = draft.referral
     p = draft.patient
