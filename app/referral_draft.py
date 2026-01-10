@@ -860,7 +860,7 @@ def _display(value: str, label: str) -> str:
     return f"[MISSING: {label}]"
 
 
-def _display_soft(value: str, fallback: str = "Not documented in available record.") -> str:
+def _display_soft(value: str, fallback: str = "Not documented.") -> str:
     v = (value or "").strip()
     return v if v else fallback
 
