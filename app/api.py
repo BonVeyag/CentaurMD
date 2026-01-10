@@ -29,6 +29,7 @@ from app.services import (
     extract_demographics_from_text,  # <-- unify identifier parsing with services
     generate_patient_summary,
 )
+from app.referral_draft import build_referral_draft, render_referral_letter
 from app.transcription import transcribe_audio_bytes
 from app.attachment_store import (
     ATTACHMENT_BLOBS,
