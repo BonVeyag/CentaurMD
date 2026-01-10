@@ -476,7 +476,7 @@ def _detect_minimum_dataset(draft: ReferralDraft, warnings: List[str]) -> None:
             )
 
 
-def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft:
+def build_referral_draft(context: SessionContext, payload: Any, referrer_overrides: Optional[Dict[str, str]] = None) -> ReferralDraft:
     emr_text = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
     netcare_text = (getattr(context.clinical_background, "netcare_dump", None) or "").strip()
     transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
@@ -516,15 +516,17 @@ def build_referral_draft(context: SessionContext, payload: Any) -> ReferralDraft
         address=address or "",
     )
 
+    overrides = referrer_overrides or {}
     referrer = ReferrerInfo(
-        name=os.getenv("REFERRER_NAME", "Dr. Rajat Thapa"),
+        name=overrides.get("signature_name") or os.getenv("REFERRER_NAME", "Dr. Rajat Thapa"),
         credentials=os.getenv("REFERRER_CREDENTIALS", "MD PhD CCFP"),
         cpsa=os.getenv("REFERRER_CPSA", "032698"),
-        clinic_name=os.getenv("REFERRER_CLINIC_NAME", ""),
-        phone=os.getenv("REFERRER_PHONE", ""),
-        fax=os.getenv("REFERRER_FAX", ""),
+        clinic_name=overrides.get("clinic_name") or os.getenv("REFERRER_CLINIC_NAME", ""),
+        clinic_address=overrides.get("clinic_address") or os.getenv("REFERRER_CLINIC_ADDRESS", ""),
+        phone=overrides.get("clinic_phone") or os.getenv("REFERRER_PHONE", ""),
+        fax=overrides.get("clinic_fax") or os.getenv("REFERRER_FAX", ""),
         fax_or_econsult_inbox=os.getenv("REFERRER_RETURN", ""),
-        signature_block=os.getenv("REFERRER_SIGNATURE", ""),
+        signature_block=overrides.get("signature_name") or os.getenv("REFERRER_SIGNATURE", ""),
     )
 
     referral = ReferralInfo(
