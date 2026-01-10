@@ -379,8 +379,8 @@ Rules:
 - subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
 - target_timeframe: only if explicitly stated; otherwise empty.
 - clinical summary fields: prefer explicitly documented symptoms/findings from transcript/EMR notes.
-- objective_labs: list lab name + value + units + date if available; if only test name/date, state "value not listed in EMR".
-- objective_imaging: list test + date + brief result summary if present; if report not present, state "report not available in EMR".
+- objective_labs: list lab name + value + units + date if available; if only test name/date, leave value empty.
+- objective_imaging: list test + date + brief result summary if present; if report not present, leave empty.
 - objective_pathology: only if pathology present; otherwise empty string.
 - safety_advice: issue-specific red flags and what to do (urgent care/ED) based on the presenting concern.
 - Do NOT add phrases like "date not listed", "report not available in EMR", or "not documented"—leave field empty instead.
