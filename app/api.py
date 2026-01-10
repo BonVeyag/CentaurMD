@@ -1209,6 +1209,12 @@ def smtp_test_email(request: Request, user: AuthUser = Depends(require_user)):
     _require_admin(user)
     request_id = request.headers.get("X-Request-Id") or str(uuid4())
     logger.info(f"smtp.test.request request_id={request_id} user={user.username}")
+    status = get_smtp_status()
+    if not status.get("configured"):
+        raise HTTPException(
+            status_code=503,
+            detail={"code": "SMTP_NOT_CONFIGURED", "message": "Email delivery is not configured."},
+        )
     ok, err_code = send_admin_email(
         "CentaurMD SMTP test",
         "This is a test email from CentaurMD feedback system.",
