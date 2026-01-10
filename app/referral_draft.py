@@ -303,7 +303,12 @@ def _infer_patient_aware(transcript: str) -> str:
     return "Unclear"
 
 
-def _summarize_from_transcript_and_emr(transcript: str, emr_text: str, netcare_text: str) -> Dict[str, str]:
+def _summarize_from_transcript_and_emr(
+    transcript: str,
+    emr_text: str,
+    netcare_text: str,
+    specialty_override: str = "",
+) -> Dict[str, str]:
     t = (transcript or "").strip()
     bg = (emr_text or "").strip()
     nc = (netcare_text or "").strip()
@@ -312,6 +317,7 @@ def _summarize_from_transcript_and_emr(transcript: str, emr_text: str, netcare_t
     clip_t = _clip_text(t, max_chars=6000)
     clip_bg = _clip_text(bg, max_chars=4000)
     clip_nc = _clip_text(nc, max_chars=4000)
+    specialty_hint = specialty_override.strip()
     prompt = f"""
 Return strict JSON only with keys:
 specialty_name, subspecialty_or_clinic, reason_short, consult_question,
@@ -321,10 +327,14 @@ treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timef
 Rules:
 - Use ONLY the transcript and EMR data below.
 - You MAY infer specialty_name, reason_short, and consult_question from the clinical context.
+- If a specialty override is provided, set specialty_name to that value and tailor reason_short/consult_question to that specialty.
 - For all other fields, include only what is supported; if uncertain, return empty string.
 - Do NOT invent PMHx, meds, labs, imaging, or diagnoses not stated.
 - subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
 - target_timeframe: only if explicitly stated; otherwise empty.
+
+SPECIALTY OVERRIDE:
+{specialty_hint or "[none]"}
 
 TRANSCRIPT:
 {clip_t or "[none]"}
