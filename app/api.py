@@ -1096,7 +1096,9 @@ def submit_feedback(payload: FeedbackPayload, request: Request, user: AuthUser =
             message,
         ]
     )
-    send_admin_email("CentaurMD feedback", body, request)
+    sent = send_admin_email("CentaurMD feedback", body, request)
+    if not sent:
+        raise HTTPException(status_code=503, detail="Email delivery not configured.")
     return {"ok": True}
 
 
