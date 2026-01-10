@@ -161,10 +161,10 @@ def _load_signup_allowlist() -> set[str]:
     return {str(u).strip().lower() for u in raw if str(u).strip()}
 
 
-def _send_signup_request_email(username: str, email: str, request: Request) -> None:
+def send_admin_email(subject: str, body: str, request: Request) -> None:
     host = os.getenv("CENTAUR_SMTP_HOST", "").strip()
     if not host or not ADMIN_EMAIL:
-        logger.warning("Signup request email skipped: SMTP host or admin email not configured.")
+        logger.warning("Admin email skipped: SMTP host or admin email not configured.")
         return
 
     port = int(os.getenv("CENTAUR_SMTP_PORT", "587"))
@@ -179,15 +179,14 @@ def _send_signup_request_email(username: str, email: str, request: Request) -> N
     now = _utc_now_iso()
 
     msg = EmailMessage()
-    msg["Subject"] = "CentaurMD signup request"
+    msg["Subject"] = subject
     msg["From"] = from_addr
     msg["To"] = ADMIN_EMAIL
     msg.set_content(
         "\n".join(
             [
-                "A new signup request was received.",
-                f"Username: {username}",
-                f"Email: {email}",
+                body.rstrip(),
+                "",
                 f"IP: {ip}",
                 f"User-Agent: {user_agent}",
                 f"Time (UTC): {now}",
@@ -210,7 +209,18 @@ def _send_signup_request_email(username: str, email: str, request: Request) -> N
                     server.login(smtp_user, smtp_pass)
                 server.send_message(msg)
     except Exception as e:
-        logger.warning(f"Signup request email failed: {e}")
+        logger.warning(f"Admin email failed: {e}")
+
+
+def _send_signup_request_email(username: str, email: str, request: Request) -> None:
+    body = "\n".join(
+        [
+            "A new signup request was received.",
+            f"Username: {username}",
+            f"Email: {email}",
+        ]
+    )
+    send_admin_email("CentaurMD signup request", body, request)
 
 
 def user_storage_dir(username: str) -> str:
