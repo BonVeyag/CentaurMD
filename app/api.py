@@ -1928,6 +1928,7 @@ NOTES:
     if not icd_parts:
         icd_parts = _extract_icd9_from_text_direct(source_text)
 
+    fallback_data: Optional[Dict[str, Any]] = None
     if not icd_parts and transcript_ok and fallback_source:
         icd_parts = _extract_icd9_from_text_direct(fallback_source)
         if not icd_parts:
@@ -1946,7 +1947,8 @@ NOTES:
     one_line = _extract_one_line(data)
 
     if not one_line and transcript_ok and fallback_source:
-        fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
+        if fallback_data is None:
+            fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
         one_line = _extract_one_line(fallback_data)
 
     virtual_call = bool((transcript or fallback_source) and _is_virtual_call(transcript or fallback_source))
