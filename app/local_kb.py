@@ -962,6 +962,13 @@ def _is_guideline_asset(asset: Dict[str, Any]) -> bool:
     return any(k in url for k in keywords) or any(k in title for k in keywords)
 
 
+def _is_guideline_page(page: KbPage) -> bool:
+    t = (page.title or "").lower()
+    u = (page.url or "").lower()
+    keywords = ["pathway", "guideline", "algorithm", "flow", "care map", "clinical pathway"]
+    return any(k in t for k in keywords) or any(k in u for k in keywords)
+
+
 def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
     assets = _collect_asset_candidates(pages, site_url)
     if not assets:
