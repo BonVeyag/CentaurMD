@@ -213,4 +213,5 @@ def run_guideline_runner(query: str, context_text: str) -> Optional[Dict[str, An
         "decision_trace": decision_trace,
         "next_steps": next_steps,
         "missing_inputs": missing_inputs,
+        "alternative_branches": [],
     }
