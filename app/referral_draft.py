@@ -1164,14 +1164,29 @@ def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
 
 
 def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
-    parts: List[str] = []
-    if (m.tried_block or "").strip():
-        parts.append(f"Treatments tried: {m.tried_block.strip()}")
-    if (m.pending_block or "").strip():
-        parts.append(f"Pending investigations/referrals: {m.pending_block.strip()}")
-    if (a.working_dx_and_ddx or "").strip():
-        parts.append(f"Working diagnosis / differential: {a.working_dx_and_ddx.strip()}")
-    return " ".join(parts).strip() or "Not documented."
+    sentences: List[str] = []
+    tried = (m.tried_block or "").strip()
+    pending = (m.pending_block or "").strip()
+    working = (a.working_dx_and_ddx or "").strip()
+
+    if tried:
+        text = f"Treatments to date include {tried}"
+        if not re.search(r"[.!?]$", text):
+            text += "."
+        sentences.append(text)
+    if pending:
+        text = f"Pending investigations or referrals include {pending}"
+        if not re.search(r"[.!?]$", text):
+            text += "."
+        sentences.append(text)
+    if working:
+        text = f"The working diagnosis or differential is {working}"
+        if not re.search(r"[.!?]$", text):
+            text += "."
+        sentences.append(text)
+
+    paragraph = " ".join(sentences).strip()
+    return paragraph or "Not documented."
 
 
 def _compact_medications_block(text: str) -> str:
