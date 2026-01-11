@@ -2264,7 +2264,7 @@ NOTES:
     fallback_data: Optional[Dict[str, Any]] = None
     if not icd_locked:
         icd_parts = _extract_icd9_parts(data.get("icd9") or [])
-        if not icd_parts:
+        if not icd_parts and not transcript_ok:
             icd_parts = _extract_icd9_from_text_direct(source_text)
 
         if not icd_parts and emr_context:
