@@ -1401,88 +1401,6 @@ textarea::-webkit-scrollbar-track{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
 }
-.billing-icd9{
-  margin-top:10px;
-  padding:10px;
-  border-radius:12px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.billing-icd9-title{
-  font-size: var(--fs-body);
-  color: var(--muted);
-  margin-bottom:8px;
-}
-.billing-icd9-chips{
-  display:flex;
-  flex-wrap:wrap;
-  gap:6px;
-  min-height:28px;
-}
-.icd9-chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:4px 10px;
-  border-radius:999px;
-  font-size:12px;
-  color: var(--text);
-  background: color-mix(in oklab, var(--panel) 92%, transparent);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.icd9-chip.suggested{
-  color: var(--muted);
-}
-.icd9-chip button{
-  border:none;
-  background: transparent;
-  color: inherit;
-  font-size:12px;
-  cursor:pointer;
-  padding:0 2px;
-}
-.billing-icd9-search{
-  position:relative;
-  margin-top:8px;
-}
-#icd9SearchInput{
-  width:100%;
-  border-radius:10px;
-  border:none;
-  padding:8px 10px;
-  font-size:14px;
-  background: color-mix(in oklab, var(--panel) 92%, transparent);
-  color:var(--text);
-  box-shadow: var(--shadow-xs),
-              inset 0 0 0 1px var(--edge-soft),
-              inset 0 1px 0 var(--edge-hi);
-}
-.icd9-results{
-  position:absolute;
-  top:calc(100% + 6px);
-  left:0;
-  right:0;
-  background: color-mix(in oklab, var(--panel) 96%, transparent);
-  border-radius:10px;
-  box-shadow: var(--shadow-lg);
-  max-height:220px;
-  overflow:auto;
-  z-index:5;
-  display:none;
-}
-.icd9-result{
-  padding:8px 10px;
-  cursor:pointer;
-  font-size:13px;
-  color: var(--text);
-}
-.icd9-result:hover{
-  background: color-mix(in oklab, var(--panel2) 92%, transparent);
-}
 
 .billing-actions{
   display:flex;
@@ -1706,15 +1624,6 @@ textarea::-webkit-scrollbar-track{
         <option value="FFS">Fee for Service (FFS)</option>
         <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
       </select>
-    </div>
-
-    <div class="billing-icd9">
-      <div class="billing-icd9-title">Dx (ICD-9)</div>
-      <div id="icd9Chips" class="billing-icd9-chips"></div>
-      <div class="billing-icd9-search">
-        <input id="icd9SearchInput" type="text" placeholder="Search ICD-9 or enter code" autocomplete="off" />
-        <div id="icd9Results" class="icd9-results"></div>
-      </div>
     </div>
 
     <textarea id="dailyBillingText"
@@ -2016,7 +1925,6 @@ let billingArchiveCurrent = "";
 let billingArchiveCurrentMeta = null;
 let hasBilledCurrentPatient = false;
 let wakeLockSentinel = null;
-let icd9Codes = [];
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -2049,9 +1957,6 @@ const billingDateEl = document.getElementById("billingDate");
 const billBtn = document.getElementById("billBtn");
 const saveBillingBtn = document.getElementById("saveBillingBtn");
 const printBillingBtn = document.getElementById("printBillingBtn");
-const icd9Chips = document.getElementById("icd9Chips");
-const icd9SearchInput = document.getElementById("icd9SearchInput");
-const icd9Results = document.getElementById("icd9Results");
 
 // Menu + Macro UI refs
 const menuBtn = document.getElementById("menuBtn");
@@ -4103,9 +4008,6 @@ async function startNewPatientSession() {
   patientAge = "";
 
   await createSession();
-  icd9Codes = [];
-  renderIcd9Chips();
-  await loadIcd9FromServer();
   logChat("System", "New patient session created.");
 }
 async function ensureAuth() {
@@ -4137,7 +4039,6 @@ async function bootstrapApp() {
   coachPanel.textContent = coachPanel.textContent || "";
 
   await loadBillingFromServer();
-  await loadIcd9FromServer();
 
   logChat("System", "Centaur Web ready.");
 }
@@ -5006,7 +4907,6 @@ ${transcript || "[none]"}`;
 // -------------------------
 const DAILY_BILLING_TEXT_LS_PREFIX = "centaur_daily_billing_text_v1:";
 const BILLING_MODEL_KEY_PREFIX = "centaur_billing_model_v1:";
-const ICD9_CODES_KEY_PREFIX = "centaur_icd9_codes_v1:";
 let billingAutosaveTimer = null;
 
 function todayStrLocal() {
@@ -5019,7 +4919,6 @@ function todayStrLocal() {
 function billingUserKey(){ return String(authUser?.username || "anon"); }
 function billingTextKeyToday(){ return `${DAILY_BILLING_TEXT_LS_PREFIX}${billingUserKey()}:${todayStrLocal()}`; }
 function billingModelKey(){ return `${BILLING_MODEL_KEY_PREFIX}${billingUserKey()}`; }
-function icd9CodesKey(){ return `${ICD9_CODES_KEY_PREFIX}${billingUserKey()}:${sessionId || "nosession"}`; }
 
 function normalizeBillingModel(val){
   return (String(val || "").toUpperCase() === "PCPCM") ? "PCPCM" : "FFS";
@@ -5041,122 +4940,6 @@ function getSelectedBillingModel(){
   return getBillingModelPref();
 }
 
-function mergeIcd9Codes(codes){
-  const map = new Map();
-  for (const item of (codes || [])) {
-    const code = String(item?.code || "").trim();
-    if (!code) continue;
-    const existing = map.get(code);
-    if (!existing) {
-      map.set(code, { ...item, code });
-      continue;
-    }
-    const existingSource = String(existing.source || "");
-    const incomingSource = String(item.source || "");
-    if (existingSource !== "user_selected" && incomingSource === "user_selected") {
-      map.set(code, { ...item, code });
-    }
-  }
-  return Array.from(map.values());
-}
-
-function renderIcd9Chips(){
-  if (!icd9Chips) return;
-  icd9Chips.innerHTML = "";
-  const items = mergeIcd9Codes(icd9Codes || []);
-  if (!items.length) {
-    const empty = document.createElement("div");
-    empty.className = "muted";
-    empty.textContent = "No ICD-9 codes selected.";
-    icd9Chips.appendChild(empty);
-    return;
-  }
-  for (const item of items) {
-    const chip = document.createElement("div");
-    chip.className = "icd9-chip" + (item.source === "ai_suggested" ? " suggested" : "");
-
-    const label = document.createElement("span");
-    const code = String(item.code || "").trim();
-    const textLabel = String(item.label || "").trim();
-    label.textContent = textLabel ? `${code} — ${textLabel}` : code;
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.textContent = "×";
-    removeBtn.addEventListener("click", async () => {
-      icd9Codes = (icd9Codes || []).filter(c => String(c.code || "").trim() !== code);
-      renderIcd9Chips();
-      try { await saveIcd9ToSession(); } catch (err) { uiError("ICD-9", err); }
-    });
-
-    chip.appendChild(label);
-    chip.appendChild(removeBtn);
-    icd9Chips.appendChild(chip);
-  }
-}
-
-async function loadIcd9FromLocal(){
-  try {
-    const raw = localStorage.getItem(icd9CodesKey());
-    if (raw) icd9Codes = JSON.parse(raw) || [];
-  } catch {}
-  renderIcd9Chips();
-}
-
-async function loadIcd9FromServer(){
-  try {
-    const data = await apiGet(`/session/${sessionId}/billing/icd9`);
-    icd9Codes = Array.isArray(data?.codes) ? data.codes : [];
-    localStorage.setItem(icd9CodesKey(), JSON.stringify(icd9Codes || []));
-    renderIcd9Chips();
-  } catch {
-    await loadIcd9FromLocal();
-  }
-}
-
-async function saveIcd9ToSession(){
-  localStorage.setItem(icd9CodesKey(), JSON.stringify(icd9Codes || []));
-  await apiPut(`/session/${sessionId}/billing/icd9`, { codes: mergeIcd9Codes(icd9Codes || []) });
-}
-
-function showIcd9Results(items){
-  if (!icd9Results) return;
-  icd9Results.innerHTML = "";
-  if (!items.length) {
-    icd9Results.style.display = "none";
-    return;
-  }
-  for (const item of items) {
-    const row = document.createElement("div");
-    row.className = "icd9-result";
-    row.textContent = `${item.code} — ${item.label}`;
-    row.addEventListener("click", async () => {
-      icd9Codes = mergeIcd9Codes([...(icd9Codes || []), { code: item.code, label: item.label, source: "user_selected", confidence: 1 }]);
-      renderIcd9Chips();
-      icd9Results.style.display = "none";
-      if (icd9SearchInput) icd9SearchInput.value = "";
-      try { await saveIcd9ToSession(); } catch (err) { uiError("ICD-9", err); }
-    });
-    icd9Results.appendChild(row);
-  }
-  icd9Results.style.display = "block";
-}
-
-let icd9SearchTimer = null;
-async function runIcd9Search(q){
-  const query = String(q || "").trim();
-  if (!query) {
-    showIcd9Results([]);
-    return;
-  }
-  try {
-    const results = await apiGet(`/icd9/search?q=${encodeURIComponent(query)}&limit=20`);
-    showIcd9Results(Array.isArray(results) ? results : []);
-  } catch (err) {
-    uiError("ICD-9 search", err);
-    showIcd9Results([]);
-  }
-}
 
 function countPatientsFromText(t) {
   const lines = (t || "").split("\n").map(s => s.trim()).filter(Boolean);
@@ -5239,7 +5022,6 @@ async function billNow() {
   scrollBillingToEnd();
 
   try { await saveBillingToServer(); } catch {}
-  try { await loadIcd9FromServer(); } catch {}
 }
 
 async function saveBillingEdits() {
@@ -5580,36 +5362,6 @@ billingModelSelect?.addEventListener("change", async () => {
   } catch (err) {
     uiError("Billing model", err);
   }
-});
-
-icd9SearchInput?.addEventListener("input", () => {
-  clearTimeout(icd9SearchTimer);
-  const q = icd9SearchInput.value || "";
-  icd9SearchTimer = setTimeout(() => runIcd9Search(q), 160);
-});
-
-icd9SearchInput?.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter") return;
-  e.preventDefault();
-  const code = String(icd9SearchInput.value || "").trim();
-  if (!code) return;
-  try {
-    const rec = await apiGet(`/icd9/${encodeURIComponent(code)}`);
-    icd9Codes = mergeIcd9Codes([...(icd9Codes || []), { code: rec.code, label: rec.label, source: "user_selected", confidence: 1 }]);
-    renderIcd9Chips();
-    icd9SearchInput.value = "";
-    if (icd9Results) icd9Results.style.display = "none";
-    await saveIcd9ToSession();
-  } catch (err) {
-    uiError("ICD-9", err);
-  }
-});
-
-document.addEventListener("click", (e) => {
-  if (!icd9Results || !icd9SearchInput) return;
-  const target = e.target;
-  if (icd9Results.contains(target) || target === icd9SearchInput) return;
-  icd9Results.style.display = "none";
 });
 
 billBtn.addEventListener("click", async () => {

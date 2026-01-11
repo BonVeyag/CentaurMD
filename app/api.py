@@ -1800,9 +1800,20 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
 
     stopwords = {"author", "date", "signature", "clinic", "dr", "note", "notes"}
     deny_desc_re = re.compile(
-        r"\b(kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature)\b",
+        r"\b("
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
+        r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
+        r")\b",
         flags=re.IGNORECASE,
     )
+    addr_re = re.compile(
+        r"\b(avenue|ave|road|rd|street|st\.|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|alberta|ab)\b",
+        flags=re.IGNORECASE,
+    )
+    phone_re = re.compile(r"\b\d{3}[-)\s]\d{3}[-\s]\d{4}\b")
+    med_sig_re = re.compile(r"\b(po|prn|bid|tid|qid|qhs|qday|daily|once|twice)\b", flags=re.IGNORECASE)
+    med_line_re = re.compile(r"\b(tab|tablet|capsule|inh|spray|patch|mg|mcg|ml|units)\b", flags=re.IGNORECASE)
     found: List[str] = []
     seen_codes: set[str] = set()
 
@@ -1831,6 +1842,10 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
         if deny_desc_re.search(desc):
             continue
         if not code or not desc:
+            continue
+        if addr_re.search(desc) or phone_re.search(desc):
+            continue
+        if med_sig_re.search(line) or med_line_re.search(line):
             continue
         if code in seen_codes:
             continue
