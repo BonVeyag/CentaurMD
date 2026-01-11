@@ -1106,26 +1106,60 @@ def _dedupe_fragments(fragments: List[str]) -> List[str]:
     return deduped
 
 
-def _join_sentence_paragraph(fragments: List[str]) -> str:
+def _dedupe_against(base: List[str], candidates: List[str]) -> List[str]:
+    if not base:
+        return candidates[:]
+    base_norm = [b.lower() for b in base]
+    out: List[str] = []
+    for c in candidates:
+        c_norm = c.lower()
+        if any(c_norm in b or b in c_norm for b in base_norm):
+            continue
+        out.append(c)
+    return out
+
+
+def _join_fragments(fragments: List[str]) -> str:
     if not fragments:
         return ""
-    sentences = []
-    for frag in fragments:
-        if re.search(r"[.!?]$", frag):
-            sentences.append(frag)
-        else:
-            sentences.append(f"{frag}.")
-    return " ".join(sentences).strip()
+    return "; ".join(fragments).strip()
+
+
+def _sentence(prefix: str, body: str) -> str:
+    body = (body or "").strip()
+    if not body:
+        return ""
+    text = f"{prefix}{body}"
+    if not re.search(r"[.!?]$", text):
+        text += "."
+    return text
 
 
 def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
-    fragments: List[str] = []
-    fragments.extend(_split_summary_fragments(c.summary_symptoms))
-    fragments.extend(_split_summary_fragments(c.key_positives))
-    fragments.extend(_split_summary_fragments(c.key_negatives_and_redflags))
-    fragments.extend(_split_summary_fragments(c.pertinent_exam))
-    fragments = _dedupe_fragments(fragments)
-    paragraph = _join_sentence_paragraph(fragments)
+    summary_frags = _dedupe_fragments(_split_summary_fragments(c.summary_symptoms))
+    positives_frags = _dedupe_fragments(_split_summary_fragments(c.key_positives))
+    negatives_frags = _dedupe_fragments(_split_summary_fragments(c.key_negatives_and_redflags))
+    exam_frags = _dedupe_fragments(_split_summary_fragments(c.pertinent_exam))
+
+    positives_frags = _dedupe_against(summary_frags, positives_frags)
+    negatives_frags = _dedupe_against(summary_frags + positives_frags, negatives_frags)
+    exam_frags = _dedupe_against(summary_frags + positives_frags + negatives_frags, exam_frags)
+
+    sentences: List[str] = []
+    if summary_frags:
+        sentences.append(_sentence("The patient reports ", _join_fragments(summary_frags)))
+    elif positives_frags:
+        sentences.append(_sentence("The patient reports ", _join_fragments(positives_frags)))
+        positives_frags = []
+
+    if positives_frags:
+        sentences.append(_sentence("Associated features include ", _join_fragments(positives_frags)))
+    if negatives_frags:
+        sentences.append(_sentence("Reported negatives include ", _join_fragments(negatives_frags)))
+    if exam_frags:
+        sentences.append(_sentence("Relevant exam findings include ", _join_fragments(exam_frags)))
+
+    paragraph = " ".join([s for s in sentences if s]).strip()
     return paragraph or "Not documented."
 
 
