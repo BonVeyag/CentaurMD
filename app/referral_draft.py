@@ -614,7 +614,12 @@ EMR FOCUS:
         data = json.loads(raw)
         if isinstance(data, dict):
             cleaned = _clean_summary_dict(data)
-            return _audit_referral_summary(cleaned, t, bg, nc, focus_text)
+            audited = _audit_referral_summary(cleaned, t, bg, nc, focus_text)
+            source_text = " ".join([t, bg, nc, focus_text])
+            merged = _merge_audited(cleaned, audited, source_text)
+            if not merged.get("specialty_name"):
+                merged["specialty_name"] = _infer_specialty_from_text(source_text)
+            return merged
     except Exception as exc:
         logger.warning("Referral summary failed: %s", exc)
     return {}
