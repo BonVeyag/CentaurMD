@@ -501,6 +501,260 @@ def _upsert_asset(
     )
 
 
+def _guideline_id(source_url: str, version_date: str) -> str:
+    base = f"{source_url}|{version_date or ''}".encode("utf-8")
+    return hashlib.sha256(base).hexdigest()[:16]
+
+
+def _detect_version_date(text: str) -> str:
+    if not text:
+        return ""
+    m = re.search(r"\b(20\d{2}[-/]\d{1,2}[-/]\d{1,2})\b", text)
+    if m:
+        return m.group(1)
+    m = re.search(r"\b(20\d{2})\b", text)
+    return m.group(1) if m else ""
+
+
+def _detect_jurisdiction(text: str) -> str:
+    t = (text or "").lower()
+    if "alberta" in t or "ahs" in t:
+        return "Alberta, Canada"
+    if "canada" in t or "canadian" in t:
+        return "Canada"
+    return "Canada"
+
+
+def _guess_node_type(label: str) -> str:
+    t = (label or "").strip().lower()
+    if not t:
+        return "note"
+    if "refer" in t:
+        return "referral"
+    if "order" in t or "test" in t or "investigation" in t or "labs" in t:
+        return "investigation"
+    if "if " in t or t.endswith("?") or t.startswith("is ") or t.startswith("does ") or t.startswith("any "):
+        return "decision"
+    if "start" in t or "treat" in t or "manage" in t or "give" in t or "consider" in t:
+        return "action"
+    if t.startswith("stop") or t.startswith("avoid"):
+        return "action"
+    return "note"
+
+
+def _build_graph_base(
+    guideline_id: str,
+    title: str,
+    jurisdiction: str,
+    version_date: str,
+    source_url: str,
+) -> Dict[str, Any]:
+    return {
+        "guideline_id": guideline_id,
+        "title": title,
+        "jurisdiction": jurisdiction,
+        "version_date": version_date,
+        "source_url": source_url,
+        "nodes": [],
+        "edges": [],
+        "variables": [],
+    }
+
+
+def _graph_from_blocks(
+    blocks: List[Dict[str, Any]],
+    guideline_id: str,
+    title: str,
+    jurisdiction: str,
+    version_date: str,
+    source_url: str,
+    asset_url: str,
+    asset_type: str,
+) -> Dict[str, Any]:
+    graph = _build_graph_base(guideline_id, title, jurisdiction, version_date, source_url)
+    nodes = []
+    edges = []
+    for idx, block in enumerate(blocks[:KB_GUIDELINE_MAX_NODES]):
+        label = (block.get("text") or "").strip()
+        if len(label) < 3:
+            continue
+        node_id = f"node_{idx + 1}"
+        node_type = _guess_node_type(label)
+        evidence = {
+            "asset_url": asset_url,
+            "asset_type": asset_type,
+            "page": block.get("page"),
+            "bbox": block.get("bbox"),
+            "excerpt": label[:200],
+        }
+        nodes.append(
+            {
+                "id": node_id,
+                "type": node_type,
+                "label": label[:400],
+                "actions": [label[:400]] if node_type in {"action", "investigation", "referral"} else [],
+                "logic": None,
+                "evidence_spans": [evidence],
+            }
+        )
+    for idx in range(len(nodes) - 1):
+        if idx >= KB_GUIDELINE_MAX_EDGES:
+            break
+        edges.append(
+            {
+                "from": nodes[idx]["id"],
+                "to": nodes[idx + 1]["id"],
+                "condition_text": "",
+                "condition_logic": None,
+                "evidence_spans": nodes[idx + 1].get("evidence_spans", []),
+            }
+        )
+    graph["nodes"] = nodes
+    graph["edges"] = edges
+    return graph
+
+
+def _extract_pdf_blocks(data: bytes) -> Tuple[List[Dict[str, Any]], bool]:
+    blocks: List[Dict[str, Any]] = []
+    has_text = False
+    try:
+        import fitz  # type: ignore
+        doc = fitz.open(stream=data, filetype="pdf")
+        for page_index, page in enumerate(doc, start=1):
+            for b in page.get_text("blocks"):
+                text = (b[4] or "").strip()
+                if not text:
+                    continue
+                has_text = True
+                blocks.append(
+                    {
+                        "text": text,
+                        "page": page_index,
+                        "bbox": [float(b[0]), float(b[1]), float(b[2]), float(b[3])],
+                    }
+                )
+        return blocks, has_text
+    except Exception:
+        pass
+    try:
+        from pypdf import PdfReader  # type: ignore
+    except Exception:
+        try:
+            from PyPDF2 import PdfReader  # type: ignore
+        except Exception:
+            return blocks, False
+    try:
+        reader = PdfReader(data)
+        for page_index, page in enumerate(reader.pages, start=1):
+            text = (page.extract_text() or "").strip()
+            if not text:
+                continue
+            has_text = True
+            blocks.append(
+                {
+                    "text": text,
+                    "page": page_index,
+                    "bbox": None,
+                }
+            )
+    except Exception:
+        return blocks, False
+    return blocks, has_text
+
+
+def _extract_svg_blocks(svg_text: str) -> List[Dict[str, Any]]:
+    blocks: List[Dict[str, Any]] = []
+    if not svg_text:
+        return blocks
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(svg_text)
+        for elem in root.iter():
+            if elem.tag.lower().endswith("text"):
+                txt = "".join(elem.itertext()).strip()
+                if not txt:
+                    continue
+                x = elem.attrib.get("x")
+                y = elem.attrib.get("y")
+                bbox = None
+                if x is not None and y is not None:
+                    try:
+                        bbox = [float(x), float(y), float(x), float(y)]
+                    except Exception:
+                        bbox = None
+                blocks.append({"text": txt, "page": None, "bbox": bbox})
+    except Exception:
+        pass
+    return blocks
+
+
+def _extract_html_blocks(text: str) -> List[Dict[str, Any]]:
+    blocks: List[Dict[str, Any]] = []
+    if not text:
+        return blocks
+    for line in re.split(r"(?:\n|\\n)", text):
+        line = (line or "").strip()
+        if len(line) < 6:
+            continue
+        blocks.append({"text": line, "page": None, "bbox": None})
+    if not blocks:
+        parts = re.split(r"\.\s+", text)
+        for part in parts:
+            part = part.strip()
+            if len(part) < 12:
+                continue
+            blocks.append({"text": part, "page": None, "bbox": None})
+    return blocks[:KB_GUIDELINE_MAX_NODES]
+
+
+def _validate_guideline_graph(graph: Dict[str, Any]) -> Dict[str, Any]:
+    required = {"guideline_id", "title", "jurisdiction", "version_date", "source_url", "nodes", "edges", "variables"}
+    missing = required - set(graph.keys())
+    if missing:
+        raise ValueError(f"Guideline graph missing keys: {sorted(missing)}")
+    if not isinstance(graph.get("nodes"), list) or not isinstance(graph.get("edges"), list):
+        raise ValueError("Guideline graph nodes/edges must be lists.")
+    return graph
+
+
+def _flatten_graph_text(graph: Dict[str, Any]) -> str:
+    parts: List[str] = []
+    for node in graph.get("nodes", []):
+        parts.append(str(node.get("label", "")))
+        for action in node.get("actions", []) or []:
+            parts.append(str(action))
+    for edge in graph.get("edges", []):
+        parts.append(str(edge.get("condition_text", "")))
+    for var in graph.get("variables", []):
+        parts.append(str(var.get("name", "")))
+        for syn in var.get("synonyms", []) or []:
+            parts.append(str(syn))
+    text = " ".join([p for p in parts if p])
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _apply_patch_ops(graph: Dict[str, Any], patch_ops: List[Dict[str, Any]]) -> Dict[str, Any]:
+    out = graph
+    for op in patch_ops:
+        if op.get("op") != "replace":
+            continue
+        path = op.get("path", "")
+        if path in {"", "/"}:
+            out = op.get("value", out)
+            continue
+        parts = [p for p in path.split("/") if p]
+        cur = out
+        for key in parts[:-1]:
+            if isinstance(cur, list):
+                key = int(key)
+            cur = cur[key]
+        last = parts[-1]
+        if isinstance(cur, list):
+            last = int(last)
+        cur[last] = op.get("value")
+    return out
+
+
 def _upsert_site(conn: sqlite3.Connection, url: str, domain: str) -> int:
     now = _utc_now_iso()
     cur = conn.execute("SELECT id FROM kb_sites WHERE url = ?", (url,))
