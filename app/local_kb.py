@@ -1317,6 +1317,22 @@ def save_guideline_patch(guideline_id: str, patch_ops: List[Dict[str, Any]]) -> 
             """,
             (guideline_id, json.dumps(patch_ops), now, now),
         )
+        cur = conn.execute(
+            "SELECT graph_json FROM kb_guideline_graphs WHERE guideline_id = ?",
+            (guideline_id,),
+        )
+        row = cur.fetchone()
+        if row and row["graph_json"]:
+            try:
+                graph = json.loads(row["graph_json"])
+                graph = _apply_patch_ops(graph, patch_ops)
+                conn.execute("DELETE FROM kb_guideline_graph_index WHERE guideline_id = ?", (guideline_id,))
+                conn.execute(
+                    "INSERT INTO kb_guideline_graph_index (guideline_id, text, metadata_json) VALUES (?, ?, ?)",
+                    (guideline_id, _flatten_graph_text(graph), json.dumps({"patched": True})),
+                )
+            except Exception:
+                pass
         conn.commit()
 
 
