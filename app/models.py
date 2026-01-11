@@ -327,3 +327,6 @@ class SessionContext(StrictBaseModel):
 
     # Session-scoped attachments (metadata only)
     attachments: List[AttachmentMeta] = Field(default_factory=list)
+
+    # Session-scoped billing helpers (ICD-9 chips, suggestions)
+    billing: BillingSession = Field(default_factory=BillingSession)
