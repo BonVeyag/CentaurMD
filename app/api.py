@@ -1879,6 +1879,89 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
     return found
 
 
+def _normalize_icd9_text(text: str) -> str:
+    s = (text or "").lower()
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _sanitize_icd9_parts(parts: List[str], source_text: str) -> List[str]:
+    if not parts:
+        return []
+
+    text_norm = _normalize_icd9_text(source_text)
+    if not text_norm:
+        return parts
+
+    deny_desc_re = re.compile(
+        r"\b("
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
+        r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
+        r")\b",
+        flags=re.IGNORECASE,
+    )
+    addr_re = re.compile(
+        r"\b(avenue|ave|road|rd|street|st\.|st|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|ab|alberta)\b",
+        flags=re.IGNORECASE,
+    )
+
+    out: List[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        if len(out) >= 3:
+            break
+        raw = (part or "").strip()
+        if not raw:
+            continue
+        m = re.match(r"^\s*(\d{3}(?:\.\d{1,2})?)\s*(?:\((.+)\))?\s*$", raw)
+        if not m:
+            continue
+        code = (m.group(1) or "").strip()
+        dx = (m.group(2) or "").strip()
+        if not code or code in seen:
+            continue
+
+        if dx and (deny_desc_re.search(dx) or addr_re.search(dx)):
+            continue
+
+        rec = get_icd9_by_code(code) or {}
+        label = (rec.get("label") or "").strip()
+        synonyms = rec.get("synonyms") or []
+
+        dx_norm = _normalize_icd9_text(dx)
+        label_norm = _normalize_icd9_text(label)
+        syn_norms = [_normalize_icd9_text(s) for s in synonyms if s]
+
+        has_evidence = False
+        if dx_norm and dx_norm in text_norm:
+            has_evidence = True
+        elif label_norm and label_norm in text_norm:
+            has_evidence = True
+        else:
+            for syn in syn_norms:
+                if syn and syn in text_norm:
+                    has_evidence = True
+                    break
+
+        if not has_evidence:
+            icd_re = re.compile(rf"(?i)icd[- ]?9[^\n]{{0,30}}\b{re.escape(code)}\b")
+            if icd_re.search(source_text or ""):
+                has_evidence = True
+
+        if not has_evidence:
+            continue
+
+        final_label = label or dx
+        if not final_label:
+            continue
+        out.append(f"{code} ({final_label})")
+        seen.add(code)
+
+    return out
+
+
 def _session_icd9_codes(context: SessionContext, source: Optional[str] = None) -> List[BillingIcd9Code]:
     try:
         items = list(getattr(context.billing, "icd9_codes", None) or [])
