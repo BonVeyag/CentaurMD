@@ -1950,6 +1950,7 @@ HARD RULES:
 - If the question is asking about an ATTACHED DOCUMENT, do NOT claim to have seen it unless its extracted text is present below.
 - If the user asks to describe an image/lesion, only do so if image(s) are present (see ATTACHED IMAGES).
 - If LOCAL KNOWLEDGE BASE content is provided and relevant, prioritize it over WEB SOURCES.
+- If GUIDELINE RUNNER output is provided, use it as the authoritative decision path and do NOT invent additional steps.
 
 IMPORTANT LOGIC RULE:
 - If the question is DESCRIPTIVE (e.g. listing meds/history/facts OR summarizing an attached document OR describing an image):
