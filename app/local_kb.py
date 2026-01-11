@@ -112,6 +112,7 @@ def _utc_now_iso() -> str:
 
 def _ensure_dirs() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(KB_ASSET_DIR, exist_ok=True)
 
 
 def _get_db() -> sqlite3.Connection:
