@@ -70,7 +70,15 @@ from app.icd9 import (
     suggest_icd9_from_text,
     has_icd9_dictionary,
 )
-from app.local_kb import KB_ENABLED, list_sites as kb_list_sites, index_site as kb_index_site
+from app.local_kb import (
+    KB_ENABLED,
+    list_sites as kb_list_sites,
+    index_site as kb_index_site,
+    list_guidelines as kb_list_guidelines,
+    get_guideline_detail as kb_get_guideline_detail,
+    save_guideline_patch as kb_save_guideline_patch,
+    reextract_guideline as kb_reextract_guideline,
+)
 
 # -------------------------
 # TEMPORARY in-memory store
