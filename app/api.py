@@ -2010,6 +2010,26 @@ def _generate_icd9_and_billing_lines(
     """
     transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
     transcript_ok = _has_meaningful_transcript_for_billing(context)
+    icd_parts: List[str] = []
+    icd_locked = False
+
+    selected_codes = _session_icd9_codes(context, "user_selected")
+    if selected_codes:
+        icd_parts = _icd9_parts_from_codes(selected_codes)
+        icd_locked = bool(icd_parts)
+    else:
+        suggested_codes = _session_icd9_codes(context, "ai_suggested")
+        if not suggested_codes:
+            suggested_codes = _suggest_icd9_codes_for_context(context)
+            if suggested_codes:
+                try:
+                    context.billing.icd9_codes = suggested_codes
+                    _touch(context)
+                except Exception:
+                    pass
+        if suggested_codes:
+            icd_parts = _icd9_parts_from_codes(suggested_codes)
+            icd_locked = bool(icd_parts)
 
     fallback_source = ""
     if not transcript_ok:
