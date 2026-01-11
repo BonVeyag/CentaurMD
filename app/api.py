@@ -2131,6 +2131,7 @@ def _generate_icd9_and_billing_lines(
     transcript_ok = _has_meaningful_transcript_for_billing(context)
     icd_parts: List[str] = []
     icd_locked = False
+    icd_from_emr = False
 
     selected_codes = _session_icd9_codes(context, "user_selected")
     if selected_codes:
@@ -2263,14 +2264,19 @@ NOTES:
                 )
             if len(icd_parts) > 3:
                 icd_parts = icd_parts[:3]
+            icd_from_emr = bool(icd_parts)
 
         if not icd_parts and transcript_ok and fallback_source:
             icd_parts = _extract_icd9_from_text_direct(fallback_source)
             if not icd_parts:
                 fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
                 icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
+            icd_from_emr = bool(icd_parts)
 
-    icd_source_text = transcript if transcript_ok else (emr_context or fallback_source)
+    if transcript_ok and not icd_from_emr:
+        icd_source_text = transcript
+    else:
+        icd_source_text = emr_context or fallback_source
     icd_parts = _sanitize_icd9_parts(icd_parts, icd_source_text)
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
