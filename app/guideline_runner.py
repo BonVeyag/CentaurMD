@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import json
+import os
 import re
 from typing import Any, Dict, List, Optional
 
 from app.local_kb import search_guideline_graphs, get_guideline_graph
+
+_GUIDELINE_VAR_MODEL = os.getenv("CENTAUR_GUIDELINE_VAR_MODEL", "gpt-5-nano").strip()
+_GUIDELINE_LLM_VARS = os.getenv("CENTAUR_GUIDELINE_LLM_VARS", "0").strip().lower() in {"1", "true", "yes"}
 
 
 def _extract_basic_variables(text: str) -> Dict[str, Any]:
