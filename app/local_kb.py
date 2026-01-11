@@ -268,6 +268,36 @@ def _is_allowed_url(url: str) -> bool:
     return True
 
 
+def _is_asset_url(url: str) -> bool:
+    if not url:
+        return False
+    return bool(re.search(r"\.(pdf|jpg|jpeg|png|gif|svg)$", url, flags=re.IGNORECASE))
+
+
+def _extract_inline_svgs(html_text: str) -> List[str]:
+    if not html_text:
+        return []
+    return re.findall(r"<svg[^>]*>.*?</svg>", html_text, flags=re.IGNORECASE | re.DOTALL)
+
+
+def _guess_asset_type(url: str, content_type: str = "") -> str:
+    ctype = (content_type or "").lower()
+    if "svg" in ctype:
+        return "svg"
+    if "pdf" in ctype:
+        return "pdf"
+    if "image" in ctype:
+        return "image"
+    ext = (os.path.splitext(urllib.parse.urlparse(url).path)[-1] or "").lower()
+    if ext in {".svg"}:
+        return "svg"
+    if ext in {".pdf"}:
+        return "pdf"
+    if ext in {".png", ".jpg", ".jpeg", ".gif"}:
+        return "image"
+    return ""
+
+
 def _split_chunks(text: str) -> List[str]:
     if not text:
         return []
