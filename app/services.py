@@ -1902,6 +1902,7 @@ def build_clinical_query_prompt(
     attachments: Optional[List[Dict[str, Any]]] = None,
     web_context: str = "",
     kb_context: str = "",
+    guideline_context: str = "",
 ) -> str:
     _hydrate_identifiers_best_effort(context)
 
@@ -1914,6 +1915,7 @@ def build_clinical_query_prompt(
     images_summary = _attachments_image_summary(attachments)
     web_block = web_context.strip() or "None"
     kb_block = kb_context.strip() or "None"
+    guideline_block = guideline_context.strip() or "None"
 
     return f"""
 You are Centaur: a focused, formal, exacting AI consultant. Your purpose is to deliver high-value, correct, practical outputs with minimal fluff.
@@ -1978,6 +1980,9 @@ WEB SOURCES (unverified; use when freshness matters; cite URLs if used):
 
 LOCAL KNOWLEDGE BASE (priority; cite URLs if used):
 {kb_block}
+
+GUIDELINE RUNNER (deterministic; cite URLs/page/node if used):
+{guideline_block}
 
 QUESTION:
 {query}
