@@ -406,10 +406,7 @@ def _crawl_site(start_url: str, max_pages: int, max_depth: int) -> List[KbPage]:
             if _is_asset_url(abs_url):
                 assets.append(abs_url)
 
-        if len(text) < KB_MIN_TEXT_LEN:
-            continue
-
-        text = text[:KB_MAX_TEXT_LEN].strip()
+        text = text[:KB_MAX_TEXT_LEN].strip() if text else ""
         pages.append(KbPage(url=url, title=title, text=text, links=links, assets=assets, inline_svgs=inline_svgs))
 
         for href in links:
@@ -941,6 +938,7 @@ def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Op
     prompt = (
         "You are extracting a clinical guideline flowchart into structured JSON. "
         "Return JSON only matching GuidelineGraph schema with nodes and edges. "
+        f"Asset URL: {asset_url}. Asset type: {asset_type}. "
         "Include evidence_spans with asset_url, asset_type, page (if known), bbox (approximate), excerpt. "
         "Keep labels concise and faithful."
     )
@@ -1068,9 +1066,15 @@ def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
                             f.write(data)
                     except Exception:
                         pass
+            existing = conn.execute(
+                "SELECT sha256, status FROM kb_assets WHERE asset_url = ?",
+                (asset_url,),
+            ).fetchone()
             _upsert_asset(conn, site_url, asset_url, asset_type, sha, status, error)
             conn.commit()
             if status != "ok" or not data:
+                continue
+            if existing and existing["sha256"] == sha and (existing["status"] or "") == "ok":
                 continue
             asset["bytes"] = data
             graph_tuple = _extract_guideline_graph_from_asset(asset, site_url)
@@ -1145,6 +1149,8 @@ def index_site(url: str) -> Dict[str, str]:
                 page_url = page.url
                 title = page.title
                 text = page.text
+                if len(text) < KB_MIN_TEXT_LEN:
+                    continue
                 for chunk in _split_chunks(text):
                     chunk_count += 1
                     created = _utc_now_iso()

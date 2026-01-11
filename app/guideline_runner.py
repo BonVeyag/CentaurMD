@@ -33,6 +33,41 @@ def _extract_basic_variables(text: str) -> Dict[str, Any]:
     return out
 
 
+def _extract_variables_llm(text: str, variable_names: List[str]) -> Dict[str, Any]:
+    if not _GUIDELINE_LLM_VARS or not variable_names:
+        return {}
+    if not os.getenv("OPENAI_API_KEY"):
+        return {}
+    try:
+        from openai import OpenAI  # type: ignore
+    except Exception:
+        return {}
+    prompt = (
+        "Extract values for the listed variables from the patient context. "
+        "Return JSON only. Use null if not present."
+    )
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    try:
+        resp = client.chat.completions.create(
+            model=_GUIDELINE_VAR_MODEL,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"Variables: {variable_names}\nContext: {text}"},
+            ],
+        )
+        content = (resp.choices[0].message.content or "").strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```[a-zA-Z0-9]*\\s*", "", content)
+            content = re.sub(r"```$", "", content).strip()
+        data = json.loads(content)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        return {}
+    return {}
+
+
 def _normalize_var_name(name: str) -> str:
     return re.sub(r"[^a-z0-9_]+", "_", (name or "").lower()).strip("_")
 
@@ -132,6 +167,12 @@ def run_guideline_runner(query: str, context_text: str) -> Optional[Dict[str, An
         return None
 
     variables = _extract_basic_variables(context_text)
+    var_names = [v.get("name") for v in (graph.get("variables", []) or []) if v.get("name")]
+    llm_vars = _extract_variables_llm(context_text, var_names)
+    for k, v in (llm_vars or {}).items():
+        if v is None:
+            continue
+        variables[_normalize_var_name(k)] = v
     nodes = {n.get("id"): n for n in graph.get("nodes", [])}
     edges = graph.get("edges", [])
 
