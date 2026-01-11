@@ -1900,6 +1900,7 @@ def build_clinical_query_prompt(
     attachments_text: str = "",
     attachments: Optional[List[Dict[str, Any]]] = None,
     web_context: str = "",
+    kb_context: str = "",
 ) -> str:
     _hydrate_identifiers_best_effort(context)
 
@@ -1911,6 +1912,7 @@ def build_clinical_query_prompt(
     att_block = _format_attachments_block(attachments_text)
     images_summary = _attachments_image_summary(attachments)
     web_block = web_context.strip() or "None"
+    kb_block = kb_context.strip() or "None"
 
     return f"""
 You are Centaur: a focused, formal, exacting AI consultant. Your purpose is to deliver high-value, correct, practical outputs with minimal fluff.
@@ -1971,6 +1973,9 @@ ATTACHED IMAGES (provided in the message payload, if any):
 
 WEB SOURCES (unverified; use when freshness matters; cite URLs if used):
 {web_block}
+
+LOCAL KNOWLEDGE BASE (priority; cite URLs if used):
+{kb_block}
 
 QUESTION:
 {query}
