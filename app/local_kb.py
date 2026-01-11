@@ -35,6 +35,12 @@ KB_CHUNK_CHARS = int(os.getenv("CENTAUR_KB_CHUNK_CHARS", "1200"))
 KB_CHUNK_OVERLAP = int(os.getenv("CENTAUR_KB_CHUNK_OVERLAP", "150"))
 KB_REFRESH_DAYS = int(os.getenv("CENTAUR_KB_REFRESH_DAYS", "30"))
 KB_REFRESH_INTERVAL_SECONDS = int(os.getenv("CENTAUR_KB_REFRESH_INTERVAL_SECONDS", "86400"))
+KB_ASSET_DIR = os.path.join(DATA_DIR, "kb_assets")
+KB_MAX_ASSETS = int(os.getenv("CENTAUR_KB_MAX_ASSETS", "60"))
+KB_GUIDELINE_MAX_NODES = int(os.getenv("CENTAUR_KB_GUIDELINE_MAX_NODES", "120"))
+KB_GUIDELINE_MAX_EDGES = int(os.getenv("CENTAUR_KB_GUIDELINE_MAX_EDGES", "180"))
+KB_GUIDELINE_VISION_MODEL = os.getenv("CENTAUR_KB_VISION_MODEL", "gpt-4o-mini").strip()
+KB_GUIDELINE_LLM_EXTRACT = os.getenv("CENTAUR_KB_ENABLE_VISION", "0").strip().lower() in {"1", "true", "yes"}
 
 _INDEX_LOCK = threading.Lock()
 _REFRESH_THREAD: Optional[threading.Thread] = None
