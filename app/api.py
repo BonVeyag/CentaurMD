@@ -1396,6 +1396,60 @@ def index_local_kb_site(payload: KbIndexPayload, user: AuthUser = Depends(requir
     return {"ok": True, "site": result}
 
 
+@router.get("/admin/local_kb/guidelines")
+def list_local_kb_guidelines(user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    return {"guidelines": kb_list_guidelines()}
+
+
+@router.get("/admin/local_kb/guidelines/{guideline_id}")
+def get_local_kb_guideline(guideline_id: str, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    detail = kb_get_guideline_detail(guideline_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Guideline not found.")
+    return detail
+
+
+@router.post("/admin/local_kb/guidelines/{guideline_id}/patch")
+def patch_local_kb_guideline(
+    guideline_id: str,
+    payload: GuidelinePatchPayload,
+    user: AuthUser = Depends(require_user),
+):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    patch_ops = payload.patch or []
+    if not isinstance(patch_ops, list):
+        raise HTTPException(status_code=400, detail="patch must be a list")
+    try:
+        kb_save_guideline_patch(guideline_id, patch_ops)
+    except Exception as e:
+        logger.warning(f"KB patch failed: {e}")
+        raise HTTPException(status_code=500, detail="Patch save failed.")
+    return {"ok": True}
+
+
+@router.post("/admin/local_kb/guidelines/{guideline_id}/reextract")
+def reextract_local_kb_guideline(guideline_id: str, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    try:
+        kb_reextract_guideline(guideline_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.warning(f"KB reextract failed: {e}")
+        raise HTTPException(status_code=500, detail="Re-extract failed.")
+    return {"ok": True}
+
+
 # =========================
 # Clinical Query Console
 # =========================
