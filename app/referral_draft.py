@@ -1142,7 +1142,8 @@ def render_referral_letter(draft: ReferralDraft) -> str:
         [
             "",
             f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} | CPSA: {_display(ref.cpsa, 'CPSA')}",
-            f"CLINIC: {_display(ref.clinic_name, 'clinic name')} | ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
+            f"CLINIC: {_display(ref.clinic_name, 'clinic name')}",
+            f"ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
             f"RETURN REPORT TO: {_display_soft(return_target)}",
             "",
             "1) REFERRAL INTENT",
