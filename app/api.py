@@ -181,11 +181,14 @@ def _billing_state_path(username: str, day_key: str) -> str:
     return os.path.join(base, f"current_{day_key}.json")
 
 
-def _default_billing_state(day_key: str) -> Dict[str, Any]:
+def _default_billing_state(day_key: str, billing_model: str = "FFS") -> Dict[str, Any]:
+    model = (billing_model or "FFS").strip().upper()
+    if model not in ("FFS", "PCPCM"):
+        model = "FFS"
     return {
         "date": day_key,
         "physician": "",
-        "billing_model": "FFS",
+        "billing_model": model,
         "billing_text": "",
         "last_updated_at": _utcnow().isoformat(),
     }
@@ -220,13 +223,23 @@ def _persist_billing_state(username: str, st: Dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
-def _init_daily_billing_state_if_missing(username: str, day_key: str) -> Dict[str, Any]:
+def _init_daily_billing_state_if_missing(
+    username: str,
+    day_key: str,
+    default_model: Optional[str] = None,
+) -> Dict[str, Any]:
     key = _billing_state_key(username, day_key)
     with BILLING_LOCK:
         st = DAILY_BILLING_STORE.get(key)
         if st is not None:
             return st
+    path = _billing_state_path(username, day_key)
+    exists = os.path.exists(path)
     st = _load_billing_state_from_disk(username, day_key)
+    if not exists:
+        model = (default_model or "").strip().upper()
+        if model in ("FFS", "PCPCM"):
+            st["billing_model"] = model
     with BILLING_LOCK:
         DAILY_BILLING_STORE[key] = st
         return st
