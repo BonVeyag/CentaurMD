@@ -1654,6 +1654,11 @@ def _extract_emr_context_for_billing(context: SessionContext) -> str:
         r"\b(kg|lbs|lb|cm|mm|mmhg|bpm|%|weight|height|bmi|pulse|temp|temperature)\b",
         flags=re.IGNORECASE,
     )
+    addr_re = re.compile(
+        r"\b(avenue|ave|road|rd|street|st\.|blvd|boulevard|suite|unit|po box|postal|zip|ab|alberta)\b",
+        flags=re.IGNORECASE,
+    )
+    phone_re = re.compile(r"\b\d{3}[-)\s]\d{3}[-\s]\d{4}\b")
 
     kept: List[str] = []
     seen: set[str] = set()
@@ -1670,7 +1675,7 @@ def _extract_emr_context_for_billing(context: SessionContext) -> str:
                     kept.append(ln)
                     seen.add(ln)
             continue
-        if code_re.search(raw) and not deny_re.search(raw):
+        if code_re.search(raw) and not deny_re.search(raw) and not addr_re.search(raw) and not phone_re.search(raw):
             if raw not in seen:
                 kept.append(raw)
                 seen.add(raw)
