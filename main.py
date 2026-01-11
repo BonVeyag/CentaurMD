@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from app.api import router as api_router
 from app.auth import router as auth_router, require_user, validate_smtp_config, get_smtp_status
+from app.local_kb import init_db as kb_init_db, start_refresh_thread as kb_start_refresh_thread
 import logging
 import os
 import subprocess
@@ -46,6 +47,12 @@ def startup_event():
     except Exception as e:
         logger.error(f"SMTP validation failed: {e}")
         raise
+    try:
+        kb_init_db()
+        kb_start_refresh_thread()
+        logger.info("Local knowledge base initialized")
+    except Exception as e:
+        logger.warning(f"Local KB init failed: {e}")
     _auto_commit_on_reload()
 
 
