@@ -1725,11 +1725,15 @@ def _extract_emr_context_for_billing(context: SessionContext) -> str:
     )
     code_re = re.compile(r"\b\d{3}(?:\.\d{1,2})?\b")
     deny_re = re.compile(
-        r"\b(kg|lbs|lb|cm|mm|mmhg|bpm|%|weight|height|bmi|pulse|temp|temperature)\b",
+        r"\b("
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|weight|height|bmi|pulse|temp|temperature"
+        r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
+        r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
+        r")\b",
         flags=re.IGNORECASE,
     )
     addr_re = re.compile(
-        r"\b(avenue|ave|road|rd|street|st\.|blvd|boulevard|suite|unit|po box|postal|zip|ab|alberta)\b",
+        r"\b(avenue|ave|road|rd|street|st\.|st|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|ab|alberta)\b",
         flags=re.IGNORECASE,
     )
     phone_re = re.compile(r"\b\d{3}[-)\s]\d{3}[-\s]\d{4}\b")
