@@ -180,6 +180,14 @@ def run_guideline_runner(query: str, context_text: str) -> Optional[Dict[str, An
                     }
                 )
 
+    for var in graph.get("variables", []) or []:
+        name = var.get("name")
+        if not name:
+            continue
+        key = _normalize_var_name(name)
+        if key not in variables:
+            missing_inputs.append({"variable": name, "question_to_user": f"Provide {name}."})
+
     return {
         "selected_guideline": {
             "guideline_id": guideline_id,
