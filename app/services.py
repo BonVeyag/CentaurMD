@@ -2023,8 +2023,16 @@ def run_clinical_query(
     format_hint, force_descriptive = _infer_query_format(query)
     descriptive = is_descriptive_query(query) or force_descriptive
 
+    kb_context = ""
+    if KB_ENABLED:
+        try:
+            kb_results = search_kb(query, limit=5)
+            kb_context = format_kb_context(kb_results)
+        except Exception:
+            kb_context = ""
+
     web_context = ""
-    if WEB_SEARCH_ENABLED and CLINICAL_QUERY_USE_WEB:
+    if not kb_context and WEB_SEARCH_ENABLED and CLINICAL_QUERY_USE_WEB:
         try:
             web_query = _build_web_query_for_clinical_query(context, query)
             results = _web_search(web_query)
@@ -2041,6 +2049,7 @@ def run_clinical_query(
         attachments_text=attachments_text,
         attachments=attachments,
         web_context=web_context,
+        kb_context=kb_context,
     )
 
     has_images = False
