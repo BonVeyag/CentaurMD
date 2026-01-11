@@ -1951,6 +1951,7 @@ HARD RULES:
 - If the user asks to describe an image/lesion, only do so if image(s) are present (see ATTACHED IMAGES).
 - If LOCAL KNOWLEDGE BASE content is provided and relevant, prioritize it over WEB SOURCES.
 - If GUIDELINE RUNNER output is provided, use it as the authoritative decision path and do NOT invent additional steps.
+- When using GUIDELINE RUNNER output, surface: decision points, next steps, missing inputs, and cite source_url/page/node label from evidence_spans.
 
 IMPORTANT LOGIC RULE:
 - If the question is DESCRIPTIVE (e.g. listing meds/history/facts OR summarizing an attached document OR describing an image):
