@@ -2030,15 +2030,24 @@ def run_clinical_query(
     descriptive = is_descriptive_query(query) or force_descriptive
 
     kb_context = ""
+    guideline_context = ""
     if KB_ENABLED:
         try:
             kb_results = search_kb(query, limit=5)
             kb_context = format_kb_context(kb_results)
         except Exception:
             kb_context = ""
+        try:
+            bg_text = (getattr(context.clinical_background, "emr_dump", "") or "").strip()
+            tx_text = (getattr(context.transcript, "raw_text", "") or "").strip()
+            guideline_result = run_guideline_runner(query, f"{bg_text}\n{tx_text}".strip())
+            if guideline_result:
+                guideline_context = json.dumps(guideline_result, ensure_ascii=True)
+        except Exception:
+            guideline_context = ""
 
     web_context = ""
-    if not kb_context and WEB_SEARCH_ENABLED and CLINICAL_QUERY_USE_WEB:
+    if not kb_context and not guideline_context and WEB_SEARCH_ENABLED and CLINICAL_QUERY_USE_WEB:
         try:
             web_query = _build_web_query_for_clinical_query(context, query)
             results = _web_search(web_query)
@@ -2056,6 +2065,7 @@ def run_clinical_query(
         attachments=attachments,
         web_context=web_context,
         kb_context=kb_context,
+        guideline_context=guideline_context,
     )
 
     has_images = False
