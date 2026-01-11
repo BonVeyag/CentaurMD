@@ -2225,7 +2225,7 @@ def get_billing_today(user: AuthUser = Depends(require_user)):
       - billing_text (editable area)
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(user.username, day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key, _profile_default_billing_model(user.username))
 
     with BILLING_LOCK:
         billing_text = (st.get("billing_text") or "")
@@ -2254,7 +2254,7 @@ def set_billing_model_today(payload: BillingModelPayload, user: AuthUser = Depen
     - If set to PCPCM, keep for the rest of the day (in-memory).
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(user.username, day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key, _profile_default_billing_model(user.username))
 
     model = (payload.billing_model or "").strip().upper()
     if model not in ("FFS", "PCPCM"):
@@ -2275,7 +2275,7 @@ def save_billing_today(payload: BillingSavePayload, user: AuthUser = Depends(req
     - Optionally update physician and billing_model in the same save.
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(user.username, day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key, _profile_default_billing_model(user.username))
 
     billing_text = (payload.billing_text or "").rstrip()
 
@@ -2320,7 +2320,7 @@ def bill_current_session_into_daily_list(
     _ensure_anchor_hydrated_from_emr(context)
 
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(user.username, day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key, _profile_default_billing_model(user.username))
 
     with BILLING_LOCK:
         current_model = (payload.billing_model or st.get("billing_model") or "FFS").strip().upper()
@@ -2364,7 +2364,7 @@ def print_and_clear_billing_today(user: AuthUser = Depends(require_user)):
       (Billing model selection remains for the day.)
     """
     day_key = _today_key_edmonton()
-    st = _init_daily_billing_state_if_missing(user.username, day_key)
+    st = _init_daily_billing_state_if_missing(user.username, day_key, _profile_default_billing_model(user.username))
 
     archive_name = ""
     saved_at_local = ""
