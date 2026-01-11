@@ -955,6 +955,13 @@ def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Op
         return None
 
 
+def _is_guideline_asset(asset: Dict[str, Any]) -> bool:
+    url = (asset.get("asset_url") or "").lower()
+    title = (asset.get("page_title") or "").lower()
+    keywords = ["pathway", "guideline", "algorithm", "flow", "care map", "clinical pathway"]
+    return any(k in url for k in keywords) or any(k in title for k in keywords)
+
+
 def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
     assets = _collect_asset_candidates(pages, site_url)
     if not assets:
