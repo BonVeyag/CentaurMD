@@ -39,7 +39,10 @@ KB_MAX_ASSETS = int(os.getenv("CENTAUR_KB_MAX_ASSETS", "60"))
 KB_GUIDELINE_MAX_NODES = int(os.getenv("CENTAUR_KB_GUIDELINE_MAX_NODES", "120"))
 KB_GUIDELINE_MAX_EDGES = int(os.getenv("CENTAUR_KB_GUIDELINE_MAX_EDGES", "180"))
 KB_GUIDELINE_VISION_MODEL = os.getenv("CENTAUR_KB_VISION_MODEL", "gpt-4o-mini").strip()
-KB_GUIDELINE_LLM_EXTRACT = os.getenv("CENTAUR_KB_ENABLE_VISION", "0").strip().lower() in {"1", "true", "yes"}
+_kb_vision_env = os.getenv("CENTAUR_KB_ENABLE_VISION", "").strip().lower()
+KB_GUIDELINE_LLM_EXTRACT = (_kb_vision_env in {"1", "true", "yes"}) or (
+    _kb_vision_env == "" and bool(os.getenv("OPENAI_API_KEY"))
+)
 
 _INDEX_LOCK = threading.Lock()
 _REFRESH_THREAD: Optional[threading.Thread] = None

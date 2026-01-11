@@ -954,6 +954,26 @@ textarea::-webkit-scrollbar-track{
 .kb-panel{
   width:min(640px, 94vw);
 }
+.kb-tabs{
+  display:flex;
+  gap:8px;
+  padding:0 16px 6px;
+}
+.kb-tab{
+  border-radius:999px;
+  border:none;
+  padding:8px 14px;
+  font-size:13px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  cursor:pointer;
+}
+.kb-tab.active{
+  background: color-mix(in oklab, var(--accent) 24%, var(--panel2));
+}
 .kb-panel .macro-section{
   display:flex;
   flex-direction:column;
@@ -990,6 +1010,66 @@ textarea::-webkit-scrollbar-track{
   font-size:12px;
   color: var(--muted);
   margin-top:4px;
+}
+.kb-guideline-panel{
+  width:min(980px, 96vw);
+}
+.kb-guideline-body{
+  display:grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap:14px;
+  padding:0 16px 16px;
+}
+.kb-guideline-asset{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.kb-guideline-asset iframe{
+  width:100%;
+  min-height:380px;
+  border-radius:14px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.kb-guideline-editor{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.kb-editor-list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  max-height:260px;
+  overflow:auto;
+  padding-right:4px;
+}
+.kb-editor-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:8px;
+}
+.kb-editor-row input,
+.kb-editor-row select,
+.kb-editor-row textarea{
+  width:100%;
+  border-radius:12px;
+  border:none;
+  padding:8px 10px;
+  font-size:12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.kb-editor-row textarea{
+  min-height:42px;
+  resize:none;
 }
 .profile-panel input{
   width:100%;
@@ -1803,17 +1883,61 @@ and for the care, day after day, you give.</div>
     <h2>Local Knowledge Base</h2>
     <button id="kbCloseBtn" type="button">✕</button>
   </div>
-  <div class="macro-section">
-    <input id="kbUrlInput" type="text" placeholder="Enter site URL (e.g., https://rxfiles.ca)" />
-    <div id="kbStatus" class="macro-status"></div>
-    <div class="macro-editor-actions">
-      <button id="kbIndexBtn" class="primary" type="button">Index site</button>
-      <button id="kbRefreshBtn" type="button">Refresh list</button>
+  <div class="kb-tabs">
+    <button id="kbSitesTab" type="button" class="kb-tab active">Sites</button>
+    <button id="kbGuidelinesTab" type="button" class="kb-tab">Guideline Algorithms</button>
+  </div>
+  <div id="kbSitesView">
+    <div class="macro-section">
+      <input id="kbUrlInput" type="text" placeholder="Enter site URL (e.g., https://rxfiles.ca)" />
+      <div id="kbStatus" class="macro-status"></div>
+      <div class="macro-editor-actions">
+        <button id="kbIndexBtn" class="primary" type="button">Index site</button>
+        <button id="kbRefreshBtn" type="button">Refresh list</button>
+      </div>
+    </div>
+    <div class="macro-section">
+      <div class="summary-title">Indexed sites</div>
+      <div id="kbSiteList" class="kb-site-list"></div>
     </div>
   </div>
-  <div class="macro-section">
-    <div class="summary-title">Indexed sites</div>
-    <div id="kbSiteList" class="kb-site-list"></div>
+  <div id="kbGuidelinesView" style="display:none">
+    <div class="macro-section">
+      <div class="summary-title">Extracted guidelines</div>
+      <div id="kbGuidelineList" class="kb-site-list"></div>
+      <div id="kbGuidelineStatus" class="macro-status"></div>
+      <div class="macro-editor-actions">
+        <button id="kbGuidelineRefreshBtn" type="button">Refresh list</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="kbGuidelineOverlay" class="macro-overlay" style="display:none"></div>
+<div id="kbGuidelinePanel" class="macro-panel kb-guideline-panel" style="display:none" aria-label="Guideline QA">
+  <div class="macro-head">
+    <h2>Guideline QA</h2>
+    <button id="kbGuidelineCloseBtn" type="button">✕</button>
+  </div>
+  <div class="kb-guideline-body">
+    <div class="kb-guideline-asset">
+      <div class="summary-title">Source</div>
+      <a id="kbGuidelineSourceLink" href="#" target="_blank" rel="noopener">Open source</a>
+      <iframe id="kbGuidelineFrame" title="Guideline source"></iframe>
+    </div>
+    <div class="kb-guideline-editor">
+      <div class="summary-title">Nodes</div>
+      <div id="kbGuidelineNodes" class="kb-editor-list"></div>
+      <button id="kbGuidelineAddNode" type="button">Add node</button>
+      <div class="summary-title">Edges</div>
+      <div id="kbGuidelineEdges" class="kb-editor-list"></div>
+      <button id="kbGuidelineAddEdge" type="button">Add edge</button>
+      <div id="kbGuidelineEditStatus" class="macro-status"></div>
+      <div class="macro-editor-actions">
+        <button id="kbGuidelineSaveBtn" class="primary" type="button">Save Patch</button>
+        <button id="kbGuidelineReextractBtn" type="button">Re-extract</button>
+        <button id="kbGuidelineCloseBtn2" type="button">Close</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="referralOverlay" class="macro-overlay" style="display:none"></div>
@@ -2063,6 +2187,26 @@ const kbStatus = document.getElementById("kbStatus");
 const kbIndexBtn = document.getElementById("kbIndexBtn");
 const kbRefreshBtn = document.getElementById("kbRefreshBtn");
 const kbSiteList = document.getElementById("kbSiteList");
+const kbSitesTab = document.getElementById("kbSitesTab");
+const kbGuidelinesTab = document.getElementById("kbGuidelinesTab");
+const kbSitesView = document.getElementById("kbSitesView");
+const kbGuidelinesView = document.getElementById("kbGuidelinesView");
+const kbGuidelineList = document.getElementById("kbGuidelineList");
+const kbGuidelineStatus = document.getElementById("kbGuidelineStatus");
+const kbGuidelineRefreshBtn = document.getElementById("kbGuidelineRefreshBtn");
+const kbGuidelineOverlay = document.getElementById("kbGuidelineOverlay");
+const kbGuidelinePanel = document.getElementById("kbGuidelinePanel");
+const kbGuidelineCloseBtn = document.getElementById("kbGuidelineCloseBtn");
+const kbGuidelineCloseBtn2 = document.getElementById("kbGuidelineCloseBtn2");
+const kbGuidelineSourceLink = document.getElementById("kbGuidelineSourceLink");
+const kbGuidelineFrame = document.getElementById("kbGuidelineFrame");
+const kbGuidelineNodes = document.getElementById("kbGuidelineNodes");
+const kbGuidelineEdges = document.getElementById("kbGuidelineEdges");
+const kbGuidelineAddNode = document.getElementById("kbGuidelineAddNode");
+const kbGuidelineAddEdge = document.getElementById("kbGuidelineAddEdge");
+const kbGuidelineSaveBtn = document.getElementById("kbGuidelineSaveBtn");
+const kbGuidelineReextractBtn = document.getElementById("kbGuidelineReextractBtn");
+const kbGuidelineEditStatus = document.getElementById("kbGuidelineEditStatus");
 const referralOverlay = document.getElementById("referralOverlay");
 const referralPanel = document.getElementById("referralPanel");
 const referralCloseBtn = document.getElementById("referralCloseBtn");
@@ -2707,7 +2851,7 @@ function openKbPanel() {
   kbOverlay.style.display = "block";
   kbPanel.style.display = "flex";
   setKbStatus("");
-  loadKbSites();
+  setKbTab("sites");
 }
 
 function closeKbPanel() {
@@ -2720,6 +2864,19 @@ function setKbStatus(message, isError=false) {
   if (!kbStatus) return;
   kbStatus.textContent = message || "";
   kbStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setKbTab(tab) {
+  const showSites = tab === "sites";
+  if (kbSitesView) kbSitesView.style.display = showSites ? "block" : "none";
+  if (kbGuidelinesView) kbGuidelinesView.style.display = showSites ? "none" : "block";
+  if (kbSitesTab) kbSitesTab.classList.toggle("active", showSites);
+  if (kbGuidelinesTab) kbGuidelinesTab.classList.toggle("active", !showSites);
+  if (showSites) {
+    loadKbSites();
+  } else {
+    loadKbGuidelines();
+  }
 }
 
 function renderKbSites(sites) {
@@ -2747,6 +2904,56 @@ function renderKbSites(sites) {
     wrap.appendChild(title);
     wrap.appendChild(meta);
     kbSiteList.appendChild(wrap);
+  }
+}
+
+function setKbGuidelineStatus(message, isError=false) {
+  if (!kbGuidelineStatus) return;
+  kbGuidelineStatus.textContent = message || "";
+  kbGuidelineStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function renderKbGuidelines(items) {
+  if (!kbGuidelineList) return;
+  kbGuidelineList.innerHTML = "";
+  if (!Array.isArray(items) || items.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "kb-site-item";
+    empty.textContent = "No guidelines extracted yet.";
+    kbGuidelineList.appendChild(empty);
+    return;
+  }
+  for (const item of items) {
+    const wrap = document.createElement("div");
+    wrap.className = "kb-site-item";
+    const title = document.createElement("div");
+    title.textContent = item.title || item.source_url || item.guideline_id;
+    const meta = document.createElement("div");
+    meta.className = "kb-site-meta";
+    const conf = (item.confidence || 0).toFixed(2);
+    meta.textContent = `Jurisdiction: ${item.jurisdiction || "—"} | Version: ${item.version_date || "—"} | Confidence: ${conf}`;
+    const actions = document.createElement("div");
+    actions.className = "macro-editor-actions";
+    const viewBtn = document.createElement("button");
+    viewBtn.type = "button";
+    viewBtn.textContent = "View / QA";
+    viewBtn.addEventListener("click", () => openKbGuidelineQA(item.guideline_id));
+    actions.appendChild(viewBtn);
+    wrap.appendChild(title);
+    wrap.appendChild(meta);
+    wrap.appendChild(actions);
+    kbGuidelineList.appendChild(wrap);
+  }
+}
+
+async function loadKbGuidelines() {
+  if (!kbGuidelineList) return;
+  try {
+    const data = await apiGet("/admin/local_kb/guidelines");
+    renderKbGuidelines(data?.guidelines || []);
+  } catch (err) {
+    renderKbGuidelines([]);
+    setKbGuidelineStatus(err?.message || "Failed to load guidelines.", true);
   }
 }
 
@@ -2778,6 +2985,188 @@ async function indexKbSite() {
   } catch (err) {
     const msg = err?.message || "Indexing failed.";
     setKbStatus(msg, true);
+  }
+}
+
+let kbGuidelineBaseGraph = null;
+let kbGuidelineDraftGraph = null;
+let kbGuidelineCurrentId = "";
+
+function openKbGuidelinePanel() {
+  if (!kbGuidelinePanel || !kbGuidelineOverlay) return;
+  kbGuidelineOverlay.style.display = "block";
+  kbGuidelinePanel.style.display = "flex";
+}
+
+function closeKbGuidelinePanel() {
+  if (!kbGuidelinePanel || !kbGuidelineOverlay) return;
+  kbGuidelineOverlay.style.display = "none";
+  kbGuidelinePanel.style.display = "none";
+}
+
+function setKbGuidelineEditStatus(message, isError=false) {
+  if (!kbGuidelineEditStatus) return;
+  kbGuidelineEditStatus.textContent = message || "";
+  kbGuidelineEditStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function renderGuidelineNodes(nodes) {
+  if (!kbGuidelineNodes) return;
+  kbGuidelineNodes.innerHTML = "";
+  for (const node of nodes) {
+    const row = document.createElement("div");
+    row.className = "kb-editor-row";
+    row.dataset.nodeId = node.id;
+    const label = document.createElement("input");
+    label.value = node.label || "";
+    label.placeholder = "Node label";
+    const type = document.createElement("select");
+    for (const t of ["entry", "decision", "action", "investigation", "referral", "note", "exit"]) {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t;
+      type.appendChild(opt);
+    }
+    type.value = node.type || "note";
+    const actions = document.createElement("textarea");
+    actions.placeholder = "Actions (one per line)";
+    actions.value = (node.actions || []).join("\\n");
+    row.appendChild(label);
+    row.appendChild(type);
+    row.appendChild(actions);
+    kbGuidelineNodes.appendChild(row);
+  }
+}
+
+function renderGuidelineEdges(edges, nodes) {
+  if (!kbGuidelineEdges) return;
+  kbGuidelineEdges.innerHTML = "";
+  const nodeIds = nodes.map(n => n.id);
+  for (const edge of edges) {
+    const row = document.createElement("div");
+    row.className = "kb-editor-row";
+    const from = document.createElement("select");
+    const to = document.createElement("select");
+    for (const id of nodeIds) {
+      const optFrom = document.createElement("option");
+      optFrom.value = id;
+      optFrom.textContent = id;
+      from.appendChild(optFrom);
+      const optTo = document.createElement("option");
+      optTo.value = id;
+      optTo.textContent = id;
+      to.appendChild(optTo);
+    }
+    from.value = edge.from || nodeIds[0];
+    to.value = edge.to || nodeIds[0];
+    const condition = document.createElement("input");
+    condition.placeholder = "Condition text";
+    condition.value = edge.condition_text || "";
+    row.appendChild(from);
+    row.appendChild(to);
+    row.appendChild(condition);
+    kbGuidelineEdges.appendChild(row);
+  }
+}
+
+function refreshGuidelineEditor(graph) {
+  if (!graph) return;
+  renderGuidelineNodes(graph.nodes || []);
+  renderGuidelineEdges(graph.edges || [], graph.nodes || []);
+}
+
+function collectGuidelineGraphFromEditor() {
+  if (!kbGuidelineBaseGraph) return null;
+  const graph = JSON.parse(JSON.stringify(kbGuidelineBaseGraph));
+  const nodes = [];
+  kbGuidelineNodes?.querySelectorAll(".kb-editor-row").forEach(row => {
+    const inputs = row.querySelectorAll("input, select, textarea");
+    if (inputs.length < 3) return;
+    const label = inputs[0].value.trim();
+    const type = inputs[1].value;
+    const actions = inputs[2].value.split("\\n").map(v => v.trim()).filter(Boolean);
+    const id = row.dataset.nodeId || `node_${nodes.length + 1}`;
+    const existing = (graph.nodes || []).find(n => n.id === id) || {};
+    nodes.push({ ...existing, id, label, type, actions });
+  });
+  const edges = [];
+  kbGuidelineEdges?.querySelectorAll(".kb-editor-row").forEach(row => {
+    const inputs = row.querySelectorAll("input, select");
+    if (inputs.length < 3) return;
+    const from = inputs[0].value;
+    const to = inputs[1].value;
+    const condition_text = inputs[2].value.trim();
+    edges.push({ from, to, condition_text, condition_logic: null });
+  });
+  graph.nodes = nodes;
+  graph.edges = edges;
+  return graph;
+}
+
+async function openKbGuidelineQA(guidelineId) {
+  if (!guidelineId) return;
+  kbGuidelineCurrentId = guidelineId;
+  setKbGuidelineEditStatus("");
+  try {
+    const data = await apiGet(`/admin/local_kb/guidelines/${guidelineId}`);
+    kbGuidelineBaseGraph = data?.graph || null;
+    kbGuidelineDraftGraph = JSON.parse(JSON.stringify(kbGuidelineBaseGraph || {}));
+    const assets = data?.assets || [];
+    const guideline = data?.guideline || {};
+    const sourceUrl = assets[0]?.asset_url || guideline.source_url || "";
+    if (kbGuidelineSourceLink) kbGuidelineSourceLink.href = sourceUrl || "#";
+    if (kbGuidelineFrame) kbGuidelineFrame.src = sourceUrl || "about:blank";
+    refreshGuidelineEditor(kbGuidelineDraftGraph);
+    openKbGuidelinePanel();
+  } catch (err) {
+    setKbGuidelineStatus(err?.message || "Failed to load guideline.", true);
+  }
+}
+
+function addGuidelineNodeRow() {
+  if (!kbGuidelineBaseGraph) kbGuidelineBaseGraph = { nodes: [], edges: [], variables: [] };
+  const id = `node_${(kbGuidelineBaseGraph.nodes?.length || 0) + 1}`;
+  kbGuidelineBaseGraph.nodes = kbGuidelineBaseGraph.nodes || [];
+  kbGuidelineBaseGraph.nodes.push({ id, type: "note", label: "", actions: [] });
+  refreshGuidelineEditor(kbGuidelineBaseGraph);
+}
+
+function addGuidelineEdgeRow() {
+  if (!kbGuidelineBaseGraph) return;
+  kbGuidelineBaseGraph.edges = kbGuidelineBaseGraph.edges || [];
+  const nodes = kbGuidelineBaseGraph.nodes || [];
+  if (nodes.length < 2) {
+    setKbGuidelineEditStatus("Add at least two nodes before adding an edge.", true);
+    return;
+  }
+  kbGuidelineBaseGraph.edges.push({ from: nodes[0].id, to: nodes[1].id, condition_text: "", condition_logic: null });
+  refreshGuidelineEditor(kbGuidelineBaseGraph);
+}
+
+async function saveGuidelinePatch() {
+  if (!kbGuidelineCurrentId) return;
+  const graph = collectGuidelineGraphFromEditor();
+  if (!graph) return;
+  setKbGuidelineEditStatus("Saving…");
+  try {
+    await apiPost(`/admin/local_kb/guidelines/${kbGuidelineCurrentId}/patch`, {
+      patch: [{ op: "replace", path: "/", value: graph }],
+    });
+    setKbGuidelineEditStatus("Patch saved.");
+  } catch (err) {
+    setKbGuidelineEditStatus(err?.message || "Patch save failed.", true);
+  }
+}
+
+async function reextractGuideline() {
+  if (!kbGuidelineCurrentId) return;
+  setKbGuidelineEditStatus("Re-extracting…");
+  try {
+    await apiPost(`/admin/local_kb/guidelines/${kbGuidelineCurrentId}/reextract`, {});
+    setKbGuidelineEditStatus("Re-extracted.");
+    await openKbGuidelineQA(kbGuidelineCurrentId);
+  } catch (err) {
+    setKbGuidelineEditStatus(err?.message || "Re-extract failed.", true);
   }
 }
 
@@ -5315,6 +5704,23 @@ kbIndexBtn?.addEventListener("click", async () => {
 });
 kbRefreshBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(kbRefreshBtn, "Refreshing…", loadKbSites);
+});
+kbSitesTab?.addEventListener("click", () => setKbTab("sites"));
+kbGuidelinesTab?.addEventListener("click", () => setKbTab("guidelines"));
+kbGuidelineRefreshBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(kbGuidelineRefreshBtn, "Refreshing…", loadKbGuidelines);
+});
+kbGuidelineCloseBtn?.addEventListener("click", () => closeKbGuidelinePanel());
+kbGuidelineCloseBtn2?.addEventListener("click", () => closeKbGuidelinePanel());
+kbGuidelineOverlay?.addEventListener("click", () => closeKbGuidelinePanel());
+kbGuidelinePanel?.addEventListener("click", (e) => e.stopPropagation());
+kbGuidelineAddNode?.addEventListener("click", () => addGuidelineNodeRow());
+kbGuidelineAddEdge?.addEventListener("click", () => addGuidelineEdgeRow());
+kbGuidelineSaveBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(kbGuidelineSaveBtn, "Saving…", saveGuidelinePatch);
+});
+kbGuidelineReextractBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(kbGuidelineReextractBtn, "Re-extracting…", reextractGuideline);
 });
 profileSaveBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(profileSaveBtn, "Saving…", saveProfile);
