@@ -1135,6 +1135,24 @@ def _sentence(prefix: str, body: str) -> str:
     return text
 
 
+def _sentence_case(text: str) -> str:
+    s = (text or "").strip()
+    if not s:
+        return ""
+    if s and s[0].islower():
+        s = s[0].upper() + s[1:]
+    if not re.search(r"[.!?]$", s):
+        s += "."
+    return s
+
+
+def _split_into_sentences(text: str) -> List[str]:
+    if not text:
+        return []
+    parts = [p.strip() for p in re.split(r"[;\n]+", text) if p.strip()]
+    return [_sentence_case(p) for p in parts if p]
+
+
 def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
     summary_frags = _dedupe_fragments(_split_summary_fragments(c.summary_symptoms))
     positives_frags = _dedupe_fragments(_split_summary_fragments(c.key_positives))
@@ -1142,22 +1160,17 @@ def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
     exam_frags = _dedupe_fragments(_split_summary_fragments(c.pertinent_exam))
 
     positives_frags = _dedupe_against(summary_frags, positives_frags)
-    negatives_frags = _dedupe_against(summary_frags + positives_frags, negatives_frags)
-    exam_frags = _dedupe_against(summary_frags + positives_frags + negatives_frags, exam_frags)
+    combined_frags = _dedupe_fragments(summary_frags + positives_frags)
+    negatives_frags = _dedupe_against(combined_frags, negatives_frags)
+    exam_frags = _dedupe_against(combined_frags + negatives_frags, exam_frags)
 
     sentences: List[str] = []
-    if summary_frags:
-        sentences.append(_sentence("The patient reports ", _join_fragments(summary_frags)))
-    elif positives_frags:
-        sentences.append(_sentence("The patient reports ", _join_fragments(positives_frags)))
-        positives_frags = []
-
-    if positives_frags:
-        sentences.append(_sentence("Associated features include ", _join_fragments(positives_frags)))
+    if combined_frags:
+        sentences.append(_sentence("The patient reports ", _join_fragments(combined_frags)))
     if negatives_frags:
-        sentences.append(_sentence("Reported negatives include ", _join_fragments(negatives_frags)))
+        sentences.append(_sentence("Negatives include ", _join_fragments(negatives_frags)))
     if exam_frags:
-        sentences.append(_sentence("Relevant exam findings include ", _join_fragments(exam_frags)))
+        sentences.append(_sentence("Exam findings include ", _join_fragments(exam_frags)))
 
     paragraph = " ".join([s for s in sentences if s]).strip()
     return paragraph or "Not documented."
@@ -1170,20 +1183,24 @@ def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
     working = (a.working_dx_and_ddx or "").strip()
 
     if tried:
-        text = f"Treatments to date include {tried}"
-        if not re.search(r"[.!?]$", text):
-            text += "."
-        sentences.append(text)
+        tried_sentences = _split_into_sentences(tried)
+        if tried_sentences:
+            first = tried_sentences[0].rstrip(".")
+            sentences.append(_sentence_case(f"Treatments to date include {first}"))
+            sentences.extend(tried_sentences[1:])
     if pending:
-        text = f"Pending investigations or referrals include {pending}"
-        if not re.search(r"[.!?]$", text):
-            text += "."
-        sentences.append(text)
+        pending_sentences = _split_into_sentences(pending)
+        if pending_sentences:
+            first = pending_sentences[0].rstrip(".")
+            sentences.append(_sentence_case(f"Pending investigations or referrals include {first}"))
+            sentences.extend(pending_sentences[1:])
     if working:
-        text = f"The working diagnosis or differential is {working}"
-        if not re.search(r"[.!?]$", text):
-            text += "."
-        sentences.append(text)
+        working_sentences = _split_into_sentences(working)
+        if working_sentences:
+            first = working_sentences[0].rstrip(".")
+            sentences.append(_sentence_case(f"Working diagnosis/differential includes {first}"))
+            for extra in working_sentences[1:]:
+                sentences.append(_sentence_case(f"Additional considerations include {extra.rstrip('.')}"))
 
     paragraph = " ".join(sentences).strip()
     return paragraph or "Not documented."
