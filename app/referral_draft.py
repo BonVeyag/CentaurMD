@@ -1062,17 +1062,71 @@ def _display_soft(value: str, fallback: str = "Not documented.") -> str:
     return v if v else fallback
 
 
+def _normalize_summary_fragment(text: str) -> str:
+    t = (text or "").strip()
+    if not t:
+        return ""
+    t = re.sub(
+        r"^(presenting symptoms|key positives?|key negatives? / red flags|key negatives?|red flags|pertinent exam|exam|objective)\s*[:\-]\s*",
+        "",
+        t,
+        flags=re.IGNORECASE,
+    )
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def _split_summary_fragments(text: str) -> List[str]:
+    if not text:
+        return []
+    raw = re.split(r"[;\n]+", text)
+    out = []
+    for chunk in raw:
+        norm = _normalize_summary_fragment(chunk)
+        if norm:
+            out.append(norm)
+    return out
+
+
+def _dedupe_fragments(fragments: List[str]) -> List[str]:
+    deduped: List[str] = []
+    for frag in fragments:
+        frag_norm = frag.lower()
+        replaced = False
+        for i, existing in enumerate(deduped):
+            ex_norm = existing.lower()
+            if frag_norm == ex_norm or frag_norm in ex_norm:
+                replaced = True
+                break
+            if ex_norm in frag_norm:
+                deduped[i] = frag
+                replaced = True
+                break
+        if not replaced:
+            deduped.append(frag)
+    return deduped
+
+
+def _join_sentence_paragraph(fragments: List[str]) -> str:
+    if not fragments:
+        return ""
+    sentences = []
+    for frag in fragments:
+        if re.search(r"[.!?]$", frag):
+            sentences.append(frag)
+        else:
+            sentences.append(f"{frag}.")
+    return " ".join(sentences).strip()
+
+
 def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
-    parts: List[str] = []
-    if (c.summary_symptoms or "").strip():
-        parts.append(f"Presenting symptoms: {c.summary_symptoms.strip()}")
-    if (c.key_positives or "").strip():
-        parts.append(f"Key positives: {c.key_positives.strip()}")
-    if (c.key_negatives_and_redflags or "").strip():
-        parts.append(f"Key negatives / red flags: {c.key_negatives_and_redflags.strip()}")
-    if (c.pertinent_exam or "").strip():
-        parts.append(f"Pertinent exam: {c.pertinent_exam.strip()}")
-    return " ".join(parts).strip() or "Not documented."
+    fragments: List[str] = []
+    fragments.extend(_split_summary_fragments(c.summary_symptoms))
+    fragments.extend(_split_summary_fragments(c.key_positives))
+    fragments.extend(_split_summary_fragments(c.key_negatives_and_redflags))
+    fragments.extend(_split_summary_fragments(c.pertinent_exam))
+    fragments = _dedupe_fragments(fragments)
+    paragraph = _join_sentence_paragraph(fragments)
+    return paragraph or "Not documented."
 
 
 def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
