@@ -1325,7 +1325,7 @@ def save_guideline_patch(guideline_id: str, patch_ops: List[Dict[str, Any]]) -> 
             (guideline_id, json.dumps(patch_ops), now, now),
         )
         cur = conn.execute(
-            "SELECT graph_json FROM kb_guideline_graphs WHERE guideline_id = ?",
+            "SELECT graph_json, extraction_method, extraction_confidence FROM kb_guideline_graphs WHERE guideline_id = ?",
             (guideline_id,),
         )
         row = cur.fetchone()
@@ -1333,10 +1333,23 @@ def save_guideline_patch(guideline_id: str, patch_ops: List[Dict[str, Any]]) -> 
             try:
                 graph = json.loads(row["graph_json"])
                 graph = _apply_patch_ops(graph, patch_ops)
+                meta_row = conn.execute(
+                    "SELECT title, jurisdiction, version_date, source_url FROM kb_guidelines WHERE guideline_id = ?",
+                    (guideline_id,),
+                ).fetchone()
+                metadata = {
+                    "title": (meta_row["title"] if meta_row else ""),
+                    "jurisdiction": (meta_row["jurisdiction"] if meta_row else ""),
+                    "version_date": (meta_row["version_date"] if meta_row else ""),
+                    "source_url": (meta_row["source_url"] if meta_row else ""),
+                    "extraction_method": row["extraction_method"] or "",
+                    "confidence": float(row["extraction_confidence"] or 0),
+                    "patched": True,
+                }
                 conn.execute("DELETE FROM kb_guideline_graph_index WHERE guideline_id = ?", (guideline_id,))
                 conn.execute(
                     "INSERT INTO kb_guideline_graph_index (guideline_id, text, metadata_json) VALUES (?, ?, ?)",
-                    (guideline_id, _flatten_graph_text(graph), json.dumps({"patched": True})),
+                    (guideline_id, _flatten_graph_text(graph), json.dumps(metadata)),
                 )
             except Exception:
                 pass
