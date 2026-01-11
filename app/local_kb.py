@@ -991,6 +991,7 @@ def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
     assets = _collect_asset_candidates(pages, site_url)
     if not assets and not pages:
         return
+    assets.sort(key=lambda a: {"svg": 0, "pdf": 1, "image": 2}.get(a.get("asset_type", ""), 3))
     now = _utc_now_iso()
     with _get_db() as conn:
         for page in pages:
