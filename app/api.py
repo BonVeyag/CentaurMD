@@ -1366,6 +1366,10 @@ class KbIndexPayload(BaseModel):
     url: str
 
 
+class GuidelinePatchPayload(BaseModel):
+    patch: List[Dict[str, Any]]
+
+
 @router.get("/admin/local_kb/sites")
 def list_local_kb_sites(user: AuthUser = Depends(require_user)):
     _require_admin(user)
