@@ -72,6 +72,7 @@ class ProfilePayload(BaseModel):
     clinic_address: str = ""
     clinic_phone: str = ""
     clinic_fax: str = ""
+    default_funding_model: str = ""
 
 
 class AuthResponse(BaseModel):
@@ -180,6 +181,7 @@ def _normalize_profile(payload: ProfilePayload) -> Dict[str, str]:
         "clinic_address": clean(payload.clinic_address),
         "clinic_phone": clean(payload.clinic_phone),
         "clinic_fax": clean(payload.clinic_fax),
+        "default_funding_model": clean(payload.default_funding_model).upper(),
     }
 
 
@@ -197,6 +199,7 @@ def get_user_profile(username: str) -> Dict[str, str]:
         "clinic_address": str(profile.get("clinic_address", "")).strip(),
         "clinic_phone": str(profile.get("clinic_phone", "")).strip(),
         "clinic_fax": str(profile.get("clinic_fax", "")).strip(),
+        "default_funding_model": str(profile.get("default_funding_model", "")).strip(),
     }
 
 
