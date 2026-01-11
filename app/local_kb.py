@@ -426,6 +426,34 @@ def _crawl_site(start_url: str, max_pages: int, max_depth: int) -> List[KbPage]:
     return pages
 
 
+def _collect_asset_candidates(pages: List[KbPage], site_url: str) -> List[Dict[str, Any]]:
+    assets: List[Dict[str, Any]] = []
+    for page in pages:
+        for idx, svg in enumerate(page.inline_svgs):
+            if not svg.strip():
+                continue
+            assets.append(
+                {
+                    "site_url": site_url,
+                    "asset_url": f"{page.url}#inline-svg-{idx + 1}",
+                    "asset_type": "svg",
+                    "inline_text": svg,
+                }
+            )
+        for raw in page.assets:
+            asset_type = _guess_asset_type(raw)
+            if not asset_type:
+                continue
+            assets.append(
+                {
+                    "site_url": site_url,
+                    "asset_url": raw,
+                    "asset_type": asset_type,
+                }
+            )
+    return assets[:KB_MAX_ASSETS]
+
+
 def _upsert_site(conn: sqlite3.Connection, url: str, domain: str) -> int:
     now = _utc_now_iso()
     cur = conn.execute("SELECT id FROM kb_sites WHERE url = ?", (url,))
