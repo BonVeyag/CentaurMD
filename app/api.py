@@ -1746,7 +1746,7 @@ def _extract_emr_context_for_billing(context: SessionContext) -> str:
         if not raw:
             continue
         if heading_re.search(raw):
-            for ln in lines[i:i + 14]:
+            for ln in lines[i:i + 40]:
                 ln = (ln or "").strip()
                 if not ln:
                     continue
