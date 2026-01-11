@@ -323,3 +323,8 @@ def suggest_icd9_from_text(text: str, limit: int = 3) -> List[Dict[str, Any]]:
             if len(out) >= limit:
                 return out
     return out
+
+
+def has_icd9_dictionary() -> bool:
+    load_icd9_dictionary()
+    return bool(_RECORDS)
