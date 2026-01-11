@@ -438,6 +438,8 @@ def _collect_asset_candidates(pages: List[KbPage], site_url: str) -> List[Dict[s
                     "asset_url": f"{page.url}#inline-svg-{idx + 1}",
                     "asset_type": "svg",
                     "inline_text": svg,
+                    "page_title": page.title,
+                    "page_url": page.url,
                 }
             )
         for raw in page.assets:
@@ -449,6 +451,8 @@ def _collect_asset_candidates(pages: List[KbPage], site_url: str) -> List[Dict[s
                     "site_url": site_url,
                     "asset_url": raw,
                     "asset_type": asset_type,
+                    "page_title": page.title,
+                    "page_url": page.url,
                 }
             )
     return assets[:KB_MAX_ASSETS]
