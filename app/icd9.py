@@ -290,6 +290,11 @@ def _load_keyword_map() -> Dict[str, List[str]]:
                 "anxiety": ["300.00"],
                 "obesity": ["278.00"],
                 "otitis media": ["382.9"],
+                "pharyngitis": ["462"],
+                "sore throat": ["462"],
+                "cough": ["786.2"],
+                "dental abscess": ["522.5"],
+                "tooth abscess": ["522.5"],
                 "uti": ["599.0"],
                 "urinary tract infection": ["599.0"],
             }
