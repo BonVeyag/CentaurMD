@@ -454,7 +454,7 @@ def index_site(url: str) -> Dict[str, str]:
         init_db()
         parsed = urllib.parse.urlparse(normalized)
         domain = parsed.netloc
-        pages: List[Tuple[str, str, str]] = []
+        pages: List[KbPage] = []
         error = ""
         status = "ok"
         now = _utc_now_iso()
@@ -474,7 +474,10 @@ def index_site(url: str) -> Dict[str, str]:
 
         chunk_count = 0
         with _get_db() as conn:
-            for page_url, title, text in pages:
+            for page in pages:
+                page_url = page.url
+                title = page.title
+                text = page.text
                 for chunk in _split_chunks(text):
                     chunk_count += 1
                     created = _utc_now_iso()
