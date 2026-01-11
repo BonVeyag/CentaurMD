@@ -16,6 +16,7 @@ from typing import Optional, Tuple, Dict, Any, List, Generator
 
 from openai import OpenAI
 from app.models import SessionContext
+from app.local_kb import KB_ENABLED, search_kb, format_kb_context
 
 
 # =========================
