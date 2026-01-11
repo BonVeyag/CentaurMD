@@ -239,7 +239,10 @@ def search_icd9(query: str, limit: int = 20) -> List[Dict[str, str]]:
 
     scored.sort(key=lambda x: (-x[0], x[1]))
     out: List[Dict[str, str]] = []
-    for _, _, rec in scored[: max(1, min(int(limit), 50))]:
+    max_items = max(0, min(int(limit), 50))
+    if max_items == 0:
+        return []
+    for _, _, rec in scored[: max_items]:
         out.append({"code": rec.code, "label": rec.label})
     return out
 
