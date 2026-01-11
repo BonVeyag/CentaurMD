@@ -454,6 +454,53 @@ def _collect_asset_candidates(pages: List[KbPage], site_url: str) -> List[Dict[s
     return assets[:KB_MAX_ASSETS]
 
 
+def _asset_path(sha256_hex: str, ext: str) -> str:
+    safe_ext = ext if ext.startswith(".") else f".{ext}"
+    return os.path.join(KB_ASSET_DIR, f"{sha256_hex}{safe_ext}")
+
+
+def _fetch_asset_bytes(url: str) -> Tuple[bytes, str]:
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "CentaurMD/1.0"},
+        method="GET",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        data = resp.read()
+    return data, content_type
+
+
+def _upsert_asset(
+    conn: sqlite3.Connection,
+    site_url: str,
+    asset_url: str,
+    asset_type: str,
+    sha256_hex: str,
+    status: str,
+    error: str,
+) -> None:
+    now = _utc_now_iso()
+    cur = conn.execute(
+        "SELECT id FROM kb_assets WHERE asset_url = ?",
+        (asset_url,),
+    )
+    row = cur.fetchone()
+    if row:
+        conn.execute(
+            "UPDATE kb_assets SET asset_type = ?, sha256 = ?, updated_at_utc = ?, status = ?, last_error = ? WHERE id = ?",
+            (asset_type, sha256_hex, now, status, error, int(row["id"])),
+        )
+        return
+    conn.execute(
+        """
+        INSERT INTO kb_assets (site_url, asset_url, asset_type, sha256, fetched_at_utc, updated_at_utc, status, last_error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (site_url, asset_url, asset_type, sha256_hex, now, now, status, error),
+    )
+
+
 def _upsert_site(conn: sqlite3.Connection, url: str, domain: str) -> int:
     now = _utc_now_iso()
     cur = conn.execute("SELECT id FROM kb_sites WHERE url = ?", (url,))
