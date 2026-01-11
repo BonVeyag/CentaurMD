@@ -3090,13 +3090,15 @@ function collectGuidelineGraphFromEditor() {
     nodes.push({ ...existing, id, label, type, actions });
   });
   const edges = [];
-  kbGuidelineEdges?.querySelectorAll(".kb-editor-row").forEach(row => {
+  const baseEdges = graph.edges || [];
+  kbGuidelineEdges?.querySelectorAll(".kb-editor-row").forEach((row, idx) => {
     const inputs = row.querySelectorAll("input, select");
     if (inputs.length < 3) return;
     const from = inputs[0].value;
     const to = inputs[1].value;
     const condition_text = inputs[2].value.trim();
-    edges.push({ from, to, condition_text, condition_logic: null });
+    const existing = baseEdges[idx] || {};
+    edges.push({ ...existing, from, to, condition_text, condition_logic: existing.condition_logic || null });
   });
   graph.nodes = nodes;
   graph.edges = edges;
@@ -3113,7 +3115,8 @@ async function openKbGuidelineQA(guidelineId) {
     kbGuidelineDraftGraph = JSON.parse(JSON.stringify(kbGuidelineBaseGraph || {}));
     const assets = data?.assets || [];
     const guideline = data?.guideline || {};
-    const sourceUrl = assets[0]?.asset_url || guideline.source_url || "";
+    const preferred = assets.find(a => (a.asset_url || "") === (guideline.source_url || ""));
+    const sourceUrl = preferred?.asset_url || assets[0]?.asset_url || guideline.source_url || "";
     if (kbGuidelineSourceLink) kbGuidelineSourceLink.href = sourceUrl || "#";
     if (kbGuidelineFrame) kbGuidelineFrame.src = sourceUrl || "about:blank";
     refreshGuidelineEditor(kbGuidelineDraftGraph);

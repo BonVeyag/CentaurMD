@@ -102,7 +102,21 @@ def run_guideline_runner(query: str, context_text: str) -> Optional[Dict[str, An
     if not candidates:
         return None
 
-    selected = candidates[0]
+    def rank(item: Dict[str, Any]) -> float:
+        meta = item.get("metadata", {}) or {}
+        jurisdiction = (meta.get("jurisdiction") or "").lower()
+        score = 0.0
+        if "alberta" in jurisdiction:
+            score += 2.0
+        elif "canada" in jurisdiction:
+            score += 1.0
+        try:
+            score += float(meta.get("confidence") or 0) * 0.5
+        except Exception:
+            pass
+        return score
+
+    selected = sorted(candidates, key=rank, reverse=True)[0]
     guideline_id = selected.get("guideline_id")
     graph = get_guideline_graph(guideline_id)
     if not graph:
