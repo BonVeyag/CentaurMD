@@ -1911,6 +1911,7 @@ def _generate_icd9_and_billing_lines(
     ref_text = _load_billing_reference_text()
     ref_block = f"\nREFERENCE (use as guidance, not as a source of diagnoses):\n{ref_text}\n" if ref_text else ""
     cmgp_rule = "- If billing_model=\"PCPCM\": do NOT include CMGP time modifiers (CMGP01-10).\n"
+    emr_context = _extract_emr_context_for_billing(context)
 
     def _call_billing_model(text: str, label: str) -> Dict[str, Any]:
         if not (text or "").strip():
@@ -1998,8 +1999,18 @@ NOTES:
         if not icd_parts:
             fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
             icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
+    if not icd_parts and emr_context:
+        icd_parts = _extract_icd9_from_text_direct(emr_context)
+        if not icd_parts:
+            icd_parts = _fetch_icd9_parts_from_source(
+                emr_context,
+                "EMR CONTEXT (PROBLEM LIST / ASSESSMENT)",
+                ref_text,
+            )
+        if len(icd_parts) > 3:
+            icd_parts = icd_parts[:3]
 
-    line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: "
+    line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
     # Billing line
     def _extract_one_line(dct: Dict[str, Any]) -> str:
