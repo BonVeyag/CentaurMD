@@ -466,6 +466,117 @@ def _infer_specialty_from_text(text: str) -> str:
     return ""
 
 
+def _split_lines(text: str) -> List[str]:
+    return [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+
+
+def _first_sentence(text: str) -> str:
+    if not text:
+        return ""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip(), maxsplit=1)
+    return parts[0].strip()
+
+
+def _pick_lines_with_keywords(text: str, keywords: List[str], limit: int = 3) -> List[str]:
+    if not text:
+        return []
+    out: List[str] = []
+    lower_keywords = [k.lower() for k in keywords]
+    for ln in _split_lines(text):
+        lnl = ln.lower()
+        if any(k in lnl for k in lower_keywords):
+            out.append(ln)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _format_paragraph_from_lines(lines: List[str], max_chars: int = 420) -> str:
+    if not lines:
+        return ""
+    cleaned = []
+    for ln in lines:
+        ln = ln.lstrip("•- ").strip()
+        if not ln:
+            continue
+        cleaned.append(_first_sentence(ln))
+    merged = "; ".join(dict.fromkeys(cleaned))
+    if len(merged) > max_chars:
+        merged = merged[: max_chars - 1].rstrip() + "…"
+    return merged.strip()
+
+
+def _fallback_summary_from_emr(transcript: str, emr_text: str, netcare_text: str) -> Dict[str, str]:
+    bg = (emr_text or "").strip()
+    tx = (transcript or "").strip()
+    nc = (netcare_text or "").strip()
+    patient_notes = _extract_section_block_last(bg, ["Patient Notes"], max_lines=200)
+    clinical_notes = _extract_section_block_last(bg, ["Clinical Notes"], max_lines=80)
+    plan_block = _extract_section_block_last(bg, ["Plan", "Plan (Problem-Based)", "A/P", "AP"], max_lines=50)
+    assessment_block = _extract_section_block_last(bg, ["Assessment", "Impression"], max_lines=40)
+    objective_block = _extract_section_block_last(bg, ["Objective Data", "Objective", "O/E", "Vitals"], max_lines=40)
+    ros_block = _extract_section_block_last(bg, ["Review of Systems", "ROS"], max_lines=30)
+
+    source = "\n".join([tx, patient_notes, clinical_notes, assessment_block, plan_block, objective_block, ros_block]).strip()
+    if not source:
+        return {}
+
+    reason_lines = _pick_lines_with_keywords(
+        source,
+        ["presents", "presented", "presenting", "primary", "reason", "for", "complain", "reports", "evaluation of"],
+        limit=2,
+    )
+    summary_symptoms = _format_paragraph_from_lines(reason_lines, max_chars=360)
+
+    key_pos_lines = _pick_lines_with_keywords(
+        source,
+        ["positive", "noted", "significant", "history of", "change", "abnormal", "pressure", "constipation", "pain"],
+        limit=3,
+    )
+    key_positives = _format_paragraph_from_lines(key_pos_lines, max_chars=360)
+
+    key_neg_lines = _pick_lines_with_keywords(
+        source,
+        ["no ", "denies", "without", "not reported", "negative"],
+        limit=3,
+    )
+    key_negatives = _format_paragraph_from_lines(key_neg_lines, max_chars=260)
+
+    exam_lines = _pick_lines_with_keywords(
+        "\n".join([objective_block, source]),
+        ["exam", "ultrasound", "bp", "vitals", "o/e", "tender", "hydronephrosis", "fecal loading"],
+        limit=3,
+    )
+    pertinent_exam = _format_paragraph_from_lines(exam_lines, max_chars=280)
+
+    treatments = _format_paragraph_from_lines(_split_lines(plan_block), max_chars=420)
+    working_dx = _format_paragraph_from_lines(_split_lines(assessment_block), max_chars=360)
+
+    labs_lines = _pick_lines_with_keywords(
+        "\n".join([patient_notes, clinical_notes, bg]),
+        ["a1c", "ldl", "hdl", "creatinine", "egfr", "acr", "hemoglobin", "mcv", "ferritin", "c-reactive", "crp"],
+        limit=4,
+    )
+    imaging_lines = _pick_lines_with_keywords(
+        "\n".join([patient_notes, clinical_notes, bg]),
+        ["ecg", "echo", "ultrasound", "ct", "mri", "x-ray", "pft", "scan", "biopsy"],
+        limit=4,
+    )
+
+    return {
+        "reason_short": summary_symptoms,
+        "summary_symptoms": summary_symptoms,
+        "key_positives": key_positives,
+        "key_negatives_and_redflags": key_negatives,
+        "pertinent_exam": pertinent_exam,
+        "treatments_tried": treatments,
+        "pending_items": "",
+        "working_dx_and_ddx": working_dx,
+        "objective_labs": _format_paragraph_from_lines(labs_lines, max_chars=360),
+        "objective_imaging": _format_paragraph_from_lines(imaging_lines, max_chars=360),
+    }
+
+
 def _clean_summary_dict(data: Dict[str, Any]) -> Dict[str, str]:
     cleaned: Dict[str, str] = {}
     for key in _SUMMARY_KEYS:
