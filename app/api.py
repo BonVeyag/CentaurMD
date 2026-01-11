@@ -1910,7 +1910,7 @@ def _suggest_icd9_codes_for_context(context: SessionContext) -> List[BillingIcd9
         for rec in suggest_icd9_from_text(transcript, limit=3):
             suggestions.append(BillingIcd9Code(code=rec["code"], label=rec["label"], source="ai_suggested", confidence=0.7))
     if not suggestions:
-        fallback = _extract_last_dated_emr_entry(context) or _extract_emr_context_for_billing(context)
+        fallback = _extract_emr_context_for_billing(context) or _extract_last_dated_emr_entry(context)
         for rec in suggest_icd9_from_text(fallback, limit=3):
             suggestions.append(BillingIcd9Code(code=rec["code"], label=rec["label"], source="ai_suggested", confidence=0.55))
     return suggestions
