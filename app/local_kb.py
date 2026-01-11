@@ -1128,6 +1128,178 @@ def list_sites() -> List[Dict[str, str]]:
     return out
 
 
+def list_guidelines() -> List[Dict[str, Any]]:
+    if not os.path.exists(DB_PATH):
+        return []
+    init_db()
+    with _get_db() as conn:
+        cur = conn.execute(
+            """
+            SELECT g.guideline_id, g.title, g.jurisdiction, g.version_date, g.source_url,
+                   gg.extraction_method, gg.extraction_confidence, gg.updated_at_utc
+            FROM kb_guidelines g
+            LEFT JOIN kb_guideline_graphs gg ON gg.guideline_id = g.guideline_id
+            ORDER BY g.updated_at_utc DESC
+            """
+        )
+        rows = cur.fetchall()
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        out.append(
+            {
+                "guideline_id": row["guideline_id"] or "",
+                "title": row["title"] or "",
+                "jurisdiction": row["jurisdiction"] or "",
+                "version_date": row["version_date"] or "",
+                "source_url": row["source_url"] or "",
+                "extraction_method": row["extraction_method"] or "",
+                "confidence": float(row["extraction_confidence"] or 0),
+                "updated_at_utc": row["updated_at_utc"] or "",
+            }
+        )
+    return out
+
+
+def _get_guideline_assets(conn: sqlite3.Connection, site_url: str) -> List[Dict[str, Any]]:
+    cur = conn.execute(
+        "SELECT asset_url, asset_type, sha256, updated_at_utc FROM kb_assets WHERE site_url = ? ORDER BY updated_at_utc DESC",
+        (site_url,),
+    )
+    return [
+        {
+            "asset_url": row["asset_url"] or "",
+            "asset_type": row["asset_type"] or "",
+            "sha256": row["sha256"] or "",
+            "updated_at_utc": row["updated_at_utc"] or "",
+        }
+        for row in cur.fetchall()
+    ]
+
+
+def get_guideline_graph(guideline_id: str, apply_patches: bool = True) -> Optional[Dict[str, Any]]:
+    if not guideline_id:
+        return None
+    init_db()
+    with _get_db() as conn:
+        cur = conn.execute(
+            "SELECT graph_json FROM kb_guideline_graphs WHERE guideline_id = ?",
+            (guideline_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        try:
+            graph = json.loads(row["graph_json"] or "{}")
+        except Exception:
+            return None
+        if not apply_patches:
+            return graph
+        cur = conn.execute(
+            "SELECT patch_json FROM kb_guideline_graph_patches WHERE guideline_id = ? ORDER BY updated_at_utc DESC",
+            (guideline_id,),
+        )
+        patch_row = cur.fetchone()
+        if patch_row and patch_row["patch_json"]:
+            try:
+                patch_ops = json.loads(patch_row["patch_json"])
+                if isinstance(patch_ops, list):
+                    graph = _apply_patch_ops(graph, patch_ops)
+            except Exception:
+                pass
+        return graph
+
+
+def get_guideline_detail(guideline_id: str) -> Optional[Dict[str, Any]]:
+    init_db()
+    with _get_db() as conn:
+        cur = conn.execute(
+            "SELECT guideline_id, title, jurisdiction, version_date, source_url, site_url FROM kb_guidelines WHERE guideline_id = ?",
+            (guideline_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            return None
+        graph = get_guideline_graph(guideline_id, apply_patches=True)
+        assets = _get_guideline_assets(conn, row["site_url"] or "")
+    return {
+        "guideline": {
+            "guideline_id": row["guideline_id"] or "",
+            "title": row["title"] or "",
+            "jurisdiction": row["jurisdiction"] or "",
+            "version_date": row["version_date"] or "",
+            "source_url": row["source_url"] or "",
+            "site_url": row["site_url"] or "",
+        },
+        "graph": graph,
+        "assets": assets,
+    }
+
+
+def save_guideline_patch(guideline_id: str, patch_ops: List[Dict[str, Any]]) -> None:
+    init_db()
+    now = _utc_now_iso()
+    with _get_db() as conn:
+        conn.execute("DELETE FROM kb_guideline_graph_patches WHERE guideline_id = ?", (guideline_id,))
+        conn.execute(
+            """
+            INSERT INTO kb_guideline_graph_patches (guideline_id, patch_json, created_at_utc, updated_at_utc)
+            VALUES (?, ?, ?, ?)
+            """,
+            (guideline_id, json.dumps(patch_ops), now, now),
+        )
+        conn.commit()
+
+
+def reextract_guideline(guideline_id: str) -> None:
+    init_db()
+    with _get_db() as conn:
+        cur = conn.execute("SELECT source_url, site_url FROM kb_guidelines WHERE guideline_id = ?", (guideline_id,))
+        row = cur.fetchone()
+        if not row:
+            raise ValueError("Guideline not found.")
+        site_url = row["site_url"] or ""
+    if not site_url:
+        raise ValueError("Site URL missing.")
+    pages = _crawl_site(site_url, KB_MAX_PAGES, KB_MAX_DEPTH)
+    _index_guidelines_for_site(site_url, pages)
+
+
+def search_guideline_graphs(query: str, limit: int = 3) -> List[Dict[str, Any]]:
+    if not query:
+        return []
+    init_db()
+    q = _sanitize_query(query)
+    if not q:
+        return []
+    tokens = [t for t in q.split(" ") if t]
+    if not tokens:
+        return []
+    match = " OR ".join([f"{t}*" for t in tokens[:6]])
+    with _get_db() as conn:
+        try:
+            cur = conn.execute(
+                "SELECT guideline_id, metadata_json, bm25(kb_guideline_graph_index) AS score FROM kb_guideline_graph_index WHERE kb_guideline_graph_index MATCH ? ORDER BY score LIMIT ?",
+                (match, int(limit)),
+            )
+        except Exception:
+            return []
+        rows = cur.fetchall()
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        meta = {}
+        try:
+            meta = json.loads(row["metadata_json"] or "{}")
+        except Exception:
+            meta = {}
+        out.append(
+            {
+                "guideline_id": row["guideline_id"] or "",
+                "metadata": meta,
+            }
+        )
+    return out
+
+
 def _sanitize_query(query: str) -> str:
     q = (query or "").lower()
     q = re.sub(r"[^a-z0-9\s]", " ", q)
