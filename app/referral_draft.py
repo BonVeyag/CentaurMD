@@ -1072,8 +1072,4 @@ def render_referral_letter(draft: ReferralDraft) -> str:
         path_lines = ["Pathology:", _display_soft(o.pathology_block, "No pathology results documented."), ""]
         lines[insert_at:insert_at] = path_lines
 
-    clinic_bits = [ref.clinic_name, ref.clinic_address, ref.phone, ref.fax]
-    clinic_line = " | ".join([b for b in clinic_bits if (b or "").strip()])
-    if clinic_line:
-        lines.append(clinic_line)
     return "\n".join(lines).strip()
