@@ -4,7 +4,6 @@ import hashlib
 import html
 import json
 import logging
-import mimetypes
 import os
 import re
 import sqlite3
