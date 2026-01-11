@@ -556,6 +556,17 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
     t = (text or "").lower()
     if not t:
         return ("Routine", "No red flags identified; routine triage.")
+
+    def has_positive(term: str) -> bool:
+        term_re = re.escape(term)
+        for m in re.finditer(term_re, t):
+            start = max(0, m.start() - 24)
+            window = t[start:m.start()]
+            if re.search(r"\b(no|denies|without|negative for)\b", window):
+                continue
+            return True
+        return False
+
     urgent_terms = [
         "syncope",
         "faint",
@@ -576,7 +587,7 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
         "acute vision loss",
         "seizure",
     ]
-    urgent_hits = [term for term in urgent_terms if term in t]
+    urgent_hits = [term for term in urgent_terms if has_positive(term)]
     if urgent_hits:
         unique = ", ".join(sorted(set(urgent_hits)))
         return ("Urgent", f"Red flags noted: {unique}.")
@@ -588,7 +599,7 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
         "functional decline",
         "significant pain",
     ]
-    semi_hits = [term for term in semi_terms if term in t]
+    semi_hits = [term for term in semi_terms if has_positive(term)]
     if semi_hits:
         unique = ", ".join(sorted(set(semi_hits)))
         return ("Semi-urgent", f"Symptoms worsening or functionally limiting: {unique}.")
