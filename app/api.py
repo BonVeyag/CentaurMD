@@ -976,6 +976,74 @@ def delete_attachment(session_id: str, attachment_id: str):
 
 
 # =========================
+# ICD-9 dictionary + session ICD-9
+# =========================
+
+@router.get("/icd9/search")
+def icd9_search(q: str = "", limit: int = 20):
+    return search_icd9(q=q, limit=limit)
+
+
+@router.get("/icd9/{code}")
+def icd9_lookup(code: str):
+    rec = get_icd9_by_code(code)
+    if not rec:
+        raise HTTPException(status_code=404, detail="ICD-9 code not found.")
+    return rec
+
+
+class Icd9CodeItem(BaseModel):
+    code: str
+    label: Optional[str] = ""
+    source: Optional[str] = "user_selected"
+    confidence: Optional[float] = None
+
+
+class Icd9CodesPayload(BaseModel):
+    codes: List[Icd9CodeItem] = []
+
+
+@router.get("/session/{session_id}/billing/icd9")
+def get_session_icd9(session_id: str):
+    context = _get_context_or_404(session_id)
+    codes = []
+    for item in (getattr(context.billing, "icd9_codes", None) or []):
+        if hasattr(item, "model_dump"):
+            codes.append(item.model_dump())
+        else:
+            codes.append(item.dict())
+    return {"codes": codes}
+
+
+@router.put("/session/{session_id}/billing/icd9")
+def set_session_icd9(session_id: str, payload: Icd9CodesPayload):
+    context = _get_context_or_404(session_id)
+    incoming = payload.codes or []
+    out: List[BillingIcd9Code] = []
+    seen: set[str] = set()
+
+    for item in incoming:
+        code = (item.code or "").strip()
+        if not code or code in seen:
+            continue
+        rec = get_icd9_by_code(code)
+        if not rec:
+            continue
+        label = (item.label or rec.get("label") or "").strip()
+        source = (item.source or "user_selected").strip()
+        if source not in ("user_selected", "ai_suggested"):
+            source = "user_selected"
+        confidence = item.confidence if source == "ai_suggested" else 1.0
+        out.append(BillingIcd9Code(code=rec["code"], label=label, source=source, confidence=confidence))
+        seen.add(rec["code"])
+
+    context.billing.icd9_codes = out
+    _touch(context)
+
+    return {"codes": [c.model_dump() if hasattr(c, "model_dump") else c.dict() for c in out]}
+
+
+# =========================
 # MAKE SOAP
 # =========================
 
