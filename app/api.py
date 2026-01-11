@@ -2199,6 +2199,7 @@ HARD RULES:
 - Use ONLY the provided source text; do NOT infer from other background.
 - If the source does not support a diagnosis/procedure, omit it.
 - Do NOT use vitals or lab values (e.g., systolic/diastolic), medications/doses, addresses, or phone numbers as diagnoses.
+- If no explicit diagnosis is stated, use symptom-based ICD-9 codes that are directly supported by the symptoms described.
 - Output MUST be STRICT JSON only (no markdown, no extra text).
 - If the source is an EMR fallback, treat it as the visit note for today and do NOT pull other history.
 {cmgp_rule}
