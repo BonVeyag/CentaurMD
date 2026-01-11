@@ -889,7 +889,10 @@ def _extract_guideline_graph_from_asset(
             graph = _graph_from_blocks(blocks, guideline_id, title, jurisdiction, version_date, asset_url, asset_url, "pdf")
             return _validate_guideline_graph(graph), "pdf_layout", 0.6
         if KB_GUIDELINE_LLM_EXTRACT:
-            graph = _vision_graph_from_image(data, asset_url, "pdf")
+            png = _render_pdf_first_page_png(data)
+            if not png:
+                return None
+            graph = _vision_graph_from_image(png, asset_url, "image")
             if graph:
                 graph.update(
                     {
