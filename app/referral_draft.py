@@ -1211,21 +1211,25 @@ def _compact_medications_block(text: str) -> str:
         entry = re.sub(r"\s+", " ", entry).strip()
         if entry:
             compact.append(entry)
-    return "; ".join(compact)
+    return "\n".join(compact)
 
 
 def _build_background_paragraph(b: BackgroundBlock) -> str:
-    parts: List[str] = []
+    lines: List[str] = []
     if (b.pmHx_relevant or "").strip():
-        parts.append(f"PMHx: {b.pmHx_relevant.strip()}")
+        lines.append(f"PMHx: {b.pmHx_relevant.strip()}")
     if (b.psHx_relevant or "").strip():
-        parts.append(f"PSHx: {b.psHx_relevant.strip()}")
+        lines.append(f"PSHx: {b.psHx_relevant.strip()}")
     if (b.meds_relevant or "").strip():
         meds = _compact_medications_block(b.meds_relevant)
-        parts.append(f"Medications: {meds or b.meds_relevant.strip()}")
+        lines.append("Medications:")
+        if meds:
+            lines.append(meds)
+        else:
+            lines.append(b.meds_relevant.strip())
     if (b.allergies or "").strip():
-        parts.append(f"Allergies/intolerances: {b.allergies.strip()}")
-    return " ".join(parts).strip() or "Not documented."
+        lines.append(f"Allergies/intolerances: {b.allergies.strip()}")
+    return "\n".join(lines).strip() or "Not documented."
 
 
 def _build_context_paragraph(l: LogisticsBlock) -> str:
