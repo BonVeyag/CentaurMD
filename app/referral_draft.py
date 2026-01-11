@@ -1140,6 +1140,31 @@ def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
     return " ".join(parts).strip() or "Not documented."
 
 
+def _compact_medications_block(text: str) -> str:
+    lines = _split_lines(text)
+    if not lines:
+        return ""
+    entries: List[str] = []
+    current: List[str] = []
+    for ln in lines:
+        is_continuation = bool(re.match(r"^(?:\d+|tab|tabs|tablet|caps?|po|inh|iv|im|sc|q\d|bid|tid|qid|prn)\b", ln.strip(), flags=re.IGNORECASE))
+        if is_continuation and current:
+            current.append(ln.strip())
+            continue
+        if current:
+            entries.append(" ".join(current).strip())
+        current = [ln.strip()]
+    if current:
+        entries.append(" ".join(current).strip())
+
+    compact: List[str] = []
+    for entry in entries:
+        entry = re.sub(r"\s+", " ", entry).strip()
+        if entry:
+            compact.append(entry)
+    return "; ".join(compact)
+
+
 def _build_background_paragraph(b: BackgroundBlock) -> str:
     parts: List[str] = []
     if (b.pmHx_relevant or "").strip():
@@ -1147,7 +1172,8 @@ def _build_background_paragraph(b: BackgroundBlock) -> str:
     if (b.psHx_relevant or "").strip():
         parts.append(f"PSHx: {b.psHx_relevant.strip()}")
     if (b.meds_relevant or "").strip():
-        parts.append(f"Medications: {b.meds_relevant.strip()}")
+        meds = _compact_medications_block(b.meds_relevant)
+        parts.append(f"Medications: {meds or b.meds_relevant.strip()}")
     if (b.allergies or "").strip():
         parts.append(f"Allergies/intolerances: {b.allergies.strip()}")
     return " ".join(parts).strip() or "Not documented."
@@ -1156,11 +1182,11 @@ def _build_background_paragraph(b: BackgroundBlock) -> str:
 def _build_context_paragraph(l: LogisticsBlock) -> str:
     parts: List[str] = []
     if (l.high_risk_context or "").strip():
-        parts.append(f"Comorbidities affecting care: {l.high_risk_context.strip()}")
+        parts.append(f"Relevant comorbidities affecting care include {l.high_risk_context.strip()}.")
     if (l.barriers or "").strip():
-        parts.append(f"Barriers: {l.barriers.strip()}")
+        parts.append(f"Barriers include {l.barriers.strip()}.")
     if (l.patient_goals or "").strip():
-        parts.append(f"Patient goals / expectations: {l.patient_goals.strip()}")
+        parts.append(f"Patient goals include {l.patient_goals.strip()}.")
     return " ".join(parts).strip() or "Not documented."
 
 
