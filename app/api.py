@@ -2295,12 +2295,16 @@ NOTES:
         if fallback_text and fallback_text != icd_source_text:
             icd_parts = _sanitize_icd9_parts(icd_parts_raw, fallback_text)
     if not icd_parts:
-        fallback_text = emr_context or fallback_source or ""
-        for rec in suggest_icd9_from_text(fallback_text, limit=3):
-            label = (rec.get("label") or "").strip()
-            code = (rec.get("code") or "").strip()
-            if code:
-                icd_parts.append(f"{code} ({label})" if label else code)
+        for candidate in (emr_context, fallback_source):
+            if not candidate:
+                continue
+            for rec in suggest_icd9_from_text(candidate, limit=3):
+                label = (rec.get("label") or "").strip()
+                code = (rec.get("code") or "").strip()
+                if code:
+                    icd_parts.append(f"{code} ({label})" if label else code)
+            if icd_parts:
+                break
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
     # Billing line
