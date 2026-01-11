@@ -1351,6 +1351,40 @@ def smtp_test_email(request: Request, user: AuthUser = Depends(require_user)):
 
 
 # =========================
+# Local Knowledge Base (admin-only)
+# =========================
+
+class KbIndexPayload(BaseModel):
+    url: str
+
+
+@router.get("/admin/local_kb/sites")
+def list_local_kb_sites(user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    return {"sites": kb_list_sites()}
+
+
+@router.post("/admin/local_kb/index")
+def index_local_kb_site(payload: KbIndexPayload, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    if not KB_ENABLED:
+        raise HTTPException(status_code=503, detail={"code": "KB_DISABLED", "message": "Local KB is disabled."})
+    url = (payload.url or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required.")
+    try:
+        result = kb_index_site(url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.warning(f"KB index failed: {e}")
+        raise HTTPException(status_code=500, detail="Indexing failed.")
+    return {"ok": True, "site": result}
+
+
+# =========================
 # Clinical Query Console
 # =========================
 
