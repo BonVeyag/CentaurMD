@@ -966,12 +966,13 @@ textarea::-webkit-scrollbar-track{
 .profile-panel select{
   width:100%;
   border:none;
-  padding:12px;
+  padding:0;
   font-size:14px;
   line-height:20px;
-  min-height:48px;
   background: transparent;
   color: var(--text);
+  text-align: center;
+  text-align-last: center;
 }
 .profile-select-shell{
   width:100%;
@@ -982,6 +983,9 @@ textarea::-webkit-scrollbar-track{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
   min-height:48px;
+  padding:12px;
+  display:flex;
+  align-items:center;
 }
 .profile-clinic-group{
   width:100%;

@@ -183,6 +183,19 @@ class DerivedOutputs(StrictBaseModel):
 
 BillingModelLiteral = Literal["FFS", "PCPCM"]
 
+BillingIcd9Source = Literal["user_selected", "ai_suggested"]
+
+
+class BillingIcd9Code(StrictBaseModel):
+    code: str
+    label: str
+    source: BillingIcd9Source = "user_selected"
+    confidence: Optional[float] = None
+
+
+class BillingSession(StrictBaseModel):
+    icd9_codes: List[BillingIcd9Code] = Field(default_factory=list)
+
 
 class DailyBillingEntry(StrictBaseModel):
     """
