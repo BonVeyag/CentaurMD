@@ -2020,6 +2020,7 @@ HARD RULES:
 - Use ONLY the provided source text; do NOT infer from other background.
 - If the source does not support a diagnosis, omit it.
 - If any diagnosis is mentioned, include at least one ICD-9 code.
+- Do NOT use vitals or lab values (e.g., systolic/diastolic), medications/doses, addresses, or phone numbers as diagnoses.
 - Output MUST be STRICT JSON only (no markdown, no extra text).
 
 OUTPUT JSON SCHEMA:
