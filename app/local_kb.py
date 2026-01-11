@@ -350,14 +350,14 @@ def _get_robot_parser(start_url: str) -> urllib.robotparser.RobotFileParser:
     return rp
 
 
-def _crawl_site(start_url: str, max_pages: int, max_depth: int) -> List[Tuple[str, str, str]]:
+def _crawl_site(start_url: str, max_pages: int, max_depth: int) -> List[KbPage]:
     parsed = urllib.parse.urlparse(start_url)
     root_domain = parsed.netloc
     rp = _get_robot_parser(start_url)
 
     queue = deque([(start_url, 0)])
     visited: set[str] = set()
-    pages: List[Tuple[str, str, str]] = []
+    pages: List[KbPage] = []
 
     while queue and len(pages) < max_pages:
         url, depth = queue.popleft()
@@ -389,13 +389,26 @@ def _crawl_site(start_url: str, max_pages: int, max_depth: int) -> List[Tuple[st
             parser.feed(html_text)
         except Exception:
             continue
-        title, text, links = parser.extract()
+        title, text, links, images, embeds = parser.extract()
+        inline_svgs = _extract_inline_svgs(html_text)
+        assets: List[str] = []
+        for raw in (links + images + embeds):
+            if not raw:
+                continue
+            abs_url = urllib.parse.urljoin(url, raw)
+            abs_url = _normalize_url(abs_url)
+            if not abs_url:
+                continue
+            if urllib.parse.urlparse(abs_url).netloc != root_domain:
+                continue
+            if _is_asset_url(abs_url):
+                assets.append(abs_url)
 
         if len(text) < KB_MIN_TEXT_LEN:
             continue
 
         text = text[:KB_MAX_TEXT_LEN].strip()
-        pages.append((url, title, text))
+        pages.append(KbPage(url=url, title=title, text=text, links=links, assets=assets, inline_svgs=inline_svgs))
 
         for href in links:
             if not href:
