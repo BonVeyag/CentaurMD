@@ -2369,8 +2369,8 @@ def bill_current_session_into_daily_list(
     BILL action:
     - Generates a 3-line entry and auto-saves to the daily billing list (server memory).
       1) Patient line from EMR dump ONLY (Name | PHN | age in years or months if <2)
-      2) ICD-9 line from transcript ONLY (blank if transcript not available)
-      3) Billing line from transcript ONLY (blank if transcript not available)
+      2) ICD-9 line from transcript with EMR fallback (never blank)
+      3) Billing line from transcript with EMR fallback (never blank)
     - Auto-appends and returns updated daily state.
     """
     context = _get_context_or_404(session_id)
