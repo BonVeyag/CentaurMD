@@ -1051,6 +1051,11 @@ def index_site(url: str) -> Dict[str, str]:
             )
             conn.commit()
 
+        try:
+            _index_guidelines_for_site(normalized, pages)
+        except Exception as e:
+            logger.warning(f"KB guideline extraction failed: {e}")
+
         return {
             "url": normalized,
             "domain": domain,
