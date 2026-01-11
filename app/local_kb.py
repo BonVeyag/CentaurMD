@@ -57,6 +57,16 @@ class KbSite:
     last_error: str
 
 
+@dataclass
+class KbPage:
+    url: str
+    title: str
+    text: str
+    links: List[str]
+    assets: List[str]
+    inline_svgs: List[str]
+
+
 class _HtmlExtractor(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
