@@ -897,6 +897,9 @@ def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Op
     )
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     try:
+        import base64
+        b64 = base64.b64encode(data).decode("ascii")
+        mime = "image/png" if asset_type == "image" else "application/pdf"
         resp = client.chat.completions.create(
             model=KB_GUIDELINE_VISION_MODEL,
             temperature=0.1,
@@ -906,7 +909,7 @@ def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Op
                     "role": "user",
                     "content": [
                         {"type": "text", "text": "Extract the flowchart."},
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{data.hex()}"}},
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
                     ],
                 },
             ],
