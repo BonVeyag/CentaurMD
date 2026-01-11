@@ -358,6 +358,12 @@ _UNWANTED_PHRASES = [
     "not listed",
 ]
 
+_SUMMARY_STOPWORDS = {
+    "the", "and", "or", "of", "to", "with", "for", "in", "on", "at", "by",
+    "a", "an", "is", "are", "was", "were", "be", "as", "from", "that", "this",
+    "these", "those", "it", "its", "his", "her", "their", "patient", "pt",
+}
+
 
 def _normalize_list_text(value: str) -> str:
     v = (value or "").strip()
@@ -396,6 +402,68 @@ def _sanitize_summary_text(value: str) -> str:
             keep.append(c_strip)
         v = "; ".join(keep)
     return v.strip()
+
+
+def _text_supported(text: str, source: str) -> bool:
+    if not text:
+        return False
+    src = (source or "").lower()
+    if not src:
+        return False
+    tokens = re.findall(r"[a-zA-Z]{3,}", text.lower())
+    tokens = [t for t in tokens if t not in _SUMMARY_STOPWORDS]
+    if not tokens:
+        return False
+    uniq = list(dict.fromkeys(tokens))
+    matches = sum(1 for t in uniq if t in src)
+    if len(uniq) <= 3:
+        return matches >= 1
+    if len(uniq) <= 6:
+        return matches >= 2
+    return matches >= 3
+
+
+def _merge_audited(generator: Dict[str, str], audited: Dict[str, str], source: str) -> Dict[str, str]:
+    merged: Dict[str, str] = {}
+    for key in _SUMMARY_KEYS:
+        gen_val = (generator.get(key) or "").strip()
+        aud_val = (audited.get(key) or "").strip()
+        if aud_val:
+            merged[key] = aud_val
+            continue
+        if gen_val and _text_supported(gen_val, source):
+            merged[key] = gen_val
+            continue
+        merged[key] = ""
+    return merged
+
+
+def _infer_specialty_from_text(text: str) -> str:
+    t = (text or "").lower()
+    if not t:
+        return ""
+    rules = [
+        (["colonoscopy", "fit positive", "positive fit", "bowel habit", "constipation", "diarrhea", "gi bleed", "melena", "hematochezia"], "Gastroenterology"),
+        (["skin lesion", "mole", "rash", "eczema", "psoriasis"], "Dermatology"),
+        (["chest pain", "palpitations", "atrial fibrillation", "cardiology", "tavi", "murmur"], "Cardiology"),
+        (["asthma", "copd", "pft", "pulmonary", "respirology", "dyspnea"], "Respirology"),
+        (["sinus", "nasal polyps", "otitis", "ent", "hearing loss", "tonsil"], "ENT"),
+        (["depression", "anxiety", "bipolar", "ptsd", "adhd"], "Psychiatry"),
+        (["seizure", "stroke", "tremor", "neurology", "neuro"], "Neurology"),
+        (["knee", "hip", "shoulder", "fracture", "ortho", "msk"], "Orthopedics"),
+        (["diabetes", "thyroid", "endocrine", "a1c", "insulin"], "Endocrinology"),
+        (["ckd", "dialysis", "proteinuria", "nephrology"], "Nephrology"),
+        (["hematuria", "bph", "prostate", "urology"], "Urology"),
+        (["pregnancy", "prenatal", "obgyn", "gynecology"], "Obstetrics/Gynecology"),
+        (["pain clinic", "chronic pain", "rfa", "facet", "si joint"], "Pain Clinic"),
+        (["hematology", "anemia", "low ferritin", "macrocytosis"], "Hematology"),
+        (["oncology", "cancer", "malignancy"], "Oncology"),
+        (["rheumatoid", "lupus", "vasculitis", "rheumatology"], "Rheumatology"),
+    ]
+    for keywords, specialty in rules:
+        if any(k in t for k in keywords):
+            return specialty
+    return ""
 
 
 def _clean_summary_dict(data: Dict[str, Any]) -> Dict[str, str]:
