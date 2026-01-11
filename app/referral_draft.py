@@ -1153,6 +1153,15 @@ def _split_into_sentences(text: str) -> List[str]:
     return [_sentence_case(p) for p in parts if p]
 
 
+def _sentence_from_fragment(fragment: str, prefix: str) -> str:
+    f = (fragment or "").strip()
+    if not f:
+        return ""
+    if re.match(r"^(the patient|patient|he|she|they|no\b|denies\b|reports\b|exam\b|on exam\b|physical exam\b)", f, flags=re.IGNORECASE):
+        return _sentence_case(f)
+    return _sentence_case(f"{prefix}{f}")
+
+
 def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
     summary_frags = _dedupe_fragments(_split_summary_fragments(c.summary_symptoms))
     positives_frags = _dedupe_fragments(_split_summary_fragments(c.key_positives))
@@ -1165,15 +1174,33 @@ def _build_clinical_summary_paragraph(c: ClinicalBlock) -> str:
     exam_frags = _dedupe_against(combined_frags + negatives_frags, exam_frags)
 
     sentences: List[str] = []
-    if combined_frags:
-        sentences.append(_sentence("The patient reports ", _join_fragments(combined_frags)))
-    if negatives_frags:
-        sentences.append(_sentence("Negatives include ", _join_fragments(negatives_frags)))
-    if exam_frags:
-        sentences.append(_sentence("Exam findings include ", _join_fragments(exam_frags)))
+    for frag in combined_frags:
+        sentences.append(_sentence_from_fragment(frag, "The patient reports "))
+    for frag in negatives_frags:
+        sentences.append(_sentence_from_fragment(frag, "Negatives include "))
+    for frag in exam_frags:
+        sentences.append(_sentence_from_fragment(frag, "Exam findings include "))
 
     paragraph = " ".join([s for s in sentences if s]).strip()
     return paragraph or "Not documented."
+
+
+def _normalize_management_clause(text: str) -> str:
+    t = (text or "").strip()
+    if not t:
+        return ""
+    low = t.lower()
+    if low.startswith("start "):
+        return "starting " + t[6:].strip()
+    if low.startswith("continue "):
+        return "continuing " + t[9:].strip()
+    if low.startswith("stop "):
+        return "stopping " + t[5:].strip()
+    if low.startswith("trial "):
+        return "a trial of " + t[6:].strip()
+    if low.startswith("add "):
+        return "adding " + t[4:].strip()
+    return t
 
 
 def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
@@ -1185,9 +1212,10 @@ def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
     if tried:
         tried_sentences = _split_into_sentences(tried)
         if tried_sentences:
-            first = tried_sentences[0].rstrip(".")
+            first = _normalize_management_clause(tried_sentences[0].rstrip("."))
             sentences.append(_sentence_case(f"Treatments to date include {first}"))
-            sentences.extend(tried_sentences[1:])
+            for extra in tried_sentences[1:]:
+                sentences.append(_sentence_case(_normalize_management_clause(extra.rstrip("."))))
     if pending:
         pending_sentences = _split_into_sentences(pending)
         if pending_sentences:
@@ -1198,7 +1226,7 @@ def _build_management_paragraph(m: ManagementBlock, a: AssessmentBlock) -> str:
         working_sentences = _split_into_sentences(working)
         if working_sentences:
             first = working_sentences[0].rstrip(".")
-            sentences.append(_sentence_case(f"Working diagnosis/differential includes {first}"))
+            sentences.append(_sentence_case(f"The working diagnosis/differential is {first}"))
             for extra in working_sentences[1:]:
                 sentences.append(_sentence_case(f"Additional considerations include {extra.rstrip('.')}"))
 
