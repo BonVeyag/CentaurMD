@@ -2128,26 +2128,27 @@ NOTES:
     data = _call_billing_model(source_text, source_label)
 
     # ICD-9 line
-    icd_parts = _extract_icd9_parts(data.get("icd9") or [])
-    if not icd_parts:
-        icd_parts = _extract_icd9_from_text_direct(source_text)
-
     fallback_data: Optional[Dict[str, Any]] = None
-    if not icd_parts and transcript_ok and fallback_source:
-        icd_parts = _extract_icd9_from_text_direct(fallback_source)
+    if not icd_locked:
+        icd_parts = _extract_icd9_parts(data.get("icd9") or [])
         if not icd_parts:
-            fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
-            icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
-    if not icd_parts and emr_context:
-        icd_parts = _extract_icd9_from_text_direct(emr_context)
-        if not icd_parts:
-            icd_parts = _fetch_icd9_parts_from_source(
-                emr_context,
-                "EMR CONTEXT (PROBLEM LIST / ASSESSMENT)",
-                ref_text,
-            )
-        if len(icd_parts) > 3:
-            icd_parts = icd_parts[:3]
+            icd_parts = _extract_icd9_from_text_direct(source_text)
+
+        if not icd_parts and transcript_ok and fallback_source:
+            icd_parts = _extract_icd9_from_text_direct(fallback_source)
+            if not icd_parts:
+                fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
+                icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
+        if not icd_parts and emr_context:
+            icd_parts = _extract_icd9_from_text_direct(emr_context)
+            if not icd_parts:
+                icd_parts = _fetch_icd9_parts_from_source(
+                    emr_context,
+                    "EMR CONTEXT (PROBLEM LIST / ASSESSMENT)",
+                    ref_text,
+                )
+            if len(icd_parts) > 3:
+                icd_parts = icd_parts[:3]
 
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
