@@ -1763,6 +1763,19 @@ def _extract_icd9_parts(icd_items: Any) -> List[str]:
     parts: List[str] = []
     if not isinstance(icd_items, list):
         return parts
+    deny_desc_re = re.compile(
+        r"\b("
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
+        r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
+        r")\b",
+        flags=re.IGNORECASE,
+    )
+    addr_re = re.compile(
+        r"\b(avenue|ave|road|rd|street|st\.|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|alberta|ab)\b",
+        flags=re.IGNORECASE,
+    )
+    phone_re = re.compile(r"\b\d{3}[-)\s]\d{3}[-\s]\d{4}\b")
 
     for it in icd_items[:6]:
         code = ""
@@ -1778,6 +1791,11 @@ def _extract_icd9_parts(icd_items: Any) -> List[str]:
                 dx = (m.group(2) or "").strip()
         if not code:
             continue
+        if dx:
+            if deny_desc_re.search(dx) or addr_re.search(dx) or phone_re.search(dx):
+                continue
+            if not re.search(r"[A-Za-z]", dx):
+                continue
         parts.append(f"{code} ({dx})" if dx else code)
 
     return parts
