@@ -851,6 +851,13 @@ def _extract_guideline_graph_from_asset(
     if asset_type == "svg":
         svg_text = inline_text
         if not svg_text:
+            data = asset.get("bytes")
+            if data:
+                try:
+                    svg_text = data.decode("utf-8", errors="ignore")
+                except Exception:
+                    svg_text = ""
+        if not svg_text:
             return None
         blocks = _extract_svg_blocks(svg_text)
         graph = _graph_from_blocks(blocks, guideline_id, title, jurisdiction, version_date, asset_url, asset_url, "svg")
@@ -867,6 +874,16 @@ def _extract_guideline_graph_from_asset(
         if KB_GUIDELINE_LLM_EXTRACT:
             graph = _vision_graph_from_image(data, asset_url, "pdf")
             if graph:
+                graph.update(
+                    {
+                        "guideline_id": guideline_id,
+                        "title": title,
+                        "jurisdiction": jurisdiction,
+                        "version_date": version_date,
+                        "source_url": asset_url,
+                    }
+                )
+                graph.setdefault("variables", [])
                 return _validate_guideline_graph(graph), "vision", 0.45
         return None
 
@@ -877,6 +894,16 @@ def _extract_guideline_graph_from_asset(
         if KB_GUIDELINE_LLM_EXTRACT:
             graph = _vision_graph_from_image(data, asset_url, "image")
             if graph:
+                graph.update(
+                    {
+                        "guideline_id": guideline_id,
+                        "title": title,
+                        "jurisdiction": jurisdiction,
+                        "version_date": version_date,
+                        "source_url": asset_url,
+                    }
+                )
+                graph.setdefault("variables", [])
                 return _validate_guideline_graph(graph), "vision", 0.4
         return None
     return None
