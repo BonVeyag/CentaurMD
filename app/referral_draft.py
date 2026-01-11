@@ -769,6 +769,9 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
     pathology_block = objective_pathology or _extract_section_block_last(
         emr_text, ["Pathology", "Biopsy"], max_lines=10
     )
+    labs_block = _sanitize_summary_text(labs_block)
+    imaging_block = _sanitize_summary_text(imaging_block)
+    pathology_block = _sanitize_summary_text(pathology_block)
 
     results_location = ""
     if include_objective:
