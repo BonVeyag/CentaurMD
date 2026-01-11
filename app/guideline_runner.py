@@ -12,13 +12,17 @@ def _extract_basic_variables(text: str) -> Dict[str, Any]:
     m = re.search(r"\b(\d{1,3})\s*(?:years|yrs|yr|y)\s*old\b", t, flags=re.IGNORECASE)
     if m:
         try:
-            out["age_years"] = int(m.group(1))
+            age = int(m.group(1))
+            out["age_years"] = age
+            out["age"] = age
         except Exception:
             pass
     if re.search(r"\bmale\b|\bman\b", t, flags=re.IGNORECASE):
         out["sex"] = "male"
+        out["gender"] = "male"
     elif re.search(r"\bfemale\b|\bwoman\b", t, flags=re.IGNORECASE):
         out["sex"] = "female"
+        out["gender"] = "female"
     if re.search(r"\bpregnan\w+\b", t, flags=re.IGNORECASE):
         out["pregnant"] = True
     return out
