@@ -1826,7 +1826,7 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
         flags=re.IGNORECASE,
     )
     addr_re = re.compile(
-        r"\b(avenue|ave|road|rd|street|st\.|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|alberta|ab)\b",
+        r"\b(avenue|ave|road|rd|street|st\.|st|blvd|boulevard|suite|unit|po box|postal|zip|nw|ne|sw|se|alberta|ab)\b",
         flags=re.IGNORECASE,
     )
     phone_re = re.compile(r"\b\d{3}[-)\s]\d{3}[-\s]\d{4}\b")
