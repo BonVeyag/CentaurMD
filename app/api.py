@@ -2277,7 +2277,12 @@ NOTES:
         icd_source_text = transcript
     else:
         icd_source_text = emr_context or fallback_source
-    icd_parts = _sanitize_icd9_parts(icd_parts, icd_source_text)
+    icd_parts_raw = list(icd_parts)
+    icd_parts = _sanitize_icd9_parts(icd_parts_raw, icd_source_text)
+    if not icd_parts and transcript_ok:
+        fallback_text = emr_context or fallback_source
+        if fallback_text and fallback_text != icd_source_text:
+            icd_parts = _sanitize_icd9_parts(icd_parts_raw, fallback_text)
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
     # Billing line
