@@ -2027,6 +2027,7 @@ HARD RULES:
 - If the source does not support a diagnosis, omit it.
 - If any diagnosis is mentioned, include at least one ICD-9 code.
 - Do NOT use vitals or lab values (e.g., systolic/diastolic), medications/doses, addresses, or phone numbers as diagnoses.
+- If no explicit diagnosis is stated, use symptom-based ICD-9 codes that are directly supported by the symptoms described.
 - Output MUST be STRICT JSON only (no markdown, no extra text).
 
 OUTPUT JSON SCHEMA:
