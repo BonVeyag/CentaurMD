@@ -977,7 +977,13 @@ def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
                     status = "error"
                     error = f"{e.__class__.__name__}: {e}"
             if sha:
-                ext = mimetypes.guess_extension(_guess_asset_type(asset_url) or "") or ".bin"
+                ext = ".bin"
+                if asset_type == "pdf":
+                    ext = ".pdf"
+                elif asset_type == "svg":
+                    ext = ".svg"
+                elif asset_type == "image":
+                    ext = os.path.splitext(urllib.parse.urlparse(asset_url).path)[-1] or ".png"
                 path = _asset_path(sha, ext)
                 if data and not os.path.exists(path):
                     try:
