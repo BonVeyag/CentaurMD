@@ -969,6 +969,8 @@ def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
     now = _utc_now_iso()
     with _get_db() as conn:
         for asset in assets:
+            if not _is_guideline_asset(asset):
+                continue
             asset_url = asset.get("asset_url", "")
             asset_type = asset.get("asset_type", "")
             inline_text = asset.get("inline_text", "")
