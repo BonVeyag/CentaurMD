@@ -62,6 +62,8 @@ class _HtmlExtractor(HTMLParser):
         super().__init__()
         self._texts: List[str] = []
         self._links: List[str] = []
+        self._images: List[str] = []
+        self._embeds: List[str] = []
         self._title: str = ""
         self._in_script = False
         self._in_style = False
@@ -79,6 +81,14 @@ class _HtmlExtractor(HTMLParser):
             for k, v in attrs:
                 if (k or "").lower() == "href" and v:
                     self._links.append(v)
+        elif t == "img":
+            for k, v in attrs:
+                if (k or "").lower() == "src" and v:
+                    self._images.append(v)
+        elif t in {"embed", "object"}:
+            for k, v in attrs:
+                if (k or "").lower() in {"src", "data"} and v:
+                    self._embeds.append(v)
 
     def handle_endtag(self, tag: str) -> None:
         t = (tag or "").lower()
@@ -98,12 +108,12 @@ class _HtmlExtractor(HTMLParser):
         if data and data.strip():
             self._texts.append(data.strip())
 
-    def extract(self) -> Tuple[str, str, List[str]]:
+    def extract(self) -> Tuple[str, str, List[str], List[str], List[str]]:
         text = " ".join(self._texts)
         text = html.unescape(text)
         text = re.sub(r"\s+", " ", text).strip()
         title = html.unescape(self._title or "").strip()
-        return title, text, list(self._links)
+        return title, text, list(self._links), list(self._images), list(self._embeds)
 
 
 def _utc_now_iso() -> str:
