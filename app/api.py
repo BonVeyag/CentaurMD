@@ -1770,7 +1770,7 @@ def _extract_icd9_parts(icd_items: Any) -> List[str]:
         return parts
     deny_desc_re = re.compile(
         r"\b("
-        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature|systolic|diastolic|blood pressure"
         r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
         r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
         r")\b",
@@ -1823,7 +1823,7 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
     stopwords = {"author", "date", "signature", "clinic", "dr", "note", "notes"}
     deny_desc_re = re.compile(
         r"\b("
-        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature|systolic|diastolic|blood pressure"
         r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
         r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
         r")\b",
@@ -1897,7 +1897,7 @@ def _sanitize_icd9_parts(parts: List[str], source_text: str) -> List[str]:
 
     deny_desc_re = re.compile(
         r"\b("
-        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature"
+        r"kg|lbs|lb|cm|mm|mmhg|bpm|%|bp|weight|height|bmi|pulse|temp|temperature|systolic|diastolic|blood pressure"
         r"|mg|mcg|g|ml|l|tab|tabs|tablet|cap|capsule|po|prn|bid|tid|qid|qhs|qday|daily|weekly|monthly"
         r"|dose|doses|units|injection|patch|spray|puff|inh|nebul"
         r")\b",
