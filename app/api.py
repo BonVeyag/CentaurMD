@@ -1634,6 +1634,52 @@ def _extract_last_dated_emr_entry(context: SessionContext) -> str:
     return "\n".join(chosen_lines).strip()
 
 
+def _extract_emr_context_for_billing(context: SessionContext) -> str:
+    """
+    Pull a compact EMR context block suitable for ICD-9 fallback.
+    Focus on problem list/assessment style lines and any ICD-9-coded lines.
+    """
+    emr = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
+    if not emr:
+        return ""
+
+    lines = emr.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    heading_re = re.compile(
+        r"^\s*(health profile|problem list|diagnoses|assessment|plan|active & past medical|"
+        r"medical history|pmhx|past medical|allergies|intolerances)\b",
+        flags=re.IGNORECASE,
+    )
+    code_re = re.compile(r"\b\d{3}(?:\.\d{1,2})?\b")
+    deny_re = re.compile(
+        r"\b(kg|lbs|lb|cm|mm|mmhg|bpm|%|weight|height|bmi|pulse|temp|temperature)\b",
+        flags=re.IGNORECASE,
+    )
+
+    kept: List[str] = []
+    seen: set[str] = set()
+    for i, line in enumerate(lines):
+        raw = (line or "").strip()
+        if not raw:
+            continue
+        if heading_re.search(raw):
+            for ln in lines[i:i + 14]:
+                ln = (ln or "").strip()
+                if not ln:
+                    continue
+                if ln not in seen:
+                    kept.append(ln)
+                    seen.add(ln)
+            continue
+        if code_re.search(raw) and not deny_re.search(raw):
+            if raw not in seen:
+                kept.append(raw)
+                seen.add(raw)
+        if len(kept) >= 220:
+            break
+
+    return "\n".join(kept).strip()
+
+
 def _extract_icd9_parts(icd_items: Any) -> List[str]:
     parts: List[str] = []
     if not isinstance(icd_items, list):

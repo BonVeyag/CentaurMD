@@ -965,15 +965,44 @@ textarea::-webkit-scrollbar-track{
 }
 .profile-panel select{
   width:100%;
-  border-radius:14px;
   border:none;
   padding:12px;
   font-size:14px;
-  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  background: transparent;
   color: var(--text);
+}
+.profile-select-shell{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
   box-shadow: var(--shadow-xs),
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
+}
+.profile-clinic-group{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.profile-clinic-group input{
+  background: transparent;
+  border:none;
+  box-shadow:none;
+  border-radius:0;
+  padding:10px 12px;
+  font-size:14px;
+  color: var(--text);
+}
+.profile-clinic-group input + input{
+  border-top:1px solid var(--edge-soft);
 }
 .referral-panel{
   width:min(760px, 94vw);
@@ -1695,15 +1724,19 @@ and for the care, day after day, you give.</div>
   <div class="macro-section">
     <input id="profileSignatureName" type="text" placeholder="Signature Name" />
     <input id="profileCpsa" type="text" placeholder="CPSA Number" />
-    <select id="profileDefaultFundingModel">
-      <option value="">Default funding model</option>
-      <option value="FFS">Fee for Service (FFS)</option>
-      <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
-    </select>
-    <input id="profileClinicName" type="text" placeholder="Clinic Name" />
-    <input id="profileClinicAddress" type="text" placeholder="Clinic Address" />
-    <input id="profileClinicPhone" type="text" placeholder="Clinic Phone" />
-    <input id="profileClinicFax" type="text" placeholder="Clinic Fax" />
+    <div class="profile-select-shell">
+      <select id="profileDefaultFundingModel">
+        <option value="">Default funding model</option>
+        <option value="FFS">Fee for Service (FFS)</option>
+        <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
+      </select>
+    </div>
+    <div class="profile-clinic-group">
+      <input id="profileClinicName" type="text" placeholder="Clinic Name" />
+      <input id="profileClinicAddress" type="text" placeholder="Clinic Address" />
+      <input id="profileClinicPhone" type="text" placeholder="Clinic Phone" />
+      <input id="profileClinicFax" type="text" placeholder="Clinic Fax" />
+    </div>
     <div id="profileStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
       <button id="profileSaveBtn" class="primary" type="button">Save</button>
