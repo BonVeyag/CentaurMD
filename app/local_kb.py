@@ -666,6 +666,19 @@ def _extract_pdf_blocks(data: bytes) -> Tuple[List[Dict[str, Any]], bool]:
     return blocks, has_text
 
 
+def _render_pdf_first_page_png(data: bytes) -> Optional[bytes]:
+    try:
+        import fitz  # type: ignore
+        doc = fitz.open(stream=data, filetype="pdf")
+        if doc.page_count < 1:
+            return None
+        page = doc.load_page(0)
+        pix = page.get_pixmap(dpi=150)
+        return pix.tobytes("png")
+    except Exception:
+        return None
+
+
 def _extract_svg_blocks(svg_text: str) -> List[Dict[str, Any]]:
     blocks: List[Dict[str, Any]] = []
     if not svg_text:
