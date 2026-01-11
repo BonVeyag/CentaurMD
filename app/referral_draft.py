@@ -997,7 +997,7 @@ def render_referral_letter(draft: ReferralDraft) -> str:
     )
     if (o.pathology_block or "").strip():
         insert_at = lines.index("4) MANAGEMENT TO DATE")
-        path_lines = ["Pathology:", _display_soft(o.pathology_block, "No pathology results documented in EMR/Netcare."), ""]
+        path_lines = ["Pathology:", _display_soft(o.pathology_block, "No pathology results documented."), ""]
         lines[insert_at:insert_at] = path_lines
 
     clinic_bits = [ref.clinic_name, ref.clinic_address, ref.phone, ref.fax]
