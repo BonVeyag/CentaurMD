@@ -1344,10 +1344,25 @@ def reextract_guideline(guideline_id: str) -> None:
         if not row:
             raise ValueError("Guideline not found.")
         site_url = row["site_url"] or ""
+        patch_row = conn.execute(
+            "SELECT patch_json FROM kb_guideline_graph_patches WHERE guideline_id = ?",
+            (guideline_id,),
+        ).fetchone()
+        patch_ops = []
+        if patch_row and patch_row["patch_json"]:
+            try:
+                patch_ops = json.loads(patch_row["patch_json"])
+            except Exception:
+                patch_ops = []
     if not site_url:
         raise ValueError("Site URL missing.")
     pages = _crawl_site(site_url, KB_MAX_PAGES, KB_MAX_DEPTH)
     _index_guidelines_for_site(site_url, pages)
+    if patch_ops:
+        try:
+            save_guideline_patch(guideline_id, patch_ops)
+        except Exception:
+            pass
 
 
 def search_guideline_graphs(query: str, limit: int = 3) -> List[Dict[str, Any]]:
