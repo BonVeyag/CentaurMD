@@ -1843,6 +1843,46 @@ def _extract_icd9_from_text_direct(text: str, max_items: int = 4) -> List[str]:
     return found
 
 
+def _session_icd9_codes(context: SessionContext, source: Optional[str] = None) -> List[BillingIcd9Code]:
+    try:
+        items = list(getattr(context.billing, "icd9_codes", None) or [])
+    except Exception:
+        return []
+    if source:
+        return [i for i in items if (getattr(i, "source", None) or "") == source]
+    return items
+
+
+def _icd9_parts_from_codes(codes: List[BillingIcd9Code], max_items: int = 3) -> List[str]:
+    parts: List[str] = []
+    seen: set[str] = set()
+    for item in codes:
+        code = (item.code or "").strip()
+        if not code or code in seen:
+            continue
+        label = (item.label or "").strip()
+        parts.append(f"{code} ({label})" if label else code)
+        seen.add(code)
+        if len(parts) >= max_items:
+            break
+    return parts
+
+
+def _suggest_icd9_codes_for_context(context: SessionContext) -> List[BillingIcd9Code]:
+    transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
+    transcript_ok = _has_meaningful_transcript_for_billing(context)
+
+    suggestions: List[BillingIcd9Code] = []
+    if transcript_ok:
+        for rec in suggest_icd9_from_text(transcript, limit=3):
+            suggestions.append(BillingIcd9Code(code=rec["code"], label=rec["label"], source="ai_suggested", confidence=0.7))
+    if not suggestions:
+        fallback = _extract_last_dated_emr_entry(context) or _extract_emr_context_for_billing(context)
+        for rec in suggest_icd9_from_text(fallback, limit=3):
+            suggestions.append(BillingIcd9Code(code=rec["code"], label=rec["label"], source="ai_suggested", confidence=0.55))
+    return suggestions
+
+
 def _fetch_icd9_parts_from_source(source_text: str, source_label: str, ref_text: str) -> List[str]:
     if not (source_text or "").strip():
         return []
