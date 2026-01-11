@@ -192,6 +192,16 @@ def run_guideline_runner(query: str, context_text: str) -> Optional[Dict[str, An
         if key not in variables:
             missing_inputs.append({"variable": name, "question_to_user": f"Provide {name}."})
 
+    deduped = []
+    seen = set()
+    for item in missing_inputs:
+        key = (item.get("variable"), item.get("question_to_user"))
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    missing_inputs = deduped
+
     return {
         "selected_guideline": {
             "guideline_id": guideline_id,
