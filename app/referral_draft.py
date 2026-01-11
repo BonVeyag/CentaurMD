@@ -653,7 +653,6 @@ def _suggest_urgency(text: str) -> Tuple[str, str]:
         "neuro deficit",
         "weakness",
         "paralysis",
-        "severe",
         "uncontrolled",
         "suicidal",
         "self-harm",
