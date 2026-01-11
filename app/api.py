@@ -1836,7 +1836,6 @@ def _generate_icd9_and_billing_lines(
         fallback_source = _extract_last_dated_emr_entry(context)
 
     source_text = transcript if transcript_ok else fallback_source
-    source_clip = _clip_text(source_text, 5200)
 
     model_norm = (billing_model or "FFS").strip().upper()
     if model_norm not in ("FFS", "PCPCM"):
