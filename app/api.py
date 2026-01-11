@@ -181,6 +181,12 @@ def _billing_state_path(username: str, day_key: str) -> str:
     return os.path.join(base, f"current_{day_key}.json")
 
 
+def _profile_default_billing_model(username: str) -> str:
+    profile = get_user_profile(username)
+    model = (profile.get("default_funding_model") or "").strip().upper()
+    return model if model in ("FFS", "PCPCM") else "FFS"
+
+
 def _default_billing_state(day_key: str, billing_model: str = "FFS") -> Dict[str, Any]:
     model = (billing_model or "FFS").strip().upper()
     if model not in ("FFS", "PCPCM"):
