@@ -728,6 +728,10 @@ EMR FOCUS:
             audited = _audit_referral_summary(cleaned, t, bg, nc, focus_text)
             source_text = " ".join([t, bg, nc, focus_text])
             merged = _merge_audited(cleaned, audited, source_text)
+            fallback = _fallback_summary_from_emr(t, bg, nc)
+            for key, val in fallback.items():
+                if not merged.get(key):
+                    merged[key] = val
             if not merged.get("specialty_name"):
                 merged["specialty_name"] = _infer_specialty_from_text(source_text)
             return merged
