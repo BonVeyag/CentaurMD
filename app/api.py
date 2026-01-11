@@ -2270,6 +2270,8 @@ NOTES:
                 fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
                 icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
 
+    icd_source_text = transcript if transcript_ok else (emr_context or fallback_source)
+    icd_parts = _sanitize_icd9_parts(icd_parts, icd_source_text)
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: [No diagnosis found]"
 
     # Billing line
