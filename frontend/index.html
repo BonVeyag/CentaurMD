@@ -963,6 +963,18 @@ textarea::-webkit-scrollbar-track{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
 }
+.profile-panel select{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  padding:12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
 .referral-panel{
   width:min(760px, 94vw);
 }
@@ -1683,6 +1695,11 @@ and for the care, day after day, you give.</div>
   <div class="macro-section">
     <input id="profileSignatureName" type="text" placeholder="Signature Name" />
     <input id="profileCpsa" type="text" placeholder="CPSA Number" />
+    <select id="profileDefaultFundingModel">
+      <option value="">Default funding model</option>
+      <option value="FFS">Fee for Service (FFS)</option>
+      <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
+    </select>
     <input id="profileClinicName" type="text" placeholder="Clinic Name" />
     <input id="profileClinicAddress" type="text" placeholder="Clinic Address" />
     <input id="profileClinicPhone" type="text" placeholder="Clinic Phone" />
@@ -1924,6 +1941,7 @@ const profilePanel = document.getElementById("profilePanel");
 const profileCloseBtn = document.getElementById("profileCloseBtn");
 const profileSignatureName = document.getElementById("profileSignatureName");
 const profileCpsa = document.getElementById("profileCpsa");
+const profileDefaultFundingModel = document.getElementById("profileDefaultFundingModel");
 const profileClinicName = document.getElementById("profileClinicName");
 const profileClinicAddress = document.getElementById("profileClinicAddress");
 const profileClinicPhone = document.getElementById("profileClinicPhone");
@@ -2591,6 +2609,9 @@ async function loadProfile() {
     const profile = data?.profile || {};
     if (profileSignatureName) profileSignatureName.value = profile.signature_name || "";
     if (profileCpsa) profileCpsa.value = profile.cpsa || "";
+    if (profileDefaultFundingModel) {
+      profileDefaultFundingModel.value = (profile.default_funding_model || "FFS").toUpperCase();
+    }
     if (profileClinicName) profileClinicName.value = profile.clinic_name || "";
     if (profileClinicAddress) profileClinicAddress.value = profile.clinic_address || "";
     if (profileClinicPhone) profileClinicPhone.value = profile.clinic_phone || "";
@@ -2604,6 +2625,7 @@ async function saveProfile() {
   const payload = {
     signature_name: (profileSignatureName?.value || "").trim(),
     cpsa: (profileCpsa?.value || "").trim(),
+    default_funding_model: (profileDefaultFundingModel?.value || "").trim(),
     clinic_name: (profileClinicName?.value || "").trim(),
     clinic_address: (profileClinicAddress?.value || "").trim(),
     clinic_phone: (profileClinicPhone?.value || "").trim(),
