@@ -1952,7 +1952,9 @@ def _sanitize_icd9_parts(parts: List[str], source_text: str) -> List[str]:
                 has_evidence = True
 
         if not has_evidence:
-            continue
+            dict_available = has_icd9_dictionary()
+            if dict_available and not rec:
+                continue
 
         final_label = label or dx
         if not final_label:
