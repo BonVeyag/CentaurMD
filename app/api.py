@@ -68,6 +68,7 @@ from app.icd9 import (
     search_icd9,
     get_icd9_by_code,
     suggest_icd9_from_text,
+    has_icd9_dictionary,
 )
 
 # -------------------------
