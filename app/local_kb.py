@@ -971,10 +971,44 @@ def _is_guideline_page(page: KbPage) -> bool:
 
 def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
     assets = _collect_asset_candidates(pages, site_url)
-    if not assets:
+    if not assets and not pages:
         return
     now = _utc_now_iso()
     with _get_db() as conn:
+        for page in pages:
+            if not _is_guideline_page(page):
+                continue
+            if not page.text:
+                continue
+            title = page.title or page.url
+            version_date = _detect_version_date(page.text)
+            jurisdiction = _detect_jurisdiction(page.text)
+            guideline_id = _guideline_id(page.url, version_date)
+            blocks = _extract_html_blocks(page.text)
+            if not blocks:
+                continue
+            graph = _graph_from_blocks(
+                blocks,
+                guideline_id,
+                title,
+                jurisdiction,
+                version_date,
+                page.url,
+                page.url,
+                "html",
+            )
+            guideline = {
+                "guideline_id": guideline_id,
+                "title": title,
+                "jurisdiction": jurisdiction,
+                "version_date": version_date,
+                "source_url": page.url,
+                "site_url": site_url,
+            }
+            try:
+                _store_guideline_graph(conn, guideline, _validate_guideline_graph(graph), "pdf_layout", 0.55)
+            except Exception as e:
+                logger.warning(f"Guideline graph store failed (html): {page.url} ({e})")
         for asset in assets:
             if not _is_guideline_asset(asset):
                 continue
