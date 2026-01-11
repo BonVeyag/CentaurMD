@@ -755,6 +755,231 @@ def _apply_patch_ops(graph: Dict[str, Any], patch_ops: List[Dict[str, Any]]) -> 
     return out
 
 
+def _store_guideline_graph(
+    conn: sqlite3.Connection,
+    guideline: Dict[str, Any],
+    graph: Dict[str, Any],
+    extraction_method: str,
+    confidence: float,
+) -> None:
+    now = _utc_now_iso()
+    guideline_id = guideline["guideline_id"]
+    cur = conn.execute("SELECT id FROM kb_guidelines WHERE guideline_id = ?", (guideline_id,))
+    row = cur.fetchone()
+    if row:
+        conn.execute(
+            """
+            UPDATE kb_guidelines
+            SET title = ?, jurisdiction = ?, version_date = ?, source_url = ?, updated_at_utc = ?, site_url = ?
+            WHERE guideline_id = ?
+            """,
+            (
+                guideline.get("title", ""),
+                guideline.get("jurisdiction", ""),
+                guideline.get("version_date", ""),
+                guideline.get("source_url", ""),
+                now,
+                guideline.get("site_url", ""),
+                guideline_id,
+            ),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO kb_guidelines (site_url, guideline_id, title, jurisdiction, version_date, source_url, created_at_utc, updated_at_utc)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                guideline.get("site_url", ""),
+                guideline_id,
+                guideline.get("title", ""),
+                guideline.get("jurisdiction", ""),
+                guideline.get("version_date", ""),
+                guideline.get("source_url", ""),
+                now,
+                now,
+            ),
+        )
+    conn.execute("DELETE FROM kb_guideline_graphs WHERE guideline_id = ?", (guideline_id,))
+    conn.execute(
+        """
+        INSERT INTO kb_guideline_graphs (guideline_id, graph_json, extraction_method, extraction_confidence, created_at_utc, updated_at_utc)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (guideline_id, json.dumps(graph), extraction_method, confidence, now, now),
+    )
+    conn.execute("DELETE FROM kb_guideline_graph_index WHERE guideline_id = ?", (guideline_id,))
+    conn.execute(
+        "INSERT INTO kb_guideline_graph_index (guideline_id, text, metadata_json) VALUES (?, ?, ?)",
+        (
+            guideline_id,
+            _flatten_graph_text(graph),
+            json.dumps(
+                {
+                    "title": guideline.get("title", ""),
+                    "jurisdiction": guideline.get("jurisdiction", ""),
+                    "version_date": guideline.get("version_date", ""),
+                    "source_url": guideline.get("source_url", ""),
+                    "extraction_method": extraction_method,
+                    "confidence": confidence,
+                }
+            ),
+        ),
+    )
+
+
+def _extract_guideline_graph_from_asset(
+    asset: Dict[str, Any],
+    site_url: str,
+) -> Optional[Tuple[Dict[str, Any], str, float]]:
+    asset_url = asset.get("asset_url", "")
+    asset_type = asset.get("asset_type", "")
+    inline_text = asset.get("inline_text", "")
+    title = os.path.basename(urllib.parse.urlparse(asset_url).path) or asset_url
+    version_date = _detect_version_date(title)
+    jurisdiction = _detect_jurisdiction(title)
+    guideline_id = _guideline_id(asset_url, version_date)
+    guideline = {
+        "guideline_id": guideline_id,
+        "title": title,
+        "jurisdiction": jurisdiction,
+        "version_date": version_date,
+        "source_url": asset_url,
+        "site_url": site_url,
+    }
+
+    if asset_type == "svg":
+        svg_text = inline_text
+        if not svg_text:
+            return None
+        blocks = _extract_svg_blocks(svg_text)
+        graph = _graph_from_blocks(blocks, guideline_id, title, jurisdiction, version_date, asset_url, asset_url, "svg")
+        return _validate_guideline_graph(graph), "svg", 0.7
+
+    if asset_type == "pdf":
+        data = asset.get("bytes")
+        if not data:
+            return None
+        blocks, has_text = _extract_pdf_blocks(data)
+        if has_text:
+            graph = _graph_from_blocks(blocks, guideline_id, title, jurisdiction, version_date, asset_url, asset_url, "pdf")
+            return _validate_guideline_graph(graph), "pdf_layout", 0.6
+        if KB_GUIDELINE_LLM_EXTRACT:
+            graph = _vision_graph_from_image(data, asset_url, "pdf")
+            if graph:
+                return _validate_guideline_graph(graph), "vision", 0.45
+        return None
+
+    if asset_type == "image":
+        data = asset.get("bytes")
+        if not data:
+            return None
+        if KB_GUIDELINE_LLM_EXTRACT:
+            graph = _vision_graph_from_image(data, asset_url, "image")
+            if graph:
+                return _validate_guideline_graph(graph), "vision", 0.4
+        return None
+    return None
+
+
+def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Optional[Dict[str, Any]]:
+    try:
+        from openai import OpenAI  # type: ignore
+    except Exception:
+        return None
+    if not data:
+        return None
+    prompt = (
+        "You are extracting a clinical guideline flowchart into structured JSON. "
+        "Return JSON only matching GuidelineGraph schema with nodes and edges. "
+        "Include evidence_spans with asset_url, asset_type, page (if known), bbox (approximate), excerpt. "
+        "Keep labels concise and faithful."
+    )
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    try:
+        resp = client.chat.completions.create(
+            model=KB_GUIDELINE_VISION_MODEL,
+            temperature=0.1,
+            messages=[
+                {"role": "system", "content": prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": "Extract the flowchart."},
+                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{data.hex()}"}},
+                    ],
+                },
+            ],
+        )
+    except Exception:
+        return None
+    try:
+        content = resp.choices[0].message.content or ""
+        graph = json.loads(content)
+        return graph if isinstance(graph, dict) else None
+    except Exception:
+        return None
+
+
+def _index_guidelines_for_site(site_url: str, pages: List[KbPage]) -> None:
+    assets = _collect_asset_candidates(pages, site_url)
+    if not assets:
+        return
+    now = _utc_now_iso()
+    with _get_db() as conn:
+        for asset in assets:
+            asset_url = asset.get("asset_url", "")
+            asset_type = asset.get("asset_type", "")
+            inline_text = asset.get("inline_text", "")
+            status = "ok"
+            error = ""
+            sha = ""
+            data = b""
+            if inline_text:
+                data = inline_text.encode("utf-8")
+                sha = hashlib.sha256(data).hexdigest()
+            else:
+                try:
+                    data, content_type = _fetch_asset_bytes(asset_url)
+                    asset_type = asset_type or _guess_asset_type(asset_url, content_type)
+                    sha = hashlib.sha256(data).hexdigest()
+                except Exception as e:
+                    status = "error"
+                    error = f"{e.__class__.__name__}: {e}"
+            if sha:
+                ext = mimetypes.guess_extension(_guess_asset_type(asset_url) or "") or ".bin"
+                path = _asset_path(sha, ext)
+                if data and not os.path.exists(path):
+                    try:
+                        with open(path, "wb") as f:
+                            f.write(data)
+                    except Exception:
+                        pass
+            _upsert_asset(conn, site_url, asset_url, asset_type, sha, status, error)
+            conn.commit()
+            if status != "ok" or not data:
+                continue
+            asset["bytes"] = data
+            graph_tuple = _extract_guideline_graph_from_asset(asset, site_url)
+            if not graph_tuple:
+                continue
+            graph, method, confidence = graph_tuple
+            guideline = {
+                "guideline_id": graph.get("guideline_id"),
+                "title": graph.get("title"),
+                "jurisdiction": graph.get("jurisdiction"),
+                "version_date": graph.get("version_date"),
+                "source_url": graph.get("source_url"),
+                "site_url": site_url,
+            }
+            try:
+                _store_guideline_graph(conn, guideline, graph, method, confidence)
+            except Exception as e:
+                logger.warning(f"Guideline graph store failed: {asset_url} ({e})")
+        conn.execute("UPDATE kb_assets SET updated_at_utc = ? WHERE site_url = ?", (now, site_url))
+        conn.commit()
+
+
 def _upsert_site(conn: sqlite3.Connection, url: str, domain: str) -> int:
     now = _utc_now_iso()
     cur = conn.execute("SELECT id FROM kb_sites WHERE url = ?", (url,))
