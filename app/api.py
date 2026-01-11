@@ -70,6 +70,7 @@ from app.icd9 import (
     suggest_icd9_from_text,
     has_icd9_dictionary,
 )
+from app.local_kb import KB_ENABLED, list_sites as kb_list_sites, index_site as kb_index_site
 
 # -------------------------
 # TEMPORARY in-memory store
