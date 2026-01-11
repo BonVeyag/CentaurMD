@@ -1818,11 +1818,11 @@ def _generate_icd9_and_billing_lines(
 ) -> Tuple[str, str]:
     """
     Returns:
-      line2: ICD-9 line (always includes label; blank if no transcript)
-      line3: Billing line (or "")
+      line2: ICD-9 line (always includes label; blank if no data)
+      line3: Billing line (always includes label; best-effort)
     Rules:
-      - ICD-9 strictly from transcript.
-      - If transcript insufficient: return blank ICD-9 label and use EMR fallback only for billing line (if available).
+      - ICD-9 uses transcript as primary source; falls back to EMR if transcript lacks info.
+      - Billing line uses transcript as primary source; falls back to EMR if transcript lacks info.
     """
     transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
     transcript_ok = _has_meaningful_transcript_for_billing(context)
@@ -1831,7 +1831,9 @@ def _generate_icd9_and_billing_lines(
     if not transcript_ok:
         fallback_source = _extract_last_dated_emr_entry(context)
         if not fallback_source:
-            return "ICD-9: ", ""
+            return "ICD-9: ", "Billing: "
+    else:
+        fallback_source = _extract_last_dated_emr_entry(context)
 
     source_text = transcript if transcript_ok else fallback_source
     source_clip = _clip_text(source_text, 5200)
@@ -1846,8 +1848,11 @@ def _generate_icd9_and_billing_lines(
     ref_block = f"\nREFERENCE (use as guidance, not as a source of diagnoses):\n{ref_text}\n" if ref_text else ""
     cmgp_rule = "- If billing_model=\"PCPCM\": do NOT include CMGP time modifiers (CMGP01-10).\n"
 
-    source_label = "TODAY'S TRANSCRIPT" if transcript_ok else "MOST RECENT DATED EMR ENTRY (FALLBACK)"
-    prompt = f"""
+    def _call_billing_model(text: str, label: str) -> Dict[str, Any]:
+        if not (text or "").strip():
+            return {}
+        text_clip = _clip_text(text, 5200)
+        prompt = f"""
 You are an Alberta (Canada) primary care billing assistant.
 
 TASK:
@@ -1861,7 +1866,6 @@ HARD RULES:
 - If the source does not support a diagnosis/procedure, omit it.
 - Output MUST be STRICT JSON only (no markdown, no extra text).
 - If the source is an EMR fallback, treat it as the visit note for today and do NOT pull other history.
-- If the source is an EMR fallback (no transcript), set icd9 = [].
 {cmgp_rule}
 
 BILLING MODEL:
@@ -1887,56 +1891,78 @@ NOTES:
 - For "codes": include only the codes (no descriptors).
 - For "one_line": include descriptors only for NON-03.03A and NON-CMGP codes, in parentheses after the code.
 
-{source_label}:
-{source_clip}
+{label}:
+{text_clip}
 {ref_block}
 """.strip()
 
-    try:
-        client = _openai_client_best_effort()
-        resp = client.chat.completions.create(
-            model=BILLING_MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "Return strict JSON only. Conservative, transcript-only extraction."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.1,
-            response_format={"type": "json_object"},
-        )
-        raw = (resp.choices[0].message.content or "").strip()
-    except Exception as e:
-        logger.warning(f"Billing OpenAI call failed: {e}")
-        raw = ""
+        try:
+            client = _openai_client_best_effort()
+            resp = client.chat.completions.create(
+                model=BILLING_MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": "Return strict JSON only. Conservative, source-only extraction."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.1,
+                response_format={"type": "json_object"},
+            )
+            raw = (resp.choices[0].message.content or "").strip()
+        except Exception as e:
+            logger.warning(f"Billing OpenAI call failed: {e}")
+            raw = ""
 
-    try:
-        data = json.loads(_strip_code_fences(raw))
-        if not isinstance(data, dict):
+        try:
+            data = json.loads(_strip_code_fences(raw))
+            if not isinstance(data, dict):
+                data = {}
+        except Exception:
             data = {}
-    except Exception:
-        data = {}
+        return data
+
+    source_label = "TODAY'S TRANSCRIPT" if transcript_ok else "MOST RECENT DATED EMR ENTRY (FALLBACK)"
+    data = _call_billing_model(source_text, source_label)
 
     # ICD-9 line
-    icd_parts: List[str] = []
-    if transcript_ok:
-        icd_parts = _extract_icd9_parts(data.get("icd9") or [])
+    icd_parts = _extract_icd9_parts(data.get("icd9") or [])
+    if not icd_parts:
+        icd_parts = _extract_icd9_from_text_direct(source_text)
+
+    if not icd_parts and transcript_ok and fallback_source:
+        icd_parts = _extract_icd9_from_text_direct(fallback_source)
         if not icd_parts:
-            icd_parts = _extract_icd9_from_text_direct(transcript)
+            fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
+            icd_parts = _extract_icd9_parts(fallback_data.get("icd9") or [])
 
     line2 = f"ICD-9: {', '.join(icd_parts)}" if icd_parts else "ICD-9: "
 
     # Billing line
-    billing = data.get("billing") or {}
-    one_line = ""
-    if isinstance(billing, dict):
-        one_line = str(billing.get("one_line") or "").strip()
+    def _extract_one_line(dct: Dict[str, Any]) -> str:
+        billing = dct.get("billing") or {}
+        if isinstance(billing, dict):
+            return str(billing.get("one_line") or "").strip()
+        return ""
 
-    virtual_call = bool(transcript and _is_virtual_call(transcript))
-    if virtual_call:
-        one_line = _normalize_billing_for_virtual(one_line, model_norm)
-    elif model_norm == "PCPCM":
-        one_line = _strip_cmgp_modifiers(one_line)
+    one_line = _extract_one_line(data)
 
-    line3 = f"Billing: {one_line}" if one_line else ""
+    if not one_line and transcript_ok and fallback_source:
+        fallback_data = _call_billing_model(fallback_source, "MOST RECENT DATED EMR ENTRY (FALLBACK)")
+        one_line = _extract_one_line(fallback_data)
+
+    virtual_call = bool((transcript or fallback_source) and _is_virtual_call(transcript or fallback_source))
+    if one_line:
+        if virtual_call:
+            one_line = _normalize_billing_for_virtual(one_line, model_norm)
+        elif model_norm == "PCPCM":
+            one_line = _strip_cmgp_modifiers(one_line)
+    else:
+        base = "03.03CV" if virtual_call else "03.03A"
+        if model_norm == "FFS":
+            one_line = f"{base} + CMGP01"
+        else:
+            one_line = base
+
+    line3 = f"Billing: {one_line}" if one_line else "Billing: "
     return line2, line3
 
 
