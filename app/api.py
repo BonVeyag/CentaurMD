@@ -1793,14 +1793,13 @@ def _extract_icd9_parts(icd_items: Any) -> List[str]:
             if m:
                 code = m.group(1)
                 dx = (m.group(2) or "").strip()
-        if not code:
+        if not code or not dx:
             continue
-        if dx:
-            if deny_desc_re.search(dx) or addr_re.search(dx) or phone_re.search(dx):
-                continue
-            if not re.search(r"[A-Za-z]", dx):
-                continue
-        parts.append(f"{code} ({dx})" if dx else code)
+        if deny_desc_re.search(dx) or addr_re.search(dx) or phone_re.search(dx):
+            continue
+        if not re.search(r"[A-Za-z]", dx):
+            continue
+        parts.append(f"{code} ({dx})")
 
     return parts
 
