@@ -159,6 +159,69 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kb_assets (
+                id INTEGER PRIMARY KEY,
+                site_url TEXT,
+                asset_url TEXT,
+                asset_type TEXT,
+                sha256 TEXT,
+                fetched_at_utc TEXT,
+                updated_at_utc TEXT,
+                status TEXT,
+                last_error TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kb_guidelines (
+                id INTEGER PRIMARY KEY,
+                site_url TEXT,
+                guideline_id TEXT UNIQUE,
+                title TEXT,
+                jurisdiction TEXT,
+                version_date TEXT,
+                source_url TEXT,
+                created_at_utc TEXT,
+                updated_at_utc TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kb_guideline_graphs (
+                id INTEGER PRIMARY KEY,
+                guideline_id TEXT,
+                graph_json TEXT,
+                extraction_method TEXT,
+                extraction_confidence REAL,
+                created_at_utc TEXT,
+                updated_at_utc TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kb_guideline_graph_patches (
+                id INTEGER PRIMARY KEY,
+                guideline_id TEXT,
+                patch_json TEXT,
+                created_at_utc TEXT,
+                updated_at_utc TEXT
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS kb_guideline_graph_index USING fts5(
+                guideline_id,
+                text,
+                metadata_json
+            )
+            """
+        )
         conn.commit()
 
 
