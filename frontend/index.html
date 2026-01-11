@@ -951,6 +951,46 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   gap:10px;
 }
+.kb-panel{
+  width:min(640px, 94vw);
+}
+.kb-panel .macro-section{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.kb-panel input{
+  width:100%;
+  border-radius:14px;
+  border:none;
+  padding:12px;
+  font-size:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.kb-site-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  font-size:13px;
+  color: var(--text);
+}
+.kb-site-item{
+  padding:10px 12px;
+  border-radius:12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.kb-site-meta{
+  font-size:12px;
+  color: var(--muted);
+  margin-top:4px;
+}
 .profile-panel input{
   width:100%;
   border-radius:14px;
@@ -1517,6 +1557,7 @@ textarea::-webkit-scrollbar-track{
           <button id="signOutBtn" type="button" class="menu-item">Sign out</button>
           <button id="reviewBillingBtn" type="button" class="menu-item">Review saved billings</button>
           <button id="personalizationBtn" type="button" class="menu-item">Personalization</button>
+          <button id="localKbBtn" type="button" class="menu-item" style="display:none">Local Knowledge Base</button>
           <button id="coachReportBtn" type="button" class="menu-item">Coach Report</button>
         </div>
       </div>
@@ -1754,6 +1795,25 @@ and for the care, day after day, you give.</div>
       <button id="profileSaveBtn" class="primary" type="button">Save</button>
       <button id="profileCancelBtn" type="button">Cancel</button>
     </div>
+  </div>
+</div>
+<div id="kbOverlay" class="macro-overlay" style="display:none"></div>
+<div id="kbPanel" class="macro-panel kb-panel" style="display:none" aria-label="Local Knowledge Base">
+  <div class="macro-head">
+    <h2>Local Knowledge Base</h2>
+    <button id="kbCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section">
+    <input id="kbUrlInput" type="text" placeholder="Enter site URL (e.g., https://rxfiles.ca)" />
+    <div id="kbStatus" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="kbIndexBtn" class="primary" type="button">Index site</button>
+      <button id="kbRefreshBtn" type="button">Refresh list</button>
+    </div>
+  </div>
+  <div class="macro-section">
+    <div class="summary-title">Indexed sites</div>
+    <div id="kbSiteList" class="kb-site-list"></div>
   </div>
 </div>
 <div id="referralOverlay" class="macro-overlay" style="display:none"></div>
@@ -1994,6 +2054,15 @@ const profileClinicFax = document.getElementById("profileClinicFax");
 const profileStatus = document.getElementById("profileStatus");
 const profileSaveBtn = document.getElementById("profileSaveBtn");
 const profileCancelBtn = document.getElementById("profileCancelBtn");
+const localKbBtn = document.getElementById("localKbBtn");
+const kbOverlay = document.getElementById("kbOverlay");
+const kbPanel = document.getElementById("kbPanel");
+const kbCloseBtn = document.getElementById("kbCloseBtn");
+const kbUrlInput = document.getElementById("kbUrlInput");
+const kbStatus = document.getElementById("kbStatus");
+const kbIndexBtn = document.getElementById("kbIndexBtn");
+const kbRefreshBtn = document.getElementById("kbRefreshBtn");
+const kbSiteList = document.getElementById("kbSiteList");
 const referralOverlay = document.getElementById("referralOverlay");
 const referralPanel = document.getElementById("referralPanel");
 const referralCloseBtn = document.getElementById("referralCloseBtn");
@@ -2626,6 +2695,90 @@ function closeFeedbackPanel() {
   if (!feedbackPanel || !feedbackOverlay) return;
   feedbackOverlay.style.display = "none";
   feedbackPanel.style.display = "none";
+}
+
+function setAdminUIVisibility() {
+  const isAdmin = !!authUser?.is_admin;
+  if (localKbBtn) localKbBtn.style.display = isAdmin ? "block" : "none";
+}
+
+function openKbPanel() {
+  if (!kbPanel || !kbOverlay) return;
+  kbOverlay.style.display = "block";
+  kbPanel.style.display = "flex";
+  setKbStatus("");
+  loadKbSites();
+}
+
+function closeKbPanel() {
+  if (!kbPanel || !kbOverlay) return;
+  kbOverlay.style.display = "none";
+  kbPanel.style.display = "none";
+}
+
+function setKbStatus(message, isError=false) {
+  if (!kbStatus) return;
+  kbStatus.textContent = message || "";
+  kbStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function renderKbSites(sites) {
+  if (!kbSiteList) return;
+  kbSiteList.innerHTML = "";
+  if (!Array.isArray(sites) || sites.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "kb-site-item";
+    empty.textContent = "No indexed sites yet.";
+    kbSiteList.appendChild(empty);
+    return;
+  }
+  for (const site of sites) {
+    const wrap = document.createElement("div");
+    wrap.className = "kb-site-item";
+    const url = String(site.url || "");
+    const updated = String(site.last_indexed_utc || "").replace("T", " ").replace("Z", "");
+    const status = String(site.last_status || "");
+    const err = String(site.last_error || "");
+    const title = document.createElement("div");
+    title.textContent = url;
+    const meta = document.createElement("div");
+    meta.className = "kb-site-meta";
+    meta.textContent = `Last indexed: ${updated || "—"}${status ? ` | ${status}` : ""}${err ? ` | ${err}` : ""}`;
+    wrap.appendChild(title);
+    wrap.appendChild(meta);
+    kbSiteList.appendChild(wrap);
+  }
+}
+
+async function loadKbSites() {
+  if (!kbSiteList) return;
+  try {
+    const data = await apiGet("/admin/local_kb/sites");
+    renderKbSites(data?.sites || []);
+  } catch (err) {
+    renderKbSites([]);
+    setKbStatus(err?.message || "Failed to load sites.", true);
+  }
+}
+
+async function indexKbSite() {
+  const url = String(kbUrlInput?.value || "").trim();
+  if (!url) {
+    setKbStatus("Enter a URL to index.", true);
+    return;
+  }
+  setKbStatus("Indexing…");
+  try {
+    const data = await apiPost("/admin/local_kb/index", { url });
+    const site = data?.site || {};
+    const pages = site.pages_indexed ? ` (${site.pages_indexed} pages)` : "";
+    setKbStatus(`Indexed ${site.url || url}${pages}.`);
+    if (kbUrlInput) kbUrlInput.value = "";
+    await loadKbSites();
+  } catch (err) {
+    const msg = err?.message || "Indexing failed.";
+    setKbStatus(msg, true);
+  }
 }
 
 function openProfilePanel() {
@@ -3937,6 +4090,7 @@ function setAuthToken(token) {
 function clearAuthToken() {
   setAuthToken("");
   authUser = null;
+  setAdminUIVisibility();
 }
 function showAuthError(msg) {
   if (!authError) return;
@@ -4019,6 +4173,7 @@ async function ensureAuth() {
     const me = await apiGet("/auth/me");
     authUser = me?.user || null;
     if (!authUser) throw new Error("No user.");
+    setAdminUIVisibility();
     hideAuthOverlay();
     return true;
   } catch {
@@ -5060,6 +5215,7 @@ authLoginForm?.addEventListener("submit", async (e) => {
     setAuthToken(data?.token || "");
     authUser = data?.user || null;
     if (authLoginPassword) authLoginPassword.value = "";
+    setAdminUIVisibility();
     hideAuthOverlay();
     await bootstrapApp();
   } catch (err) {
@@ -5080,6 +5236,7 @@ authSignupForm?.addEventListener("submit", async (e) => {
     setAuthToken(data?.token || "");
     authUser = data?.user || null;
     if (authSignupPassword) authSignupPassword.value = "";
+    setAdminUIVisibility();
     hideAuthOverlay();
     await bootstrapApp();
   } catch (err) {
@@ -5099,6 +5256,16 @@ profileBtn?.addEventListener("click", (e) => {
   toggleProfilePopover();
 });
 profilePopover?.addEventListener("click", (e) => e.stopPropagation());
+localKbBtn?.addEventListener("click", (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  if (!authUser?.is_admin) {
+    showToast("Admin access required.", "error");
+    return;
+  }
+  profilePopover.style.display = "none";
+  openKbPanel();
+});
 themeBtn?.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
@@ -5140,6 +5307,15 @@ profileCloseBtn?.addEventListener("click", () => closeProfilePanel());
 profileOverlay?.addEventListener("click", () => closeProfilePanel());
 profilePanel?.addEventListener("click", (e) => e.stopPropagation());
 profileCancelBtn?.addEventListener("click", () => closeProfilePanel());
+kbCloseBtn?.addEventListener("click", () => closeKbPanel());
+kbOverlay?.addEventListener("click", () => closeKbPanel());
+kbPanel?.addEventListener("click", (e) => e.stopPropagation());
+kbIndexBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(kbIndexBtn, "Indexing…", indexKbSite);
+});
+kbRefreshBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(kbRefreshBtn, "Refreshing…", loadKbSites);
+});
 profileSaveBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(profileSaveBtn, "Saving…", saveProfile);
 });

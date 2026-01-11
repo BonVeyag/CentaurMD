@@ -163,11 +163,12 @@ def _is_admin_user(username: str, email: str) -> bool:
 
 def _public_user(username: str, rec: Dict[str, Any]) -> AuthUser:
     email = rec.get("email", "")
+    is_admin_flag = bool(rec.get("is_admin"))
     return AuthUser(
         username=username,
         email=email,
         created_at_utc=rec.get("created_at_utc", ""),
-        is_admin=_is_admin_user(username, email),
+        is_admin=is_admin_flag or _is_admin_user(username, email),
     )
 
 
