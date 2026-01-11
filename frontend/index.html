@@ -2931,7 +2931,8 @@ function renderKbGuidelines(items) {
     const meta = document.createElement("div");
     meta.className = "kb-site-meta";
     const conf = (item.confidence || 0).toFixed(2);
-    meta.textContent = `Jurisdiction: ${item.jurisdiction || "—"} | Version: ${item.version_date || "—"} | Confidence: ${conf}`;
+    const updated = (item.updated_at_utc || "").replace("T", " ").replace("Z", "");
+    meta.textContent = `Jurisdiction: ${item.jurisdiction || "—"} | Version: ${item.version_date || "—"} | Confidence: ${conf} | Updated: ${updated || "—"}`;
     const actions = document.createElement("div");
     actions.className = "macro-editor-actions";
     const viewBtn = document.createElement("button");

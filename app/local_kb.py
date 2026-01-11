@@ -967,6 +967,10 @@ def _vision_graph_from_image(data: bytes, asset_url: str, asset_type: str) -> Op
         return None
     try:
         content = resp.choices[0].message.content or ""
+        content = content.strip()
+        if content.startswith("```"):
+            content = re.sub(r"^```[a-zA-Z0-9]*\\s*", "", content)
+            content = re.sub(r"```$", "", content).strip()
         graph = json.loads(content)
         return graph if isinstance(graph, dict) else None
     except Exception:
