@@ -174,6 +174,9 @@ def _public_user(username: str, rec: Dict[str, Any]) -> AuthUser:
 def _normalize_profile(payload: ProfilePayload) -> Dict[str, str]:
     def clean(val: str) -> str:
         return str(val or "").strip()
+    def clean_model(val: str) -> str:
+        model = clean(val).upper()
+        return model if model in ("FFS", "PCPCM") else ""
     return {
         "signature_name": clean(payload.signature_name),
         "cpsa": clean(payload.cpsa),
@@ -181,7 +184,7 @@ def _normalize_profile(payload: ProfilePayload) -> Dict[str, str]:
         "clinic_address": clean(payload.clinic_address),
         "clinic_phone": clean(payload.clinic_phone),
         "clinic_fax": clean(payload.clinic_fax),
-        "default_funding_model": clean(payload.default_funding_model).upper(),
+        "default_funding_model": clean_model(payload.default_funding_model),
     }
 
 
