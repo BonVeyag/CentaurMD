@@ -1430,7 +1430,7 @@ def build_encounter_packet(context: SessionContext, attachments_text: str = "") 
     elif getattr(context.transcript, "mode", None) == "imported":
         source = "typed"
 
-    return {
+    packet = {
         "metadata": {
             "encounter_id": context.session_meta.session_id,
             "clinician_name": None,
@@ -1454,6 +1454,22 @@ def build_encounter_packet(context: SessionContext, attachments_text: str = "") 
             "max_length": "medium",
         },
     }
+    validate_encounter_packet(packet)
+    return packet
+
+
+def validate_encounter_packet(packet: Dict[str, Any]) -> None:
+    required_top = ["metadata", "transcript", "emr_context", "objective_data", "clinician_intent"]
+    for key in required_top:
+        if key not in packet:
+            raise ValueError(f"EncounterPacket missing '{key}'")
+    meta = packet.get("metadata") or {}
+    for key in ["encounter_id", "timezone", "encounter_datetime_iso", "visit_type"]:
+        if key not in meta:
+            raise ValueError(f"EncounterPacket.metadata missing '{key}'")
+    transcript = packet.get("transcript") or {}
+    if "text" not in transcript:
+        raise ValueError("EncounterPacket.transcript missing 'text'")
 
 
 def _chunk_text(text: str, max_chars: int) -> List[str]:
