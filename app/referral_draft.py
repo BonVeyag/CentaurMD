@@ -1071,6 +1071,35 @@ def _display(value: str, label: str) -> str:
     return f"[MISSING: {label}]"
 
 
+def _format_dr_name(value: str, label: str) -> str:
+    raw = (value or "").strip()
+    if not raw:
+        return _display(raw, label)
+    if raw.lower().startswith("dr "):
+        return raw
+    return f"Dr. {raw}"
+
+
+def _bullet_lines(items: List[str]) -> List[str]:
+    bullets = [f"- {item.strip()}" for item in items if (item or "").strip()]
+    return bullets or ["- Not documented."]
+
+
+def _bullets_from_text(text: str) -> List[str]:
+    t = (text or "").strip()
+    if not t:
+        return []
+    lines = _split_lines(t)
+    fragments = lines if len(lines) > 1 else _split_into_sentences(t)
+    out: List[str] = []
+    for frag in fragments:
+        frag = (frag or "").strip()
+        if not frag:
+            continue
+        out.append(_sentence_case(frag))
+    return out
+
+
 def _display_soft(value: str, fallback: str = "Not documented.") -> str:
     v = (value or "").strip()
     return v if v else fallback
@@ -1312,72 +1341,87 @@ def render_referral_letter(draft: ReferralDraft) -> str:
     a = draft.assessment
     b = draft.background
     l = draft.logistics
-    ref_line = _display(r.specialty_name, "specialty")
-    if (r.subspecialty_or_clinic or "").strip():
-        ref_line = f"{ref_line} ({r.subspecialty_or_clinic})"
+    date_line = _display(draft.meta.generated_at.split("T")[0], "date")
+    referrer_line = _format_dr_name(ref.name, "referring provider")
+    specialist_raw = (r.specialty_name or "").strip()
+    specialist_line = _format_dr_name(specialist_raw, "specialist name") if specialist_raw else _display("", "specialist name")
+    patient_line = _display(p.full_name, "patient name")
+    dob_line = _display(p.dob, "DOB")
+
+    reason = (r.reason_short or "").strip() or (c.summary_symptoms or "").strip()
+    reason_line = _display(reason, "reason for referral")
+
+    relevant_history = (c.relevant_history or "").strip()
+    if not relevant_history:
+        relevant_history = " ".join([b.pmHx_relevant.strip(), b.psHx_relevant.strip(), m.tried_block.strip()]).strip()
+    relevant_history_items = _bullets_from_text(relevant_history)
+
+    social_history = (c.social_history or "").strip()
+    social_items = _bullets_from_text(social_history)
+
+    clinical_items: List[str] = []
+    clinical_summary = _build_clinical_summary_paragraph(c)
+    if clinical_summary and clinical_summary != "Not documented.":
+        clinical_items.append(clinical_summary)
+    if (o.labs_block or "").strip():
+        clinical_items.append(f"Labs: {o.labs_block.strip()}")
+    if (o.imaging_block or "").strip():
+        clinical_items.append(f"Imaging: {o.imaging_block.strip()}")
+    if (o.pathology_block or "").strip():
+        clinical_items.append(f"Pathology: {o.pathology_block.strip()}")
+    clinical_items = _bullets_from_text("\n".join(clinical_items)) if clinical_items else []
+
+    impact_items = _bullets_from_text(c.functional_impact)
+
+    goals_items: List[str] = []
+    if (a.working_dx_and_ddx or "").strip():
+        goals_items.append(f"Diagnostic considerations: {a.working_dx_and_ddx.strip()}")
+    if (l.patient_goals or "").strip():
+        goals_items.append(f"Desired outcomes: {l.patient_goals.strip()}")
+    if (r.consult_question or "").strip():
+        goals_items.append(f"Specific questions: {r.consult_question.strip()}")
+    goals_items = _bullets_from_text("\n".join(goals_items)) if goals_items else []
+
+    follow_up_interval = (r.target_timeframe or "").strip()
+    follow_up_line = (
+        f"I see the patient every {follow_up_interval}, and will discuss your recommendations accordingly."
+        if follow_up_interval
+        else "I will discuss your recommendations with the patient at follow-up."
+    )
+
+    signature = (ref.signature_block or ref.name or "").strip() or _display("", "signature name")
 
     lines = [
-        f"REFERRAL TO: {ref_line}",
-        f"DATE: {_display(draft.meta.generated_at.split('T')[0], 'date')}",
+        f"Date: {date_line}",
+        f"Referring Provider: {referrer_line}",
+        f"Receiving Specialist: {specialist_line}",
+        f"Patient: {patient_line}",
+        f"Date of Birth: {dob_line}",
         "",
-        f"PATIENT: {_display(p.full_name, 'patient name')} | PHN: {_display(p.phn, 'PHN')}",
-        f"CONTACT: {_display(p.phone, 'phone')} | ADDRESS: {_display(p.address, 'address')}",
-        f"LANGUAGE / INTERPRETER: {_display(p.language, 'language')} / {_display(p.interpreter_needed, 'interpreter needed')}",
+        "Reason for Referral",
+        _sentence_case(reason_line),
+        "",
+        "Relevant Medical History",
+        *_bullet_lines(relevant_history_items),
+        "",
+        "Social History",
+        *_bullet_lines(social_items),
+        "",
+        "Clinical Evaluation Summary",
+        *_bullet_lines(clinical_items),
+        "Impact on daily life",
+        *_bullet_lines(impact_items),
+        "",
+        "Goals of Referral",
+        *_bullet_lines(goals_items),
+        "",
+        "Follow-Up and Communication",
+        "- Please provide your consultation notes and recommendations.",
+        f"- {follow_up_line}",
+        "",
+        "Thank you for your assistance in managing this patient.",
+        "",
+        signature,
     ]
-
-    if (p.guardian_or_sdm or "").strip():
-        lines.append(f"GUARDIAN / SDM: {p.guardian_or_sdm}")
-
-    return_target = (ref.clinic_name or ref.fax_or_econsult_inbox or "").strip()
-
-    lines.extend(
-        [
-            "",
-            f"REFERRING CLINICIAN: {_display(ref.name, 'referrer name')} | CPSA: {_display(ref.cpsa, 'CPSA')}",
-            f"CLINIC: {_display(ref.clinic_name, 'clinic name')}",
-            f"ADDRESS: {_display(ref.clinic_address, 'clinic address')} | PHONE: {_display(ref.phone, 'clinic phone')} | FAX: {_display(ref.fax, 'clinic fax')}",
-            f"RETURN REPORT TO: {_display_soft(return_target)}",
-            "",
-            "1) REFERRAL INTENT",
-            f"Reason for referral: {_display(r.reason_short, 'reason for referral')}",
-            f"Urgency: {_display(r.urgency_label, 'urgency')}",
-            "",
-            "2) CLINICAL SUMMARY",
-            _build_clinical_summary_paragraph(c),
-            "",
-            "3) OBJECTIVE DATA",
-            "Pertinent labs:",
-            _display_soft(o.labs_block, "No relevant labs documented."),
-            "",
-            "Pertinent imaging/procedures:",
-            _display_soft(o.imaging_block, "No relevant imaging/procedures documented."),
-            "",
-            "4) MANAGEMENT TO DATE",
-            _build_management_paragraph(m, a),
-            "",
-            "5) RELEVANT BACKGROUND",
-            _build_background_paragraph(b),
-            "",
-            "6) CONTEXT / LOGISTICS",
-            _build_context_paragraph(l),
-        ]
-    )
-
-    lines.extend(
-        [
-            "",
-            "7) SAFETY",
-            _display_soft(draft.safety.advice_line),
-            "",
-            "Thank you for assessing. Please advise on diagnosis and management, and whether you recommend assuming ongoing specialty follow-up.",
-            "",
-            "Sincerely,",
-            (ref.signature_block or ""),
-        ]
-    )
-    if (o.pathology_block or "").strip():
-        insert_at = lines.index("4) MANAGEMENT TO DATE")
-        path_lines = ["Pathology:", _display_soft(o.pathology_block, "No pathology results documented."), ""]
-        lines[insert_at:insert_at] = path_lines
 
     return "\n".join(lines).strip()
