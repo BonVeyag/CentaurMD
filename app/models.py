@@ -107,6 +107,32 @@ class Transcript(StrictBaseModel):
 
 
 # =========================
+# Ambient capture (session-scoped)
+# =========================
+
+class AmbientSegment(StrictBaseModel):
+    segment_id: str
+    start_ts: datetime
+    end_ts: datetime
+    text: str
+    language: Optional[str] = None
+    text_en: Optional[str] = None
+
+
+class AmbientEncounter(StrictBaseModel):
+    encounter_id: str
+    session_id: str
+    created_at: datetime = Field(default_factory=_now_utc)
+    consent_confirmed: bool = False
+    segments: List[AmbientSegment] = Field(default_factory=list)
+    transcript_assembled: str = ""
+
+
+class AmbientState(StrictBaseModel):
+    active: Optional[AmbientEncounter] = None
+
+
+# =========================
 # Clinician inputs
 # =========================
 
