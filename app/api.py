@@ -65,6 +65,7 @@ from app.models import (
     PatientAnchor,
     ClinicalBackground,
     Transcript,
+    TranscriptSegment,
     ClinicianInputs,
     InteractionState,
     DerivedOutputs,
