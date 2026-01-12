@@ -82,6 +82,9 @@ class ClinicalBlock(StrictBaseModel):
     key_positives: str = ""
     key_negatives_and_redflags: str = ""
     pertinent_exam: str = ""
+    relevant_history: str = ""
+    social_history: str = ""
+    functional_impact: str = ""
 
 
 class ObjectiveLab(StrictBaseModel):
