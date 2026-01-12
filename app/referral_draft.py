@@ -682,6 +682,7 @@ def _summarize_from_transcript_and_emr(
 Return strict JSON only with keys:
 specialty_name, subspecialty_or_clinic, reason_short, consult_question,
 summary_symptoms, key_positives, key_negatives_and_redflags, pertinent_exam,
+relevant_history, social_history, functional_impact,
 treatments_tried, pending_items, working_dx_and_ddx, patient_goals, target_timeframe,
 objective_labs, objective_imaging, objective_pathology, safety_advice.
 
@@ -694,6 +695,9 @@ Rules:
 - subspecialty_or_clinic: only if explicitly stated in the EMR or transcript.
 - target_timeframe: only if explicitly stated; otherwise empty.
 - clinical summary fields: prefer explicitly documented symptoms/findings from transcript/EMR notes.
+- relevant_history: only PMHx/PSHx/treatments clearly related to the referral reason.
+- social_history: only lifestyle/occupation/habits explicitly stated and relevant.
+- functional_impact: only if daily-life impact is explicitly stated.
 - objective_labs: list lab name + value + units + date if available; if only test name/date, leave value empty.
 - objective_imaging: list test + date + brief result summary if present; if report not present, leave empty.
 - objective_pathology: only if pathology present; otherwise empty string.
