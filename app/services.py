@@ -1325,7 +1325,9 @@ STYLE:
 - If a section would be empty, write "- Not documented."
 
 OUTPUT:
-Emit EXACTLY this template:
+Emit the template below with the same headings and labels. Omit any bullet line that
+is not explicitly supported. If a section would be empty after omitting, output
+"- Not documented." for that section.
 
 Subjective
 - Chief complaint and description of present symptoms: ...
