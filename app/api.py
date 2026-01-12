@@ -1027,19 +1027,13 @@ async def ambient_upload_segment(
 
     context.transcript.raw_text = encounter.transcript_assembled
     context.transcript.segments = [
-        *[
-            s for s in context.transcript.segments
-            if getattr(s, "timestamp_start", None) and getattr(s, "timestamp_end", None)
-        ],
-        *[
-            TranscriptSegment(
-                speaker="other",
-                text=s.text,
-                timestamp_start=s.start_ts,
-                timestamp_end=s.end_ts,
-            )
-            for s in encounter.segments
-        ],
+        TranscriptSegment(
+            speaker="other",
+            text=s.text,
+            timestamp_start=s.start_ts,
+            timestamp_end=s.end_ts,
+        )
+        for s in encounter.segments
     ]
     _touch(context)
 
