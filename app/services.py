@@ -1427,6 +1427,12 @@ You must preserve:
 - SOAP structure
 - Formatting rules
 - Clinical tone
+
+Template rules:
+- Keep all section headings exactly as in the draft.
+- Keep bullet labels when they are supported; remove or weaken only the content.
+- If a section would become empty after deletions, replace its content with
+  a single line: "- Not documented."
 """.strip()
 
 SOAP_GENERATOR_TEMP = 0.4
