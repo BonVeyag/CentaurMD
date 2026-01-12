@@ -1235,6 +1235,32 @@ textarea::-webkit-scrollbar-track{
               inset 0 0 0 1px var(--primary-border),
               inset 0 1px 0 var(--edge-hi);
 }
+.note-draft-panel{
+  width:min(760px, 94vw);
+}
+.note-draft-letter{
+  width:100%;
+  min-height:360px;
+  padding:12px;
+  border-radius:16px;
+  border:none;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  overflow:auto;
+  white-space:pre-wrap;
+  resize:none;
+}
+.note-draft-letter:focus{
+  outline:none;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
 .referral-loading{
   position:absolute;
   inset:64px 0 auto 0;
@@ -1745,7 +1771,7 @@ textarea::-webkit-scrollbar-track{
 
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
-          <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
+          <button id="macroBuilderBtn" type="button" class="menu-item">Template builder</button>
           <button id="noteLogBtn" type="button" class="menu-item" style="display:none">Note Log</button>
           <button id="feedbackBtn" type="button" class="menu-item">Feedback</button>
           <button id="aboutBtn" type="button" class="menu-item">About</button>
@@ -1852,7 +1878,7 @@ textarea::-webkit-scrollbar-track{
 
       <div class="macro-row">
         <select id="macroSelect">
-          <option value="">Macros</option>
+          <option value="">Templates</option>
         </select>
       </div>
     </div>
@@ -1893,9 +1919,9 @@ textarea::-webkit-scrollbar-track{
 </div>
 
 <div id="macroOverlay" class="macro-overlay" style="display:none"></div>
-<div id="macroPanel" class="macro-panel" style="display:none" aria-label="Macro builder">
+<div id="macroPanel" class="macro-panel" style="display:none" aria-label="Template builder">
   <div class="macro-head">
-    <div class="headline">Macro Builder</div>
+    <div class="headline">Template Builder</div>
     <button id="macroCloseBtn" type="button">✕</button>
   </div>
 
@@ -1904,14 +1930,14 @@ textarea::-webkit-scrollbar-track{
       <select id="macroPickerSelect"></select>
       <button id="macroEditBtn" type="button">Edit</button>
       <button id="macroDeleteBtn" type="button">Delete</button>
-      <button id="macroAddBtn" class="primary" type="button">+ New macro</button>
+      <button id="macroAddBtn" class="primary" type="button">+ New template</button>
     </div>
   </div>
 
   <div class="macro-section macro-editor">
     <div class="summary-title">Editor</div>
-    <input id="macroNameInput" type="text" placeholder="Macro name" />
-    <textarea id="macroContentInput" placeholder="Paste macro content"></textarea>
+    <input id="macroNameInput" type="text" placeholder="Template name" />
+    <textarea id="macroContentInput" placeholder="Paste template content"></textarea>
     <div id="macroStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
       <button id="macroSaveBtn" class="primary" type="button">Save</button>
@@ -1930,7 +1956,7 @@ textarea::-webkit-scrollbar-track{
       <div class="about-poem">It listens for what matters, not just what's said,
 then shapes the visit into SOAP you'll want reread--
 carries the thread to referral letters, clear and true,
-macros that sound like you, and notes cross-checked by two.
+templates that sound like you, and notes cross-checked by two.
 
 Before you knock, it hands you context, quick and bright:
 a ten-second "Know-Me" snapshot--set you right.
@@ -2094,6 +2120,25 @@ and for the care, day after day, you give.</div>
     <div class="macro-editor-actions">
       <button id="referralCopyBtn" class="primary" type="button">Copy</button>
       <button id="referralCloseBtn2" type="button">Close</button>
+    </div>
+  </div>
+</div>
+<div id="noteDraftOverlay" class="macro-overlay" style="display:none"></div>
+<div id="noteDraftPanel" class="macro-panel referral-panel note-draft-panel" style="display:none" aria-label="Note Draft" role="dialog" aria-modal="true" aria-labelledby="noteDraftTitle" tabindex="-1">
+  <div class="macro-head">
+    <div class="headline" id="noteDraftTitle">Note</div>
+    <button id="noteDraftCloseBtn" type="button">✕</button>
+  </div>
+  <div class="macro-section macro-editor note-draft-editor">
+    <div id="noteDraftLoading" class="referral-loading" aria-hidden="true">
+      <div class="referral-spinner"></div>
+      <div class="referral-loading-text">Generating…</div>
+    </div>
+    <textarea id="noteDraftText" class="note-draft-letter" spellcheck="false"></textarea>
+    <div id="noteDraftStatus" class="macro-status"></div>
+    <div class="macro-editor-actions">
+      <button id="noteDraftCopyBtn" class="primary" type="button">Copy</button>
+      <button id="noteDraftCloseBtn2" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -2268,6 +2313,10 @@ let hasBilledCurrentPatient = false;
 let wakeLockSentinel = null;
 let noteLogItems = [];
 let noteLogCurrentId = "";
+let noteDraftActive = false;
+let noteDraftKeyHandler = null;
+let noteDraftTemplateId = "";
+let noteDraftTemplateLabel = "";
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -2392,6 +2441,15 @@ const referralLoading = document.getElementById("referralLoading");
 const referralCopyBtn = document.getElementById("referralCopyBtn");
 const referralSpecialtyInput = document.getElementById("referralSpecialtyInput");
 const referralGenerateBtn = document.getElementById("referralGenerateBtn");
+const noteDraftOverlay = document.getElementById("noteDraftOverlay");
+const noteDraftPanel = document.getElementById("noteDraftPanel");
+const noteDraftTitle = document.getElementById("noteDraftTitle");
+const noteDraftText = document.getElementById("noteDraftText");
+const noteDraftStatus = document.getElementById("noteDraftStatus");
+const noteDraftCopyBtn = document.getElementById("noteDraftCopyBtn");
+const noteDraftCloseBtn = document.getElementById("noteDraftCloseBtn");
+const noteDraftCloseBtn2 = document.getElementById("noteDraftCloseBtn2");
+const noteDraftLoading = document.getElementById("noteDraftLoading");
 const toastEl = document.getElementById("toast");
 
 // Auth UI refs
@@ -2683,7 +2741,7 @@ function safeSubsetFormat(text) {
 }
 
 // -------------------------
-// Macros
+// Templates
 // -------------------------
 const MACROS_CACHE_KEY = "centaur_macros_cache_v1";
 const MACRO_SELECTED_KEY = "centaur_macro_selected_v1";
@@ -2755,7 +2813,7 @@ function refreshMacroDropdown() {
   macroSelect.innerHTML = "";
   const optNone = document.createElement("option");
   optNone.value = "";
-  optNone.textContent = "Macros";
+  optNone.textContent = "Templates";
   macroSelect.appendChild(optNone);
   for (const m of macros.filter(isMacroVisible)) {
     const opt = document.createElement("option");
@@ -2805,7 +2863,7 @@ function refreshMacroPicker(selectedId="") {
   macroPickerSelect.innerHTML = "";
   const optNone = document.createElement("option");
   optNone.value = "";
-  optNone.textContent = "Select macro";
+  optNone.textContent = "Select template";
   macroPickerSelect.appendChild(optNone);
   for (const m of macros.filter(isMacroVisible)) {
     const opt = document.createElement("option");
@@ -2848,7 +2906,7 @@ async function saveMacroFromEditor() {
       saved = resp?.macro || resp;
     }
     const normalized = normalizeMacroRecord(saved);
-    if (!normalized) throw new Error("Invalid macro response");
+    if (!normalized) throw new Error("Invalid template response");
     const idx = macros.findIndex(m => m.id === normalized.id);
     if (idx >= 0) macros[idx] = normalized;
     else macros.unshift(normalized);
@@ -2895,12 +2953,12 @@ function closeMacroPanel() {
 function editMacroFromPicker() {
   const id = String(macroPickerSelect?.value || "").trim();
   if (!id) {
-    setMacroStatus("Select a macro to edit.", true);
+    setMacroStatus("Select a template to edit.", true);
     return;
   }
   const target = macros.find(m => m.id === id);
   if (!target) {
-    setMacroStatus("Macro not found.", true);
+    setMacroStatus("Template not found.", true);
     return;
   }
   editingMacroId = id;
@@ -2911,19 +2969,19 @@ function editMacroFromPicker() {
 async function deleteMacroFromPicker() {
   const id = String(macroPickerSelect?.value || "").trim();
   if (!id) {
-    setMacroStatus("Select a macro to delete.", true);
+    setMacroStatus("Select a template to delete.", true);
     return;
   }
   const target = macros.find(m => m.id === id);
   if (!target) {
-    setMacroStatus("Macro not found.", true);
+    setMacroStatus("Template not found.", true);
     return;
   }
   if (target.locked) {
-    setMacroStatus("This macro is locked and cannot be deleted.", true);
+    setMacroStatus("This template is locked and cannot be deleted.", true);
     return;
   }
-  const ok = window.confirm(`Delete macro "${target.name}"?`);
+  const ok = window.confirm(`Delete template "${target.name}"?`);
   if (!ok) return;
   setMacroStatus("Deleting…");
   try {
@@ -3731,6 +3789,103 @@ function setReferralStatus(message, isError=false) {
   if (!referralStatus) return;
   referralStatus.textContent = message || "";
   referralStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setNoteDraftStatus(message, isError=false) {
+  if (!noteDraftStatus) return;
+  noteDraftStatus.textContent = message || "";
+  noteDraftStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setNoteDraftLoading(on) {
+  if (noteDraftLoading) noteDraftLoading.classList.toggle("active", Boolean(on));
+  if (noteDraftCopyBtn) noteDraftCopyBtn.disabled = Boolean(on);
+  if (noteDraftText) noteDraftText.disabled = Boolean(on);
+}
+
+function activateNoteDraftFocusTrap() {
+  if (!noteDraftPanel) return;
+  noteDraftActive = true;
+  const focusable = Array.from(noteDraftPanel.querySelectorAll(
+    "button, textarea, input, select, [tabindex]:not([tabindex='-1'])"
+  )).filter(el => !el.disabled);
+  const first = focusable[0] || noteDraftPanel;
+  const last = focusable[focusable.length - 1] || first;
+
+  noteDraftKeyHandler = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeNoteDraftPanel();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    if (focusable.length <= 1) return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  noteDraftPanel.addEventListener("keydown", noteDraftKeyHandler);
+  setTimeout(() => { try { first.focus(); } catch {} }, 0);
+}
+
+function deactivateNoteDraftFocusTrap() {
+  if (noteDraftPanel && noteDraftKeyHandler) {
+    noteDraftPanel.removeEventListener("keydown", noteDraftKeyHandler);
+  }
+  noteDraftKeyHandler = null;
+  noteDraftActive = false;
+}
+
+async function openNoteDraftPanel({ templateId, templateLabel, generate }) {
+  if (!noteDraftPanel || !noteDraftOverlay) return;
+  noteDraftTemplateId = String(templateId || "");
+  noteDraftTemplateLabel = String(templateLabel || "Note");
+  if (noteDraftTitle) noteDraftTitle.textContent = noteDraftTemplateLabel;
+  if (noteDraftText) noteDraftText.value = "";
+  setNoteDraftStatus("");
+  setNoteDraftLoading(true);
+  noteDraftOverlay.style.display = "block";
+  noteDraftPanel.style.display = "flex";
+  activateNoteDraftFocusTrap();
+  try {
+    const text = await generate();
+    if (noteDraftText) noteDraftText.value = text || "";
+    setNoteDraftStatus(text ? "" : "No content returned.", !text);
+  } catch (err) {
+    setNoteDraftStatus(err?.message || "Generation failed.", true);
+  } finally {
+    setNoteDraftLoading(false);
+  }
+}
+
+function closeNoteDraftPanel() {
+  if (!noteDraftPanel || !noteDraftOverlay) return;
+  noteDraftOverlay.style.display = "none";
+  noteDraftPanel.style.display = "none";
+  setNoteDraftStatus("");
+  setNoteDraftLoading(false);
+  deactivateNoteDraftFocusTrap();
+}
+
+async function generateSoapDraft() {
+  await ensureSession();
+  const data = await apiPost(`/session/${sessionId}/make_soap`);
+  const soapTextRaw = data?.soap || data?.soap_text || "No SOAP returned";
+  return stripPairedMarkdownEmphasis(soapTextRaw);
+}
+
+async function generateTemplateDraft(macroContent, modelOverride="gpt-5.2") {
+  await ensureSession();
+  const payload = { query: "", mode: "fast", macro: macroContent };
+  if (modelOverride) payload.model = modelOverride;
+  const data = await apiPost(`/session/${sessionId}/clinical_query`, payload);
+  const rawContent = (data?.response !== undefined) ? data.response : data;
+  const readable = readableFromMaybeJson(rawContent);
+  return stripPairedMarkdownEmphasis(readable);
 }
 
 const REFERRAL_MISSING_LABELS = {
@@ -6179,6 +6334,22 @@ referralPanel?.addEventListener("click", (e) => e.stopPropagation());
 referralCopyBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(referralCopyBtn, "Copying…", copyReferralDraft);
 });
+noteDraftCopyBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(noteDraftCopyBtn, "Copying…", async () => {
+    const text = (noteDraftText?.value || "").trim();
+    if (!text) {
+      setNoteDraftStatus("Nothing to copy yet.", true);
+      return;
+    }
+    const ok = await copyRichText(text);
+    if (ok) {
+      showToast("Copied.", "ok");
+      setNoteDraftStatus("");
+      return;
+    }
+    setNoteDraftStatus("Copy blocked. Use manual copy.", true);
+  });
+});
 referralGenerateBtn?.addEventListener("click", async () => {
   const override = (referralSpecialtyInput?.value || "").trim();
   await runWithButtonBusy(referralGenerateBtn, "Generating…", () => generateReferralDraft(override));
@@ -6188,6 +6359,10 @@ referralSpecialtyInput?.addEventListener("keydown", (e) => {
   e.preventDefault();
   referralGenerateBtn?.click();
 });
+noteDraftCloseBtn?.addEventListener("click", () => closeNoteDraftPanel());
+noteDraftCloseBtn2?.addEventListener("click", () => closeNoteDraftPanel());
+noteDraftOverlay?.addEventListener("click", () => closeNoteDraftPanel());
+noteDraftPanel?.addEventListener("click", (e) => e.stopPropagation());
 feedbackEmail?.addEventListener("change", () => {
   maybeStoreFeedbackEmail(feedbackEmail.value || "");
 });
@@ -6270,7 +6445,12 @@ macroSelect?.addEventListener("change", async () => {
       TRANSCRIPT: transcriptBox.value || "[none]",
       EXTRA: "",
     });
-    await sendClinicalQueryWithDraft("", expanded, "gpt-5.2");
+    const label = macro?.name || "Template";
+    await openNoteDraftPanel({
+      templateId: id,
+      templateLabel: label,
+      generate: () => generateTemplateDraft(expanded, "gpt-5.2"),
+    });
   }
 });
 macroPickerSelect?.addEventListener("change", () => {
@@ -6363,6 +6543,7 @@ document.addEventListener("keydown", (e) => {
     closeProfilePopover();
     closeBillingArchivePanel();
     closeReferralPanel();
+    closeNoteDraftPanel();
     closeProfilePanel();
   }
 });
@@ -6386,7 +6567,15 @@ document.addEventListener("keydown", (e) => {
   });
 })();
 
-soapBtn.addEventListener("click", async () => { await runWithButtonBusy(soapBtn, "Working…", generateSoapToChat); });
+soapBtn.addEventListener("click", async () => {
+  await runWithButtonBusy(soapBtn, "Working…", async () => {
+    await openNoteDraftPanel({
+      templateId: "soap",
+      templateLabel: "SOAP Note",
+      generate: generateSoapDraft,
+    });
+  });
+});
 referralBtn.addEventListener("click", () => { openReferralPanel(); });
 
 // -------------------------
