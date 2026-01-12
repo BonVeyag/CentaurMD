@@ -935,6 +935,10 @@ def build_referral_draft(context: SessionContext, payload: Any, referrer_overrid
         key_positives=summary.get("key_positives", ""),
         key_negatives_and_redflags=summary.get("key_negatives_and_redflags", ""),
         pertinent_exam=summary.get("pertinent_exam", ""),
+        relevant_history=summary.get("relevant_history", ""),
+        social_history=summary.get("social_history", "")
+        or _extract_section_block(emr_text, ["Social History", "Social Hx"], max_lines=8),
+        functional_impact=summary.get("functional_impact", ""),
     )
 
     management = ManagementBlock(
