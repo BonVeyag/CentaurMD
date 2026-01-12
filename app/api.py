@@ -1260,7 +1260,8 @@ def make_soap_endpoint(session_id: str):
     context = _get_context_or_404(session_id)
 
     _ensure_anchor_hydrated_from_emr(context)
-    result = make_soap(context)
+    attachments_text = _collect_attachments_text_for_query(context)
+    result = make_soap(context, attachments_text=attachments_text)
 
     try:
         soap_obj = SoapNoteOutput(
