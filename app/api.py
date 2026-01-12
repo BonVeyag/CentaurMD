@@ -501,6 +501,18 @@ def _touch(context: SessionContext) -> None:
         pass
 
 
+def _parse_dt(value: str) -> datetime:
+    raw = (value or "").strip()
+    if not raw:
+        return _utcnow()
+    try:
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        return datetime.fromisoformat(raw)
+    except Exception:
+        return _utcnow()
+
+
 def _clip_text(text: str, max_chars: int) -> str:
     t = (text or "").strip()
     if not t:
