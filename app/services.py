@@ -1331,6 +1331,10 @@ is not explicitly supported. If a section would be empty after omitting, output
 Replace "Problem or diagnosis N" with the actual problem name (if explicitly
 mentioned). Do not output placeholder problem lines.
 
+Issues:
+1. ...
+2. ...
+
 Subjective
 - Chief complaint and description of present symptoms: ...
 - History of presenting illness: ...
@@ -1437,6 +1441,7 @@ Template rules:
   a single line: "- Not documented."
 - Keep the trailing signature block lines as-is (clinician name, "Family Medicine",
   clinic name, date), unless they are missing entirely from the draft.
+- Preserve the Issues section and its numbering; remove unsupported items but keep the heading.
 """.strip()
 
 SOAP_GENERATOR_TEMP = 0.4
