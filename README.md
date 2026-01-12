@@ -73,3 +73,17 @@ Centaur can index local guideline sources and use them first during Clinical Que
 ### Notes
 - Structured sources are preferred: SVG/HTML text > PDF text layer > vision fallback.
 - Guideline graphs are deterministic at runtime; patches persist across refresh runs.
+
+## Ambient Mode
+
+Ambient Mode enables continuous room audio capture with automatic segmentation and transcription.
+
+### Behavior
+- Opt-in toggle in Personalization.
+- Consent required at the start of each encounter before any audio is processed or uploaded.
+- No raw audio is stored server-side; only transcript text and segment metadata.
+
+### API endpoints
+- `POST /api/ambient/start_encounter`
+- `POST /api/ambient/upload_segment`
+- `POST /api/ambient/stop_encounter`

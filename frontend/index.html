@@ -710,6 +710,104 @@ textarea::-webkit-scrollbar-track{
   font-weight:800;
 }
 .transcript-btnrow button#record_btn{ font-weight:850; }
+.ambient-bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 10px;
+  padding:8px 12px;
+  border-radius:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.ambient-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.ambient-status-text{
+  font-size:12px;
+  color: var(--muted);
+}
+.ambient-queue{
+  font-size:12px;
+  color: var(--muted);
+}
+.ambient-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.ambient-actions button{
+  padding:8px 12px;
+  border-radius:10px;
+  font-size:13px;
+  min-height:32px;
+}
+.profile-toggle-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border-radius:14px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  color: var(--text);
+  font-size:14px;
+}
+.profile-toggle-label{
+  color: var(--muted);
+}
+.switch{
+  position:relative;
+  display:inline-block;
+  width:44px;
+  height:24px;
+}
+.switch input{
+  opacity:0;
+  width:0;
+  height:0;
+}
+.switch-slider{
+  position:absolute;
+  cursor:pointer;
+  inset:0;
+  background: color-mix(in oklab, var(--panel) 80%, transparent);
+  border-radius:999px;
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+  transition: 0.2s ease;
+}
+.switch-slider:before{
+  content:"";
+  position:absolute;
+  height:18px;
+  width:18px;
+  left:3px;
+  top:3px;
+  border-radius:50%;
+  background: var(--text);
+  transition: 0.2s ease;
+}
+.switch input:checked + .switch-slider{
+  background: color-mix(in oklab, var(--primary) 70%, transparent);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
+.switch input:checked + .switch-slider:before{
+  transform: translateX(20px);
+}
 #record_btn{
   display:flex;
   align-items:center;
@@ -1237,6 +1335,9 @@ textarea::-webkit-scrollbar-track{
 }
 .note-draft-panel{
   width:min(760px, 94vw);
+}
+.note-draft-editor{
+  position:relative;
 }
 .note-draft-letter{
   width:100%;
@@ -1809,6 +1910,21 @@ textarea::-webkit-scrollbar-track{
             </div>
           </div>
 
+          <div id="ambientBar" class="ambient-bar" style="display:none" aria-live="polite">
+            <div class="ambient-status">
+              <span id="ambientStatusPill" class="status-pill">Listening</span>
+              <span id="ambientStatusText" class="ambient-status-text">Listening</span>
+              <span id="ambientQueueCount" class="ambient-queue"></span>
+            </div>
+            <div class="ambient-actions">
+              <button id="ambientConsentBtn" class="primary" type="button">Consent confirmed</button>
+              <button id="ambientPauseBtn" type="button">Pause</button>
+              <button id="ambientStopBtn" type="button">Stop</button>
+              <button id="ambientClearBtn" type="button">Clear last 2 min</button>
+              <button id="ambientSettingsBtn" type="button">Settings</button>
+            </div>
+          </div>
+
           <div class="transcript-btnrow">
             <button id="record_btn" class="primary record-glow" type="button">
               <span class="record-btn-icon" aria-hidden="true">
@@ -2017,6 +2133,13 @@ and for the care, day after day, you give.</div>
         <option value="FFS">Fee for Service (FFS)</option>
         <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
       </select>
+    </div>
+    <div class="profile-toggle-row">
+      <span class="profile-toggle-label">Ambient Mode</span>
+      <label class="switch">
+        <input id="ambientModeToggle" type="checkbox" />
+        <span class="switch-slider"></span>
+      </label>
     </div>
     <div class="profile-clinic-group">
       <input id="profileClinicName" type="text" placeholder="Clinic Name" />
@@ -2317,6 +2440,9 @@ let noteDraftActive = false;
 let noteDraftKeyHandler = null;
 let noteDraftTemplateId = "";
 let noteDraftTemplateLabel = "";
+const AMBIENT_ENABLED_KEY = "centaur_ambient_enabled_v1";
+let ambientEnabled = false;
+let ambientController = null;
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -2349,6 +2475,15 @@ const billingDateEl = document.getElementById("billingDate");
 const billBtn = document.getElementById("billBtn");
 const saveBillingBtn = document.getElementById("saveBillingBtn");
 const printBillingBtn = document.getElementById("printBillingBtn");
+const ambientBar = document.getElementById("ambientBar");
+const ambientStatusPill = document.getElementById("ambientStatusPill");
+const ambientStatusText = document.getElementById("ambientStatusText");
+const ambientQueueCount = document.getElementById("ambientQueueCount");
+const ambientConsentBtn = document.getElementById("ambientConsentBtn");
+const ambientPauseBtn = document.getElementById("ambientPauseBtn");
+const ambientStopBtn = document.getElementById("ambientStopBtn");
+const ambientClearBtn = document.getElementById("ambientClearBtn");
+const ambientSettingsBtn = document.getElementById("ambientSettingsBtn");
 
 // Menu + Macro UI refs
 const menuBtn = document.getElementById("menuBtn");
@@ -2398,6 +2533,7 @@ const profileClinicName = document.getElementById("profileClinicName");
 const profileClinicAddress = document.getElementById("profileClinicAddress");
 const profileClinicPhone = document.getElementById("profileClinicPhone");
 const profileClinicFax = document.getElementById("profileClinicFax");
+const ambientModeToggle = document.getElementById("ambientModeToggle");
 const profileStatus = document.getElementById("profileStatus");
 const profileSaveBtn = document.getElementById("profileSaveBtn");
 const profileCancelBtn = document.getElementById("profileCancelBtn");
@@ -5124,6 +5260,12 @@ function closeNewPatientConfirm() {
 
 async function startNewPatientSession() {
   try { stopRecording(); } catch {}
+  try {
+    if (ambientController?.enabled) {
+      await ambientController.stopEncounter();
+      ambientController.clearBuffer();
+    }
+  } catch {}
   recState = "idle";
   updateRecUI();
 
@@ -5179,6 +5321,7 @@ async function bootstrapApp() {
   startCoachPolling();
   renderDraft();
   await initMacros();
+  await initAmbientMode();
 
   snapshotPanel.textContent = snapshotPanel.textContent || "";
   coachPanel.textContent = coachPanel.textContent || "";
@@ -5343,6 +5486,7 @@ async function createSession() {
   const data = await apiPost("/session/create"); // no body
   sessionId = data.session_id;
   console.log("Session created:", sessionId);
+  if (ambientController) ambientController.setSession(sessionId);
   return sessionId;
 }
 async function ensureSession() { if (!sessionId) await createSession(); }
@@ -5352,7 +5496,18 @@ async function ensureSession() { if (!sessionId) await createSession(); }
 // -------------------------
 async function getPreferredAudioStream() {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("Audio capture not supported.");
-  return await navigator.mediaDevices.getUserMedia({ audio: true });
+  const constraints = {
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    }
+  };
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  } catch {
+    return await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
 }
 function activateAudioStream(stream) {
   if (!stream) return;
@@ -5486,6 +5641,464 @@ function stopRecording(releaseStream=false) {
   setRecordingUI(false);
   stopTimer(false);
   releaseWakeLock();
+}
+
+// -------------------------
+// Ambient Mode
+// -------------------------
+class Float32RingBuffer {
+  constructor(maxSamples) {
+    this.maxSamples = maxSamples;
+    this.buffer = new Float32Array(maxSamples);
+    this.writeIndex = 0;
+    this.size = 0;
+  }
+  push(samples) {
+    if (!samples || !samples.length) return;
+    const len = samples.length;
+    for (let i = 0; i < len; i++) {
+      this.buffer[this.writeIndex] = samples[i];
+      this.writeIndex = (this.writeIndex + 1) % this.maxSamples;
+      if (this.size < this.maxSamples) this.size += 1;
+    }
+  }
+  readLast(sampleCount) {
+    const count = Math.min(sampleCount, this.size);
+    if (count <= 0) return new Float32Array(0);
+    const out = new Float32Array(count);
+    let idx = (this.writeIndex - count + this.maxSamples) % this.maxSamples;
+    for (let i = 0; i < count; i++) {
+      out[i] = this.buffer[(idx + i) % this.maxSamples];
+    }
+    return out;
+  }
+  clear() {
+    this.writeIndex = 0;
+    this.size = 0;
+  }
+}
+
+function makeId() {
+  if (crypto?.randomUUID) return crypto.randomUUID();
+  return `seg_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function downsampleBuffer(buffer, sampleRate, targetRate) {
+  if (targetRate === sampleRate) return buffer;
+  const ratio = sampleRate / targetRate;
+  const newLen = Math.round(buffer.length / ratio);
+  const result = new Float32Array(newLen);
+  let offsetResult = 0;
+  let offsetBuffer = 0;
+  while (offsetResult < result.length) {
+    const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+    let sum = 0;
+    let count = 0;
+    for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+      sum += buffer[i];
+      count += 1;
+    }
+    result[offsetResult] = count ? (sum / count) : 0;
+    offsetResult += 1;
+    offsetBuffer = nextOffsetBuffer;
+  }
+  return result;
+}
+
+function encodeWav(samples, sampleRate, targetRate=16000) {
+  const pcm = downsampleBuffer(samples, sampleRate, targetRate);
+  const buffer = new ArrayBuffer(44 + pcm.length * 2);
+  const view = new DataView(buffer);
+  const writeString = (offset, str) => {
+    for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
+  };
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + pcm.length * 2, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, targetRate, true);
+  view.setUint32(28, targetRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, pcm.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < pcm.length; i++) {
+    let s = Math.max(-1, Math.min(1, pcm[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+class AmbientController {
+  constructor() {
+    this.enabled = false;
+    this.paused = false;
+    this.consentConfirmed = false;
+    this.encounterId = "";
+    this.sessionId = "";
+    this.audioContext = null;
+    this.processor = null;
+    this.source = null;
+    this.gainNode = null;
+    this.sampleRate = 48000;
+    this.ringBuffer = null;
+    this.queue = [];
+    this.inFlight = 0;
+    this.maxInFlight = 1;
+    this.maxQueue = 10;
+    this.noiseFloor = 0.008;
+    this.vadState = "silence";
+    this.speechMs = 0;
+    this.silenceMs = 0;
+    this.postRollRemaining = 0;
+    this.currentChunks = [];
+    this.currentSegmentMs = 0;
+    this.segmentStartMs = 0;
+    this.preRollMs = 500;
+    this.postRollMs = 800;
+    this.maxSegmentMs = 12000;
+    this.minSegmentMs = 800;
+    this.ringBufferSeconds = 120;
+  }
+
+  setSession(sessionId) {
+    if (this.sessionId && this.sessionId !== sessionId) {
+      this.stopEncounter();
+      this.clearBuffer();
+    }
+    this.sessionId = sessionId || "";
+    this.consentConfirmed = false;
+    this.encounterId = "";
+    this.updateStatus();
+  }
+
+  async enable() {
+    if (this.enabled) return;
+    this.enabled = true;
+    await this.startMic();
+    await requestWakeLock();
+    this.updateStatus();
+  }
+
+  async disable() {
+    if (!this.enabled) return;
+    await this.stopEncounter();
+    this.clearBuffer();
+    this.stopMic();
+    this.enabled = false;
+    releaseWakeLock();
+    this.updateStatus();
+  }
+
+  async startMic() {
+    await ensureSession();
+    audioStream = await getOrCreateAudioStream();
+    activateAudioStream(audioStream);
+    if (!this.audioContext) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.audioContext = new AudioCtx();
+      this.sampleRate = this.audioContext.sampleRate;
+      this.ringBuffer = new Float32RingBuffer(this.sampleRate * this.ringBufferSeconds);
+      this.source = this.audioContext.createMediaStreamSource(audioStream);
+      this.processor = this.audioContext.createScriptProcessor(2048, 1, 1);
+      this.gainNode = this.audioContext.createGain();
+      this.gainNode.gain.value = 0;
+      this.source.connect(this.processor);
+      this.processor.connect(this.gainNode);
+      this.gainNode.connect(this.audioContext.destination);
+      this.processor.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        this.handleAudioFrame(input);
+      };
+    }
+  }
+
+  stopMic() {
+    try { this.processor?.disconnect(); } catch {}
+    try { this.source?.disconnect(); } catch {}
+    try { this.gainNode?.disconnect(); } catch {}
+    this.processor = null;
+    this.source = null;
+    this.gainNode = null;
+    try { this.audioContext?.close(); } catch {}
+    this.audioContext = null;
+    deactivateAudioStream(audioStream);
+  }
+
+  async confirmConsent() {
+    this.consentConfirmed = true;
+    await this.startEncounter(true);
+    this.updateStatus();
+  }
+
+  async startEncounter(consentConfirmed=false) {
+    if (!this.sessionId) await ensureSession();
+    if (this.encounterId) return;
+    const payload = { session_id: this.sessionId, consent_confirmed: consentConfirmed };
+    const data = await apiPost("/ambient/start_encounter", payload);
+    this.encounterId = data?.encounter_id || "";
+  }
+
+  async stopEncounter() {
+    if (!this.encounterId || !this.sessionId) return;
+    try {
+      await apiPost("/ambient/stop_encounter", {
+        session_id: this.sessionId,
+        encounter_id: this.encounterId,
+      });
+    } catch {}
+    this.encounterId = "";
+    this.consentConfirmed = false;
+    this.updateStatus();
+  }
+
+  pause() {
+    this.paused = true;
+    this.updateStatus();
+  }
+
+  resume() {
+    this.paused = false;
+    this.updateStatus();
+  }
+
+  clearBuffer() {
+    this.ringBuffer?.clear();
+    this.queue = [];
+    this.currentChunks = [];
+    this.currentSegmentMs = 0;
+    this.segmentStartMs = 0;
+    this.vadState = "silence";
+    this.speechMs = 0;
+    this.silenceMs = 0;
+    this.postRollRemaining = 0;
+    this.updateStatus();
+  }
+
+  handleAudioFrame(input) {
+    if (!this.enabled || this.paused) return;
+    if (!this.consentConfirmed) return;
+    if (!input || !input.length) return;
+    this.ringBuffer?.push(input);
+    const frameMs = (input.length / this.sampleRate) * 1000;
+    const rms = Math.sqrt(input.reduce((sum, v) => sum + v * v, 0) / input.length);
+    this.noiseFloor = (this.noiseFloor * 0.95) + (rms * 0.05);
+    const threshold = Math.max(0.012, this.noiseFloor * 3.0);
+    const isVoice = rms > threshold;
+
+    if (this.vadState === "silence") {
+      if (isVoice) {
+        this.speechMs += frameMs;
+        if (this.speechMs >= 200) {
+          this.startSpeechSegment();
+          this.vadState = "speech";
+          this.speechMs = 0;
+        }
+      } else {
+        this.speechMs = 0;
+      }
+    } else if (this.vadState === "speech") {
+      this.appendToSegment(input, frameMs);
+      if (!isVoice) {
+        this.silenceMs += frameMs;
+        if (this.silenceMs >= 500) {
+          this.vadState = "postroll";
+          this.postRollRemaining = this.postRollMs;
+        }
+      } else {
+        this.silenceMs = 0;
+      }
+
+      if (this.currentSegmentMs >= this.maxSegmentMs) {
+        this.finalizeSegment();
+        this.startSpeechSegment(false);
+        this.vadState = "speech";
+      }
+    } else if (this.vadState === "postroll") {
+      this.appendToSegment(input, frameMs);
+      this.postRollRemaining -= frameMs;
+      if (this.postRollRemaining <= 0) {
+        this.finalizeSegment();
+        this.vadState = "silence";
+      }
+    }
+  }
+
+  startSpeechSegment(includePreRoll=true) {
+    this.currentChunks = [];
+    this.currentSegmentMs = 0;
+    this.segmentStartMs = Date.now();
+    if (includePreRoll && this.ringBuffer) {
+      const preSamples = this.ringBuffer.readLast(Math.round(this.sampleRate * (this.preRollMs / 1000)));
+      if (preSamples.length) {
+        this.currentChunks.push(preSamples);
+        this.currentSegmentMs += (preSamples.length / this.sampleRate) * 1000;
+        this.segmentStartMs -= this.preRollMs;
+      }
+    }
+  }
+
+  appendToSegment(samples, frameMs) {
+    if (!samples || !samples.length) return;
+    this.currentChunks.push(new Float32Array(samples));
+    this.currentSegmentMs += frameMs;
+  }
+
+  finalizeSegment() {
+    if (this.currentSegmentMs < this.minSegmentMs) {
+      this.currentChunks = [];
+      this.currentSegmentMs = 0;
+      return;
+    }
+    const totalLen = this.currentChunks.reduce((sum, arr) => sum + arr.length, 0);
+    const merged = new Float32Array(totalLen);
+    let offset = 0;
+    for (const chunk of this.currentChunks) {
+      merged.set(chunk, offset);
+      offset += chunk.length;
+    }
+    const blob = encodeWav(merged, this.sampleRate, 16000);
+    const now = Date.now();
+    const segment = {
+      id: makeId(),
+      blob,
+      startMs: this.segmentStartMs,
+      endMs: now,
+      retries: 0,
+    };
+    this.enqueueSegment(segment);
+    this.currentChunks = [];
+    this.currentSegmentMs = 0;
+  }
+
+  enqueueSegment(segment) {
+    if (this.queue.length >= this.maxQueue) {
+      if (!navigator.onLine) {
+        this.pause();
+        showToast("Offline. Ambient capture paused; queue full.", "warn");
+        return;
+      }
+      this.queue.shift();
+      showToast("Ambient queue full; dropping oldest segment.", "warn");
+    }
+    this.queue.push(segment);
+    this.processQueue();
+    this.updateStatus();
+  }
+
+  updateStatus() {
+    if (!ambientBar) return;
+    if (!this.enabled) {
+      ambientBar.style.display = "none";
+      if (recordBtn) recordBtn.disabled = false;
+      return;
+    }
+    ambientBar.style.display = "flex";
+    if (recordBtn) recordBtn.disabled = true;
+
+    let status = "Listening";
+    if (!navigator.onLine) status = "Offline";
+    else if (!this.consentConfirmed) status = "Consent required";
+    else if (this.paused) status = "Paused";
+    else if (this.inFlight > 0 || this.queue.length > 0) {
+      const pending = this.queue.length + this.inFlight;
+      status = `Uploading (${pending})`;
+    }
+
+    if (ambientStatusPill) ambientStatusPill.textContent = status;
+    if (ambientStatusText) ambientStatusText.textContent = status;
+    if (ambientQueueCount) {
+      ambientQueueCount.textContent = "";
+    }
+    if (ambientConsentBtn) ambientConsentBtn.style.display = this.consentConfirmed ? "none" : "inline-flex";
+    if (ambientPauseBtn) ambientPauseBtn.textContent = this.paused ? "Resume" : "Pause";
+  }
+
+  async processQueue() {
+    if (!this.enabled) return;
+    if (!navigator.onLine) {
+      this.updateStatus();
+      return;
+    }
+    if (this.inFlight >= this.maxInFlight) return;
+    if (!this.consentConfirmed || !this.encounterId) return;
+    const next = this.queue.shift();
+    if (!next) return;
+    this.inFlight += 1;
+    this.updateStatus();
+    try {
+      const fd = new FormData();
+      fd.append("session_id", this.sessionId);
+      fd.append("encounter_id", this.encounterId);
+      fd.append("segment_id", next.id);
+      fd.append("start_ts", new Date(next.startMs).toISOString());
+      fd.append("end_ts", new Date(next.endMs).toISOString());
+      fd.append("file", next.blob, `${next.id}.wav`);
+      const res = await fetchWithTimeout(`${API_BASE}/ambient/upload_segment`, {
+        method: "POST",
+        body: fd,
+        headers: { ...authHeaders() },
+      });
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`${res.status} ${res.statusText}${t ? " — " + t : ""}`);
+      }
+      const data = await res.json();
+      const text = (data?.text || "").trim();
+      if (text) {
+        transcriptBox.value += (transcriptBox.value ? "\n" : "") + text;
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+        scheduleCoachRefreshSoon();
+        setPatientAnchorFromTextBestEffort(text);
+        panelUpdatedAt.transcript = Date.now();
+        if ((emrBackgroundText || "").trim().length) {
+          renderRapidSummary();
+          refreshPatientAnchorFromSnapshotPreferred();
+        }
+      }
+    } catch (err) {
+      next.retries += 1;
+      const delay = Math.min(8000, 500 * Math.pow(2, next.retries));
+      this.queue.unshift(next);
+      setTimeout(() => this.processQueue(), delay);
+    } finally {
+      this.inFlight = Math.max(0, this.inFlight - 1);
+      this.updateStatus();
+      if (this.queue.length) this.processQueue();
+    }
+  }
+}
+
+async function setAmbientEnabled(enabled) {
+  ambientEnabled = Boolean(enabled);
+  try { localStorage.setItem(AMBIENT_ENABLED_KEY, ambientEnabled ? "1" : "0"); } catch {}
+  if (!ambientController) ambientController = new AmbientController();
+  if (ambientEnabled) {
+    try { stopRecording(true); } catch {}
+  }
+  try {
+    if (ambientEnabled) await ambientController.enable();
+    else await ambientController.disable();
+  } catch (err) {
+    ambientEnabled = false;
+    await ambientController.disable();
+    showToast("Ambient Mode could not start. Check mic permissions.", "warn");
+  }
+  if (ambientModeToggle) ambientModeToggle.checked = ambientEnabled;
+}
+
+async function initAmbientMode() {
+  const saved = localStorage.getItem(AMBIENT_ENABLED_KEY);
+  ambientEnabled = saved === "1";
+  if (!ambientController) ambientController = new AmbientController();
+  if (sessionId) ambientController.setSession(sessionId);
+  if (ambientModeToggle) ambientModeToggle.checked = ambientEnabled;
+  await setAmbientEnabled(ambientEnabled);
 }
 
 // -------------------------
@@ -6434,6 +7047,31 @@ noteLogSearch?.addEventListener("input", () => {
   renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
 });
 noteLogDeleteBtn?.addEventListener("click", () => deleteNoteLogEntry());
+ambientModeToggle?.addEventListener("change", async () => {
+  await setAmbientEnabled(ambientModeToggle.checked);
+});
+ambientConsentBtn?.addEventListener("click", async () => {
+  if (!ambientController) return;
+  await ambientController.confirmConsent();
+});
+ambientPauseBtn?.addEventListener("click", () => {
+  if (!ambientController) return;
+  if (ambientController.paused) ambientController.resume();
+  else ambientController.pause();
+});
+ambientStopBtn?.addEventListener("click", async () => {
+  if (!ambientController) return;
+  await ambientController.stopEncounter();
+  ambientController.clearBuffer();
+});
+ambientClearBtn?.addEventListener("click", () => {
+  if (!ambientController) return;
+  ambientController.clearBuffer();
+  showToast("Ambient buffer cleared.", "ok");
+});
+ambientSettingsBtn?.addEventListener("click", () => {
+  openProfilePanel();
+});
 macroSelect?.addEventListener("change", async () => {
   const id = macroSelect.value;
   const macro = macros.find(m => m.id === id);
@@ -6462,6 +7100,10 @@ macroPickerSelect?.addEventListener("change", () => {
   }
 });
 recordBtn.addEventListener("click", async () => {
+  if (ambientEnabled) {
+    showToast("Ambient Mode is active. Disable it to use manual recording.", "warn");
+    return;
+  }
   if (recState === "idle") {
     recState = "recording";
     updateRecUI();
@@ -6547,6 +7189,8 @@ document.addEventListener("keydown", (e) => {
     closeProfilePanel();
   }
 });
+window.addEventListener("online", () => ambientController?.updateStatus());
+window.addEventListener("offline", () => ambientController?.updateStatus());
 
 // Add Copy button left of SOAP
 (function addCopyButtonLeft(){

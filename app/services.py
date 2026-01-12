@@ -1297,159 +1297,343 @@ def generate_referral_letter(context: SessionContext) -> str:
 # MAKE SOAP
 # =========================
 
-def build_make_soap_prompt(context: SessionContext) -> str:
-    _hydrate_identifiers_best_effort(context)
+SOAP_STRUCTURE_MODEL = os.getenv("SOAP_STRUCTURE_MODEL", "gpt-4o-mini")
+SOAP_SYNTHESIS_MODEL = os.getenv("SOAP_SYNTHESIS_MODEL", "gpt-4o")
+SOAP_SCRUB_MODEL = os.getenv("SOAP_SCRUB_MODEL", "gpt-4o-mini")
 
-    transcript = getattr(context.transcript, "raw_text", None) or ""
-    emr = getattr(context.clinical_background, "emr_dump", None) or ""
-    today = datetime.now(timezone.utc).date().isoformat()
-    return f"""
-TASK=FM_NOTE_CANADA
-FORMAT=SOAP
-INPUT=TRANSCRIPT_AND_EMR
-STRICT=1
+SOAP_STRUCTURE_TEMP = 0.2
+SOAP_SYNTHESIS_TEMP = 0.2
+SOAP_SCRUB_TEMP = 0.0
+SOAP_SCRUB_TOP_P = 1.0
+SOAP_SCRUB_SEED = 42
 
-ANTI_INVENTION (HARD):
-- ALLOW_ONLY: information explicitly present in transcript text or EMR data.
-- DISALLOW: inferred PMH/PSH/meds/allergies/vitals/exam/labs/imaging/screening/ROS/negatives/social hx.
-- NEGATIVES: include ONLY if explicitly asked+answered (e.g., “Any fever?” “No.”).
-- DX: may state a diagnosis ONLY if clinician stated it OR transcript supports a limited working impression using explicit findings; otherwise write “etiology not specified in transcript”.
-- MEDS: include medications ONLY if explicitly mentioned in transcript. If dose/frequency/duration absent => write “dose not specified in transcript”. Do NOT add “typical” dosing. Use Canadian drug names/spelling when present.
-- EMR: if using EMR data not discussed today, label as "per chart".
+SOAP_STRUCT_MAX_CHARS = 12000
+SOAP_STRUCT_CHUNK_CHARS = 6000
 
-STYLE:
-- Medical tone. No commentary before/after.
-- Use headings exactly as in the template.
-- Use hyphen bullets for items.
-- Only include a bullet if explicitly mentioned.
-- If a section would be empty, write "- Not documented."
+SOAP_STRUCTURE_SYSTEM = """You are a clinical documentation engine for Canadian family medicine. Your job is to extract ONLY supported facts from the provided EncounterPacket and organize them into a structured JSON. Do not invent, assume, or add placeholders. You may group related facts into issue candidates if clearly supported by the transcript. Social history must come ONLY from today's transcript.
 
-OUTPUT:
-Emit the template below with the same headings and labels. Omit any bullet line that
-is not explicitly supported. If a section would be empty after omitting, output
-"- Not documented." for that section.
-Replace "Problem or diagnosis N" with the actual problem name (if explicitly
-mentioned). Do not output placeholder problem lines.
+Return ONLY valid JSON matching this schema:
+{ "issues": [...], "subjective_by_issue": {...}, "social_from_transcript": [...], "objective_facts": {...}, "procedures": {...}, "assessment_candidates": {...}, "plan_facts_by_issue": {...} }
+""".strip()
 
+SOAP_SYNTHESIS_SYSTEM = """You are an expert Canadian family physician producing a best-in-class SOAP note for family medicine. Use the EncounterPacket and StructuredExtraction. Do not invent. Do not include anything unsupported. You may perform controlled synthesis: group related symptoms into issues and state soft-inference diagnoses only if strongly supported by the facts. Avoid exhaustive ROS. Social Hx must be derived only from today’s transcript.
+
+Formatting rules:
+- No commentary before or after.
+- Bold section titles.
+- No bullets.
+- Each point on new line.
+- Exactly one blank line between sections.
+- Procedure section ONLY if performed.
+
+Sections in order:
 Issues:
-1. ...
-2. ...
+Subjective:
+Safety / Red Flags:
+Social Hx:
+Objective:
+Assessment:
+Procedure: (only if performed)
+Plan:
 
-Subjective
-- Chief complaint and description of present symptoms: ...
-- History of presenting illness: ...
-- Relevant past medical and surgical history: ...
-- Current medications: ...
-- Allergies and sensitivities: ...
-- Social history: ...
+Medication rules:
+- Use Canadian drug names/formulations.
+- Include dosing only if explicitly present OR clinician clearly initiated therapy and dosing is standard in Canada; otherwise omit dosing.
+""".strip()
 
-Review of Systems
-- Constitutional: ...
-- Eyes: ...
-- Ears, Nose, Mouth, Throat: ...
-- Cardiovascular: ...
-- Respiratory: ...
-- Gastrointestinal: ...
-- Genitourinary: ...
-- Musculoskeletal: ...
-- Integumentary (Skin): ...
-- Neurological: ...
-- Psychiatric: ...
-- Endocrine: ...
-- Hematologic/Lymphatic: ...
-- Allergic/Immunologic: ...
-
-Objective
-- Vital signs: ...
-- Physical examination findings by system: ...
-- Investigations and test results: ...
-
-Assessment & Plan
-Problem or diagnosis 1
-- Clinical assessment or diagnosis explicitly stated by clinician: ...
-- Differential diagnoses: ...
-- Planned investigations: ...
-- Treatment and management plan: ...
-- Referrals: ...
-- Patient counselling and education provided: ...
-
-Problem or diagnosis 2
-... (continue in the same format for additional problems if explicitly mentioned)
-
-INPUT:
-=== EMR_DATA_VERBATIM ===
-{emr}
-
-=== TODAY_TRANSCRIPT_VERBATIM ===
-{transcript}
+SOAP_SCRUB_SYSTEM = """You are a strict clinical note auditor. Your task: remove anything not supported by the EncounterPacket or StructuredExtraction; remove filler; ensure Social Hx is transcript-only; ensure no “not mentioned” phrases; ensure format is EXACT (bold section titles, no bullets, each point new line, one blank line between sections). Output ONLY the final SOAP note text.
 """.strip()
 
 
-SOAP_GENERATOR_SYSTEM = """You are a Canadian family medicine physician generating a SOAP note.
-
-Task:
-Generate a SOAP note strictly using the information provided.
-
-Rules:
-- Follow the provided SOAP formatting instructions exactly.
-- Use professional medical tone.
-- Do not mention uncertainty unless it is explicitly stated in the transcript.
-- Do not reference verification, auditing, or source checking.
-- Do not explain your reasoning.
-- Do not invent facts.
-
-Output:
-SOAP note only. No commentary.
-""".strip()
-
-SOAP_AUDITOR_SYSTEM = """You are a medical documentation auditor.
-
-Your role is NOT to rewrite creatively.
-Your role is to REMOVE or CORRECT hallucinations.
-
-Definition:
-A hallucination is any statement not explicitly supported by:
-1) The visit transcript, OR
-2) The provided EMR data.
-
-Hard Rules:
-- You may NOT invent new facts.
-- You may NOT add diagnoses, symptoms, meds, labs, or history.
-- You may ONLY:
-  a) Keep statements that are supported
-  b) Delete unsupported statements
-  c) Weaken statements using uncertainty language
-     (e.g., "reports", "per chart", "not discussed today")
-
-Every kept statement MUST be traceable to evidence.
-If evidence is absent → remove or weaken.
-
-You must preserve:
-- SOAP structure
-- Formatting rules
-- Clinical tone
-
-Template rules:
-- Keep all section headings exactly as in the draft.
-- Keep bullet labels when they are supported; remove or weaken only the content.
-- If a section would become empty after deletions, replace its content with
-  a single line: "- Not documented."
-- Preserve the Issues section and its numbering; remove unsupported items but keep the heading.
-""".strip()
-
-SOAP_GENERATOR_TEMP = 0.4
-SOAP_GENERATOR_TOP_P = 0.9
-SOAP_AUDITOR_TEMP = 0.1
-SOAP_AUDITOR_TOP_P = 1.0
-SOAP_AUDITOR_SEED = 42
+def _extract_emr_block(text: str, headers: List[str], max_lines: int = 30) -> str:
+    if not text:
+        return ""
+    header_set = {h.lower().strip() for h in headers}
+    lines = text.splitlines()
+    start_indices: List[int] = []
+    for i, line in enumerate(lines):
+        norm = (line or "").strip().lower().rstrip(":")
+        if norm in header_set:
+            start_indices.append(i + 1)
+    if not start_indices:
+        return ""
+    start = start_indices[-1]
+    collected: List[str] = []
+    for j in range(start, len(lines)):
+        raw = (lines[j] or "").strip()
+        if not raw:
+            continue
+        norm = raw.lower().rstrip(":")
+        if norm in header_set:
+            break
+        if norm.endswith(":") and len(norm.split()) <= 4:
+            break
+        collected.append(raw)
+        if len(collected) >= max_lines:
+            break
+    return "\n".join(collected).strip()
 
 
-def _strip_tier_header(text: str) -> str:
-    raw = (text or "").strip()
-    if raw.upper().startswith("TIER="):
-        lines = raw.splitlines()
-        return "\n".join(lines[1:]).strip()
-    return raw
+def _build_emr_context(emr_text: str) -> Dict[str, Any]:
+    emr = (emr_text or "").strip()
+    patient_banner = emr[:1200].strip() if emr else ""
+    return {
+        "patient_banner": patient_banner or None,
+        "problem_list": _extract_emr_block(emr, ["Health Profile", "Problem List", "Diagnoses"]) or None,
+        "meds": _extract_emr_block(emr, ["Medications", "Meds"]) or None,
+        "allergies": _extract_emr_block(emr, ["Allergies", "Allergies/Intolerances"]) or None,
+        "immunizations": _extract_emr_block(emr, ["Vaccines", "Immunizations"]) or None,
+        "past_notes": _extract_emr_block(emr, ["Clinical Notes", "Patient Notes"]) or None,
+    }
+
+
+def _build_objective_data(emr_text: str, attachments_text: str = "") -> Dict[str, Any]:
+    emr = (emr_text or "").strip()
+    labs = _extract_emr_block(emr, ["Labs", "Laboratory", "Lab Results"])
+    imaging = _extract_emr_block(emr, ["Investigations", "Imaging", "Diagnostic Imaging", "X-Ray", "Ultrasound"])
+    vitals = _extract_emr_block(emr, ["Vitals", "Vital Signs"])
+    exam = _extract_emr_block(emr, ["Objective Data", "Objective", "Exam", "Physical Exam"])
+    poc = _extract_emr_block(emr, ["Point of Care", "POC", "Rapid Test"])
+
+    att = (attachments_text or "").strip()
+    if att:
+        labs = (labs + ("\n\n" if labs else "") + att).strip()
+
+    return {
+        "vitals": vitals or None,
+        "physical_exam": exam or None,
+        "labs": labs or None,
+        "imaging": imaging or None,
+        "point_of_care_tests": poc or None,
+    }
+
+
+def build_encounter_packet(context: SessionContext, attachments_text: str = "") -> Dict[str, Any]:
+    _hydrate_identifiers_best_effort(context)
+    now = _now_utc().astimezone(ZoneInfo("America/Edmonton"))
+    transcript_text = (getattr(context.transcript, "raw_text", None) or "").strip()
+    emr_text = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
+
+    source = "dictation"
+    if getattr(context.transcript, "segments", None):
+        source = "ambient"
+    elif getattr(context.transcript, "mode", None) == "imported":
+        source = "typed"
+
+    return {
+        "metadata": {
+            "encounter_id": context.session_meta.session_id,
+            "clinician_name": None,
+            "clinic_name": None,
+            "timezone": "America/Edmonton",
+            "encounter_datetime_iso": now.isoformat(),
+            "visit_type": "unknown",
+        },
+        "transcript": {
+            "source": source,
+            "text": transcript_text,
+            "speaker_map": None,
+            "confidence": None,
+        },
+        "emr_context": _build_emr_context(emr_text),
+        "objective_data": _build_objective_data(emr_text, attachments_text=attachments_text),
+        "clinician_intent": {
+            "note_style": "family_med_best_in_class",
+            "allow_soft_inference": True,
+            "strict_no_invention": True,
+            "max_length": "medium",
+        },
+    }
+
+
+def _chunk_text(text: str, max_chars: int) -> List[str]:
+    t = (text or "").strip()
+    if not t or len(t) <= max_chars:
+        return [t]
+    chunks: List[str] = []
+    start = 0
+    while start < len(t):
+        end = min(len(t), start + max_chars)
+        if end < len(t):
+            cut = t.rfind("\n", start, end)
+            if cut > start + 200:
+                end = cut
+        chunks.append(t[start:end].strip())
+        start = end
+    return [c for c in chunks if c]
+
+
+def _dedupe_list(items: List[str]) -> List[str]:
+    seen = set()
+    out: List[str] = []
+    for item in items:
+        raw = (item or "").strip()
+        if not raw:
+            continue
+        key = raw.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(raw)
+    return out
+
+
+def normalize_structured_extraction(obj: Dict[str, Any]) -> Dict[str, Any]:
+    data = obj if isinstance(obj, dict) else {}
+    return {
+        "issues": data.get("issues", []) or [],
+        "subjective_by_issue": data.get("subjective_by_issue", {}) or {},
+        "social_from_transcript": data.get("social_from_transcript", []) or [],
+        "objective_facts": data.get("objective_facts", {}) or {},
+        "procedures": data.get("procedures", {}) or {"performed": False, "description_facts_only": []},
+        "assessment_candidates": data.get("assessment_candidates", {}) or {},
+        "plan_facts_by_issue": data.get("plan_facts_by_issue", {}) or {},
+    }
+
+
+def merge_structured_extractions(extractions: List[Dict[str, Any]]) -> Dict[str, Any]:
+    merged = normalize_structured_extraction({})
+    issue_map: Dict[str, Dict[str, Any]] = {}
+
+    for ex in extractions:
+        data = normalize_structured_extraction(ex)
+
+        for issue in data.get("issues", []) or []:
+            title = (issue.get("title") or "").strip()
+            if not title:
+                continue
+            key = title.lower()
+            if key not in issue_map:
+                issue_map[key] = {
+                    "title": title,
+                    "supporting_quotes": _dedupe_list(issue.get("supporting_quotes", []) or []),
+                    "supporting_facts": _dedupe_list(issue.get("supporting_facts", []) or []),
+                }
+            else:
+                issue_map[key]["supporting_quotes"] = _dedupe_list(
+                    issue_map[key]["supporting_quotes"] + (issue.get("supporting_quotes", []) or [])
+                )
+                issue_map[key]["supporting_facts"] = _dedupe_list(
+                    issue_map[key]["supporting_facts"] + (issue.get("supporting_facts", []) or [])
+                )
+
+        for k, v in (data.get("subjective_by_issue", {}) or {}).items():
+            if not isinstance(v, list):
+                continue
+            merged.setdefault("subjective_by_issue", {})
+            merged["subjective_by_issue"][k] = _dedupe_list(
+                (merged["subjective_by_issue"].get(k, []) or []) + v
+            )
+
+        merged["social_from_transcript"] = _dedupe_list(
+            (merged.get("social_from_transcript", []) or []) + (data.get("social_from_transcript", []) or [])
+        )
+
+        for key in ["vitals", "physical_exam", "labs", "imaging", "point_of_care_tests"]:
+            items = data.get("objective_facts", {}).get(key, []) or []
+            merged.setdefault("objective_facts", {})
+            merged["objective_facts"][key] = _dedupe_list(
+                (merged["objective_facts"].get(key, []) or []) + items
+            )
+
+        if data.get("procedures", {}).get("performed"):
+            merged.setdefault("procedures", {"performed": False, "description_facts_only": []})
+            merged["procedures"]["performed"] = True
+            merged["procedures"]["description_facts_only"] = _dedupe_list(
+                (merged["procedures"].get("description_facts_only", []) or []) +
+                (data.get("procedures", {}).get("description_facts_only", []) or [])
+            )
+
+        for key in ["dx_explicit", "dx_inferred_soft", "reasoning_facts"]:
+            items = data.get("assessment_candidates", {}).get(key, []) or []
+            merged.setdefault("assessment_candidates", {})
+            merged["assessment_candidates"][key] = _dedupe_list(
+                (merged["assessment_candidates"].get(key, []) or []) + items
+            )
+
+        for k, v in (data.get("plan_facts_by_issue", {}) or {}).items():
+            if not isinstance(v, list):
+                continue
+            merged.setdefault("plan_facts_by_issue", {})
+            merged["plan_facts_by_issue"][k] = _dedupe_list(
+                (merged["plan_facts_by_issue"].get(k, []) or []) + v
+            )
+
+    merged["issues"] = list(issue_map.values())
+    return merged
+
+
+def _run_structure_extraction(packet: Dict[str, Any]) -> Dict[str, Any]:
+    payload = json.dumps(packet, ensure_ascii=False)
+    response = client.chat.completions.create(
+        model=SOAP_STRUCTURE_MODEL,
+        messages=[
+            {"role": "system", "content": SOAP_STRUCTURE_SYSTEM},
+            {"role": "user", "content": payload},
+        ],
+        temperature=SOAP_STRUCTURE_TEMP,
+        response_format={"type": "json_object"},
+    )
+    raw = (response.choices[0].message.content or "").strip()
+    try:
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _run_structure_extraction_chunked(packet: Dict[str, Any]) -> Dict[str, Any]:
+    transcript = (packet.get("transcript", {}) or {}).get("text", "") or ""
+    if len(transcript) <= SOAP_STRUCT_MAX_CHARS:
+        return normalize_structured_extraction(_run_structure_extraction(packet))
+
+    chunks = _chunk_text(transcript, SOAP_STRUCT_CHUNK_CHARS)
+    results: List[Dict[str, Any]] = []
+    for chunk in chunks:
+        packet_copy = json.loads(json.dumps(packet))
+        packet_copy["transcript"]["text"] = chunk
+        results.append(_run_structure_extraction(packet_copy))
+    return normalize_structured_extraction(merge_structured_extractions(results))
+
+
+def _run_soap_synthesis(packet: Dict[str, Any], extraction: Dict[str, Any]) -> str:
+    user_content = (
+        "EncounterPacket:\n"
+        + json.dumps(packet, ensure_ascii=False)
+        + "\n\nStructuredExtraction:\n"
+        + json.dumps(extraction, ensure_ascii=False)
+    )
+    response = client.chat.completions.create(
+        model=SOAP_SYNTHESIS_MODEL,
+        messages=[
+            {"role": "system", "content": SOAP_SYNTHESIS_SYSTEM},
+            {"role": "user", "content": user_content},
+        ],
+        temperature=SOAP_SYNTHESIS_TEMP,
+    )
+    return (response.choices[0].message.content or "").strip()
+
+
+def _run_soap_scrub(packet: Dict[str, Any], extraction: Dict[str, Any], draft: str) -> str:
+    user_content = (
+        "EncounterPacket:\n"
+        + json.dumps(packet, ensure_ascii=False)
+        + "\n\nStructuredExtraction:\n"
+        + json.dumps(extraction, ensure_ascii=False)
+        + "\n\nDraftSOAP:\n"
+        + (draft or "")
+    )
+    response = _chat_complete_with_seed(
+        model=SOAP_SCRUB_MODEL,
+        messages=[
+            {"role": "system", "content": SOAP_SCRUB_SYSTEM},
+            {"role": "user", "content": user_content},
+        ],
+        temperature=SOAP_SCRUB_TEMP,
+        top_p=SOAP_SCRUB_TOP_P,
+        seed=SOAP_SCRUB_SEED,
+    )
+    return (response.choices[0].message.content or "").strip()
 
 
 def _chat_complete_with_seed(**kwargs):
@@ -1463,48 +1647,75 @@ def _chat_complete_with_seed(**kwargs):
         raise
 
 
-def build_soap_audit_prompt(context: SessionContext, draft_soap: str) -> str:
-    transcript = getattr(context.transcript, "raw_text", None) or ""
-    emr = getattr(context.clinical_background, "emr_dump", None) or ""
-    draft = draft_soap or ""
-    return f"""
-=== TRANSCRIPT ===
-{transcript}
-
-=== EMR DATA ===
-{emr}
-
-=== DRAFT SOAP ===
-{draft}
-""".strip()
+def _strip_bullets(line: str) -> str:
+    raw = (line or "").lstrip()
+    if raw.startswith("- "):
+        return raw[2:].strip()
+    if raw.startswith("• "):
+        return raw[2:].strip()
+    if raw.startswith("•"):
+        return raw[1:].strip()
+    return line.strip()
 
 
-def make_soap(context: SessionContext) -> dict:
-    generator_prompt = build_make_soap_prompt(context)
-    generator_response = client.chat.completions.create(
-        model="gpt-5.2",
-        messages=[
-            {"role": "system", "content": SOAP_GENERATOR_SYSTEM},
-            {"role": "user", "content": generator_prompt},
-        ],
-        temperature=SOAP_GENERATOR_TEMP,
-        top_p=SOAP_GENERATOR_TOP_P,
+def should_include_procedure_section(extraction: Dict[str, Any]) -> bool:
+    proc = (extraction or {}).get("procedures", {}) or {}
+    return bool(proc.get("performed"))
+
+
+def normalize_soap_output(text: str, include_procedure: bool) -> str:
+    headers = [
+        "Issues",
+        "Subjective",
+        "Safety / Red Flags",
+        "Social Hx",
+        "Objective",
+        "Assessment",
+        "Procedure",
+        "Plan",
+    ]
+    header_pattern = re.compile(r"^\s*\*{0,2}\s*(" + "|".join(re.escape(h) for h in headers) + r")\s*:?\s*\*{0,2}\s*$")
+    sections: Dict[str, List[str]] = {h: [] for h in headers}
+    current = None
+
+    for raw_line in (text or "").splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        match = header_pattern.match(line)
+        if match:
+            current = match.group(1)
+            continue
+        if current:
+            cleaned = _strip_bullets(line)
+            if cleaned:
+                sections[current].append(cleaned)
+
+    out_sections: List[str] = []
+    for header in headers:
+        if header == "Procedure" and not include_procedure:
+            continue
+        lines = sections.get(header, []) or []
+        if header == "Safety / Red Flags" and not lines:
+            lines = ["none"]
+        section_lines = [f"**{header}:**"]
+        if lines:
+            section_lines.extend(lines)
+        out_sections.append("\n".join(section_lines))
+
+    return "\n\n".join(out_sections).strip()
+
+
+def make_soap(context: SessionContext, attachments_text: str = "") -> dict:
+    packet = build_encounter_packet(context, attachments_text=attachments_text)
+    extraction = _run_structure_extraction_chunked(packet)
+    draft_text = _run_soap_synthesis(packet, extraction)
+    scrubbed_text = _run_soap_scrub(packet, extraction, draft_text)
+
+    final_text = normalize_soap_output(
+        scrubbed_text,
+        include_procedure=should_include_procedure_section(extraction),
     )
-    draft_text = (generator_response.choices[0].message.content or "").strip()
-
-    audit_prompt = build_soap_audit_prompt(context, draft_text)
-    auditor_response = _chat_complete_with_seed(
-        model="gpt-5.2",
-        messages=[
-            {"role": "system", "content": SOAP_AUDITOR_SYSTEM},
-            {"role": "user", "content": audit_prompt},
-        ],
-        temperature=SOAP_AUDITOR_TEMP,
-        top_p=SOAP_AUDITOR_TOP_P,
-        seed=SOAP_AUDITOR_SEED,
-    )
-    final_text = (auditor_response.choices[0].message.content or "").strip()
-    final_text = _strip_tier_header(final_text)
 
     return {
         "soap_text": final_text,
