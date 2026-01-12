@@ -3150,6 +3150,40 @@ function formatNoteLogMeta(meta) {
   return lines.join("\n") || "No metadata.";
 }
 
+function applyNoteLogSnapshot(entry) {
+  if (!entry) return;
+  const inputs = entry.inputs || {};
+  const outputs = entry.outputs || {};
+  if (transcriptBox && typeof inputs.transcript === "string") {
+    transcriptBox.value = inputs.transcript;
+  }
+  if (snapshotPanel) {
+    snapshotPanel.textContent = inputs.clinical_background || inputs.netcare_background || "";
+  }
+  if (coachPanel) {
+    coachPanel.textContent = inputs.derived_context ? safeJsonStringify(inputs.derived_context) : "";
+  }
+  if (dailyBillingText && typeof outputs.billing_text === "string") {
+    dailyBillingText.value = outputs.billing_text;
+  }
+  if (referralLetterText) {
+    referralLetterText.innerHTML = referralTextToHtml(outputs.referral_letter || "");
+  }
+  if (chatLog) {
+    const sections = [];
+    if (outputs.soap_note) {
+      sections.push(`<div class="note-log-load-section"><strong>SOAP note</strong><pre>${escapeHtml(outputs.soap_note)}</pre></div>`);
+    }
+    if (outputs.ddx_output) {
+      sections.push(`<div class="note-log-load-section"><strong>DDx</strong><pre>${escapeHtml(outputs.ddx_output)}</pre></div>`);
+    }
+    if (outputs.billing_text) {
+      sections.push(`<div class="note-log-load-section"><strong>Billing</strong><pre>${escapeHtml(outputs.billing_text)}</pre></div>`);
+    }
+    chatLog.innerHTML = sections.length ? sections.join("") : `<div class="note-log-load-section">No saved outputs.</div>`;
+  }
+}
+
 async function loadNoteLogDetail(entryId) {
   if (!entryId) return;
   noteLogCurrentId = entryId;
@@ -3161,6 +3195,7 @@ async function loadNoteLogDetail(entryId) {
     if (noteLogMeta) noteLogMeta.textContent = formatNoteLogMeta(entry.metadata || {});
     renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
     setNoteLogStatus("");
+    applyNoteLogSnapshot(entry);
   } catch (err) {
     setNoteLogStatus(err?.message || "Failed to load entry.", true);
   }
@@ -6171,6 +6206,7 @@ macroDeleteBtn?.addEventListener("click", async () => {
 newPatientConfirmCancelBtn?.addEventListener("click", () => closeNewPatientConfirm());
 newPatientConfirmProceedBtn?.addEventListener("click", async () => {
   closeNewPatientConfirm();
+  await maybeCreateNoteLogSnapshot();
   await startNewPatientSession();
 });
 newPatientConfirmOverlay?.addEventListener("click", () => closeNewPatientConfirm());
@@ -6211,6 +6247,18 @@ billingArchiveSaveBtn?.addEventListener("click", async () => {
 billingArchivePrintBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(billingArchivePrintBtn, "Printing…", reprintBillingArchive);
 });
+noteLogBtn?.addEventListener("click", openNoteLogPanel);
+noteLogCloseBtn?.addEventListener("click", closeNoteLogPanel);
+noteLogCloseBtn2?.addEventListener("click", closeNoteLogPanel);
+noteLogOverlay?.addEventListener("click", closeNoteLogPanel);
+noteLogPanel?.addEventListener("click", (e) => e.stopPropagation());
+noteLogTabOutputs?.addEventListener("click", () => setNoteLogTab("outputs"));
+noteLogTabInputs?.addEventListener("click", () => setNoteLogTab("inputs"));
+noteLogTabMeta?.addEventListener("click", () => setNoteLogTab("meta"));
+noteLogSearch?.addEventListener("input", () => {
+  renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
+});
+noteLogDeleteBtn?.addEventListener("click", () => deleteNoteLogEntry());
 macroSelect?.addEventListener("change", async () => {
   const id = macroSelect.value;
   const macro = macros.find(m => m.id === id);
@@ -6275,6 +6323,7 @@ newBtn.addEventListener("click", async () => {
     openNewPatientConfirm();
     return;
   }
+  await maybeCreateNoteLogSnapshot();
   await startNewPatientSession();
 });
 
