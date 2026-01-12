@@ -1191,6 +1191,16 @@ class ClinicalBackgroundPayload(BaseModel):
     background_text: str
 
 
+class AmbientStartPayload(BaseModel):
+    session_id: str
+    consent_confirmed: bool = False
+
+
+class AmbientStopPayload(BaseModel):
+    session_id: str
+    encounter_id: str
+
+
 @router.post("/session/{session_id}/clinical_background")
 def update_clinical_background(session_id: str, payload: ClinicalBackgroundPayload):
     """
