@@ -710,6 +710,49 @@ textarea::-webkit-scrollbar-track{
   font-weight:800;
 }
 .transcript-btnrow button#record_btn{ font-weight:850; }
+#record_btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+#record_btn .record-btn-icon{
+  display:inline-flex;
+  width:18px;
+  height:18px;
+}
+#record_btn .record-btn-icon svg{
+  width:18px;
+  height:18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#record_btn.record-glow{
+  animation: recordGlow 2.8s ease-in-out infinite;
+}
+@keyframes recordGlow{
+  0%{
+    box-shadow: var(--shadow-xs),
+                inset 0 0 0 1px var(--primary-border),
+                inset 0 1px 0 var(--edge-hi),
+                0 0 0 0 rgba(59,130,246,0.0);
+  }
+  50%{
+    box-shadow: var(--shadow-xs),
+                inset 0 0 0 1px var(--primary-border),
+                inset 0 1px 0 var(--edge-hi),
+                0 0 0 10px rgba(59,130,246,0.18);
+  }
+  100%{
+    box-shadow: var(--shadow-xs),
+                inset 0 0 0 1px var(--primary-border),
+                inset 0 1px 0 var(--edge-hi),
+                0 0 0 0 rgba(59,130,246,0.0);
+  }
+}
 
 /* Keep transcript stable; scroll inside */
 .transcript-box{
@@ -1665,7 +1708,16 @@ textarea::-webkit-scrollbar-track{
           </div>
 
           <div class="transcript-btnrow">
-            <button id="record_btn" class="primary" type="button">Record</button>
+            <button id="record_btn" class="primary record-glow" type="button">
+              <span class="record-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                </svg>
+              </span>
+              <span class="record-btn-text">Record visit</span>
+            </button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
 
@@ -3634,17 +3686,33 @@ function toggleTheme() {
 // -------------------------
 function updateRecUI(){
   const txPill = document.getElementById("tx_state");
+  const iconHtml = `
+    <span class="record-btn-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z"></path>
+        <path d="M19 11a7 7 0 0 1-14 0"></path>
+        <path d="M12 18v3"></path>
+      </svg>
+    </span>
+  `;
+  const setRecordLabel = (label) => {
+    if (!recordBtn) return;
+    recordBtn.innerHTML = `${iconHtml}<span class="record-btn-text">${label}</span>`;
+  };
 
   if (recState === "recording") {
-    recordBtn.textContent = "Pause";
+    setRecordLabel("Pause");
+    recordBtn.classList.remove("record-glow");
     setRecordingUI(true);
     if (txPill) setPill(txPill, "LIVE", "live");
   } else if (recState === "paused") {
-    recordBtn.textContent = "Resume";
+    setRecordLabel("Resume");
+    recordBtn.classList.remove("record-glow");
     setRecordingUI(false);
     if (txPill) setPill(txPill, "PAUSED", "warn");
   } else {
-    recordBtn.textContent = "Record";
+    setRecordLabel("Record visit");
+    recordBtn.classList.add("record-glow");
     setRecordingUI(false);
     if (txPill) setPill(txPill, "IDLE", "");
   }
