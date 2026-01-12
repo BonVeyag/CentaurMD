@@ -1337,6 +1337,8 @@ Assessment:
 Procedure: (only if performed)
 Plan:
 
+Issues: numbered, minimal, grouped.
+
 Medication rules:
 - Use Canadian drug names/formulations.
 - Include dosing only if explicitly present OR clinician clearly initiated therapy and dosing is standard in Canada; otherwise omit dosing.
