@@ -2103,6 +2103,7 @@ let editingMacroId = "";
 const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
 let authToken = String(localStorage.getItem(AUTH_TOKEN_KEY) || "");
 let authUser = null;
+let profileCache = null;
 let appBootstrapped = false;
 let billingArchiveItems = [];
 let billingArchiveCurrent = "";
@@ -3198,6 +3199,7 @@ async function loadProfile() {
   try {
     const data = await apiGet("/auth/profile");
     const profile = data?.profile || {};
+    profileCache = profile;
     if (profileSignatureName) profileSignatureName.value = profile.signature_name || "";
     if (profileCpsa) profileCpsa.value = profile.cpsa || "";
     if (profileDefaultFundingModel) {
@@ -3225,10 +3227,45 @@ async function saveProfile() {
   try {
     setProfileStatus("Saving…");
     await apiPut("/auth/profile", payload);
+    profileCache = { ...payload };
     setProfileStatus("Saved.");
   } catch (err) {
     setProfileStatus(err?.message || "Save failed.", true);
   }
+}
+
+function extractLastNameFromSignature(signature) {
+  const raw = String(signature || "").trim();
+  if (!raw) return "";
+  let cleaned = raw.replace(/^dr\.?\s+/i, "").replace(/[,]+/g, " ").trim();
+  const tokens = cleaned.split(/\s+/);
+  const stopTokens = new Set([
+    "MD", "M.D", "PHD", "PH.D", "CCFP", "FRCPC", "FRCP", "FRCSC", "MBBS", "DO", "MSC", "BSC", "MPH",
+  ]);
+  const nameParts = [];
+  for (const token of tokens) {
+    const norm = token.replace(/[.]/g, "").toUpperCase();
+    if (stopTokens.has(norm)) break;
+    nameParts.push(token);
+  }
+  if (nameParts.length === 0) return "";
+  return nameParts[nameParts.length - 1];
+}
+
+async function getPhysicianPrintName() {
+  let signature = (profileCache?.signature_name || "").trim();
+  if (!signature && profileSignatureName?.value) {
+    signature = profileSignatureName.value.trim();
+  }
+  if (!signature) {
+    try {
+      const data = await apiGet("/auth/profile");
+      profileCache = data?.profile || profileCache;
+      signature = (profileCache?.signature_name || "").trim();
+    } catch {}
+  }
+  const lastName = extractLastNameFromSignature(signature);
+  return lastName ? `Dr. ${lastName}` : "Dr.";
 }
 
 function setFeedbackStatus(message, isError=false) {
@@ -3503,17 +3540,17 @@ async function deleteBillingArchive() {
   logChat("System", "Saved billing deleted.");
 }
 
-function openBillingPrintWindow(printable, metaDate, metaCount) {
+function openBillingPrintWindow(printable, metaDate, metaCount, physicianName) {
   const w = window.open("", "_blank");
   if (!w) { logChat("System", "Pop-up blocked. Allow pop-ups to print."); return; }
-  const physicianName = "Dr. Thapa";
+  const displayName = (physicianName || "Dr.").trim();
   const safeText = String(printable || "").replace(/[&<>]/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[s]));
 
   w.document.open();
   w.document.write(`
     <html>
     <head>
-      <title>Physician: ${escapeHtml(physicianName)}</title>
+      <title>Physician: ${escapeHtml(displayName)}</title>
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <style>
         body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 24px; }
@@ -3523,7 +3560,7 @@ function openBillingPrintWindow(printable, metaDate, metaCount) {
       </style>
     </head>
     <body>
-      <h1>Physician: ${escapeHtml(physicianName)}</h1>
+      <h1>Physician: ${escapeHtml(displayName)}</h1>
       <div class="meta">
         Date: ${escapeHtml(metaDate || todayStrLocal())} &nbsp;|&nbsp;
         Total: ${escapeHtml(String(metaCount ?? ""))}
@@ -3553,7 +3590,8 @@ async function reprintBillingArchive() {
   const text = billingArchiveText?.value || "";
   const total = countPatientsFromText(text);
   const metaDate = getArchiveMetaDate(billingArchiveCurrentMeta) || todayStrLocal();
-  openBillingPrintWindow(text, metaDate, total);
+  const physicianName = await getPhysicianPrintName();
+  openBillingPrintWindow(text, metaDate, total, physicianName);
 }
 
 // -------------------------
@@ -5582,7 +5620,8 @@ async function printBillingList() {
   const printable = String(resp?.print_text || "").trim();
   const metaDate = String(resp?.date || todayStrLocal());
   const metaCount = String(resp?.total_patient_count ?? countPatientsFromText(dailyBillingText.value || ""));
-  openBillingPrintWindow(printable, metaDate, metaCount);
+  const physicianName = await getPhysicianPrintName();
+  openBillingPrintWindow(printable, metaDate, metaCount, physicianName);
 
   setTimeout(() => {
     try { localStorage.removeItem(billingTextKeyToday()); } catch {}

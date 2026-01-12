@@ -1302,28 +1302,12 @@ def build_make_soap_prompt(context: SessionContext) -> str:
 
     transcript = getattr(context.transcript, "raw_text", None) or ""
     emr = getattr(context.clinical_background, "emr_dump", None) or ""
+    today = datetime.now(timezone.utc).date().isoformat()
     return f"""
 TASK=FM_NOTE_CANADA
-FORMAT=APSO
+FORMAT=SOAP
 INPUT=TRANSCRIPT_AND_EMR
-AUTO_TIER=1
 STRICT=1
-
-TIER_SELECT (deterministic):
-- Compute N_PROBLEMS = count of distinct problems actually discussed in transcript (symptom/condition/administrative request).
-- Set FLAGS=1 if ANY of:
-  MH_RISK_SCREEN (self-harm/suicide/violence risk asked or discussed)
-  SAFETY_NET (explicit return/ER precautions or “seek urgent help” discussed)
-  SHARED_DECISION (>=2 options compared AND patient preference stated)
-  HIGH_RISK_RX (opioids/benzos/anticoagulants/insulin/antipsychotics OR clinician frames med as high-risk/controlled)
-  MULTIMORBID_INTERACTION (explicit interaction between conditions/meds discussed)
-  SIGNIFICANT_FUNCTIONAL_SOCIAL_IMPACT (work/school/ADLs/major caregiving/housing/financial barriers explicitly discussed)
-  MAJOR_DIAG_UNCERTAINTY (explicit broad differential OR “not sure” OR “rule out” OR escalation criteria for serious dx discussed)
-- Set DATA_REVIEW=1 if ANY objective data reviewed/obtained in transcript (vitals, exam findings, labs/imaging results, point-of-care tests).
-- Choose tier:
-  COMPLEX if FLAGS=1
-  else SHORT if (N_PROBLEMS<=2 AND DATA_REVIEW=0)
-  else NORMAL
 
 ANTI_INVENTION (HARD):
 - ALLOW_ONLY: information explicitly present in transcript text or EMR data.
@@ -1333,74 +1317,48 @@ ANTI_INVENTION (HARD):
 - MEDS: include medications ONLY if explicitly mentioned in transcript. If dose/frequency/duration absent => write “dose not specified in transcript”. Do NOT add “typical” dosing. Use Canadian drug names/spelling when present.
 - EMR: if using EMR data not discussed today, label as "per chart".
 
-MISSING_FIELDS:
-- SHORT: omit missing elements entirely (do NOT write “Not discussed” unless schema forces it).
-- NORMAL/COMPLEX: for required subfields write “Not discussed” if absent.
-
 STYLE:
-- Medical tone. No commentary before/after. No bullets. Line breaks only.
-- Bold headers exactly as schema.
-- Problem-oriented: numbering MUST match across Assessment/Plan/Subjective.
-- APSO order fixed: Assessment → Plan → Subjective → Objective.
+- Medical tone. No commentary before/after.
+- Use headings exactly as in the template.
+- Use hyphen bullets for items.
+- Only include a bullet if explicitly mentioned.
+- If a section would be empty, write "- Not documented."
 
 OUTPUT:
-- First line must be: TIER=<SHORT|NORMAL|COMPLEX>
-- Then emit EXACTLY one schema below.
+Emit EXACTLY this template:
 
-SCHEMA_SHORT:
-**Assessment**
-1. ...
-**Plan**
-1. ...
-**Subjective**
-1. ...
-**Objective**
-(only objective facts explicitly in transcript; if none, write: Not discussed)
+Subjective
+- [Chief complaint and description of present symptoms] (Only include if explicitly mentioned.)
+- [History of presenting illness] (Only include if explicitly mentioned.)
+- [Relevant past medical and surgical history] (Only include if explicitly mentioned.)
+- [Current medications] (Only include if explicitly mentioned.)
+- [Allergies and sensitivities] (Only include if explicitly mentioned.)
+- [Social history] (Only include if explicitly mentioned.)
 
-SCHEMA_NORMAL:
-**Assessment**
-1. ...
-2. ...
-**Plan**
-1. Medications: ...
-Investigations: ...
-Referrals: ...
-Patient instructions: ...
-Follow-up: ...
-2. ...
-**Subjective**
-1. ...
-2. ...
-**Objective**
-Vitals: ...
-Exam: ...
-Data reviewed today: ...
+Review of Systems
+- (Only list systems explicitly mentioned; omit systems not mentioned.)
 
-SCHEMA_COMPLEX:
-**Assessment**
-1. ...
-2. ...
-**Plan**
-1. Medications: ...
-Investigations: ...
-Referrals/Resources: ...
-Follow-up: ...
-Safety-net: ...
-2. ...
-**Subjective**
-1. ...
-2. ...
-**Objective**
-Vitals: ...
-Exam: ...
-Data reviewed today: ...
-Tools/Scales: ...
-**Shared decision-making**
-...
-**Safety / Red flags**
-...
-**Social context**
-...
+Objective
+- [Vital signs] (Only include if explicitly mentioned.)
+- [Physical examination findings by system] (Only include if explicitly mentioned.)
+- [Investigations and test results] (Only include if explicitly mentioned.)
+
+Assessment & Plan
+Problem 1: [problem or diagnosis explicitly stated by clinician]
+- [Clinical assessment or diagnosis explicitly stated by clinician]
+- [Differential diagnoses] (Only include if explicitly mentioned.)
+- [Planned investigations] (Only include if explicitly mentioned.)
+- [Treatment and management plan] (Only include if explicitly mentioned.)
+- [Referrals] (Only include if explicitly mentioned.)
+- [Patient counselling and education provided] (Only include if explicitly mentioned.)
+
+Problem 2: [if additional issues are explicitly mentioned]
+... (continue in the same format for additional problems)
+
+[Clinician/User Name]
+Family Medicine
+[Clinic/Hospital Name]
+{today}
 
 INPUT:
 === EMR_DATA_VERBATIM ===
