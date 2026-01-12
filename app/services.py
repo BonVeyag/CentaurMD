@@ -4,6 +4,7 @@ from datetime import datetime, timezone, date
 import hashlib
 import inspect
 import json
+import logging
 import os
 import re
 import uuid
@@ -19,6 +20,12 @@ from openai import OpenAI
 from app.models import SessionContext
 from app.local_kb import KB_ENABLED, search_kb, format_kb_context
 from app.guideline_runner import run_guideline_runner
+
+
+# =========================
+# Logging
+# =========================
+logger = logging.getLogger("centaurweb.services")
 
 
 # =========================
