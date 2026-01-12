@@ -1444,6 +1444,141 @@ def smtp_test_email(request: Request, user: AuthUser = Depends(require_user)):
 
 
 # =========================
+# Note Log (admin-only)
+# =========================
+
+class NoteLogCreatePayload(BaseModel):
+    session_id: str
+    billing_text: str = ""
+    referral_text: str = ""
+    clinical_query_text: str = ""
+
+
+@router.post("/note_log")
+def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    context = _get_context_or_404(payload.session_id)
+    _ensure_anchor_hydrated_from_emr(context)
+
+    emr = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
+    netcare = (getattr(context.clinical_background, "netcare_dump", None) or "").strip()
+    transcript = (getattr(context.transcript, "raw_text", None) or "").strip()
+
+    name, phn, dob, _age, _sex = extract_demographics_from_text(emr or netcare)
+    patient_name = (name or getattr(context.patient_anchor, "name", "") or "").strip()
+    patient_id = (getattr(context.patient_anchor, "patient_ref", "") or "").strip() or (phn or "").strip()
+
+    soap_text = ""
+    if getattr(context.derived_outputs, "soap_note", None):
+        try:
+            soap_text = (context.derived_outputs.soap_note.text or "").strip()
+        except Exception:
+            soap_text = ""
+    referral_text = (payload.referral_text or "").strip()
+    if not referral_text:
+        try:
+            refs = getattr(context.derived_outputs, "referrals", None) or []
+            if refs:
+                referral_text = (refs[-1].text or "").strip()
+        except Exception:
+            referral_text = ""
+    ddx_output = (getattr(context.derived_outputs, "differential", None) or "").strip()
+
+    chief = _infer_chief_complaint(soap_text, referral_text, transcript)
+
+    module_types = []
+    if soap_text:
+        module_types.append("SOAP")
+    if referral_text:
+        module_types.append("Referral")
+    if ddx_output:
+        module_types.append("DDx")
+    if (payload.billing_text or "").strip():
+        module_types.append("Billing")
+    if (payload.clinical_query_text or "").strip():
+        module_types.append("ClinicalQuery")
+
+    derived_context: Dict[str, Any] = {
+        "patient_anchor": context.patient_anchor.model_dump() if hasattr(context.patient_anchor, "model_dump") else {},
+    }
+    if emr:
+        try:
+            derived_context["patient_summary"] = generate_patient_summary(context)
+        except Exception:
+            derived_context["patient_summary"] = {}
+
+    models = {
+        "soap": "gpt-5.2",
+        "soap_audit": "gpt-5.2",
+        "referral": REFERRAL_MODEL,
+        "referral_audit": REFERRAL_AUDIT_MODEL,
+        "coach": DIFFERENTIAL_MODEL,
+        "clinical_query": CLINICAL_QUERY_TEXT_MODEL,
+        "patient_summary": PATIENT_SUMMARY_MODEL,
+        "billing": BILLING_MODEL,
+    }
+
+    entry = {
+        "created_by_user_id": user.username,
+        "is_admin_only": True,
+        "patient_id": patient_id,
+        "patient_name": patient_name,
+        "chief_complaint": chief,
+        "source_session_id": context.session_meta.session_id,
+        "module_types": module_types,
+        "metadata": {
+            "user": user.username,
+            "session_id": context.session_meta.session_id,
+            "patient_name": patient_name,
+            "patient_id": patient_id,
+            "chief_complaint": chief,
+        },
+        "inputs": {
+            "clinical_background": emr,
+            "netcare_background": netcare,
+            "transcript": transcript,
+            "derived_context": derived_context,
+            "clinical_query_log": (payload.clinical_query_text or "").strip(),
+        },
+        "outputs": {
+            "soap_note": soap_text,
+            "referral_letter": referral_text,
+            "billing_text": (payload.billing_text or "").strip(),
+            "ddx_output": ddx_output,
+        },
+        "models": models,
+    }
+
+    entry_id = create_note_log_entry(entry)
+    return {"id": entry_id}
+
+
+@router.get("/note_log")
+def list_note_log(limit: int = 50, offset: int = 0, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    items = list_note_log_entries(limit=limit, offset=offset)
+    return {"items": items}
+
+
+@router.get("/note_log/{entry_id}")
+def get_note_log(entry_id: str, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    entry = get_note_log_entry(entry_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return {"entry": entry}
+
+
+@router.delete("/note_log/{entry_id}")
+def delete_note_log(entry_id: str, user: AuthUser = Depends(require_user)):
+    _require_admin(user)
+    ok = delete_note_log_entry(entry_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return {"status": "deleted"}
+
+
+# =========================
 # Local Knowledge Base (admin-only)
 # =========================
 
