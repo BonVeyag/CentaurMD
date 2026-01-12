@@ -568,6 +568,18 @@ def _fallback_summary_from_emr(transcript: str, emr_text: str, netcare_text: str
         ["ecg", "echo", "ultrasound", "ct", "mri", "x-ray", "pft", "scan", "biopsy"],
         limit=4,
     )
+    social_block = _extract_section_block_last(bg, ["Social History", "Social Hx"], max_lines=20)
+    social_history = _format_paragraph_from_lines(_split_lines(social_block), max_chars=300)
+    history_block = _extract_section_block_last(
+        bg, ["Active & Past Medical Conditions", "Health Profile", "Problem List", "Diagnoses"], max_lines=30
+    )
+    relevant_history = _format_paragraph_from_lines(_split_lines(history_block), max_chars=360)
+    impact_lines = _pick_lines_with_keywords(
+        source,
+        ["impact", "interfer", "limits", "unable", "difficulty", "work", "sleep", "daily", "activities", "adl"],
+        limit=2,
+    )
+    functional_impact = _format_paragraph_from_lines(impact_lines, max_chars=240)
 
     return {
         "reason_short": summary_symptoms,
@@ -575,6 +587,9 @@ def _fallback_summary_from_emr(transcript: str, emr_text: str, netcare_text: str
         "key_positives": key_positives,
         "key_negatives_and_redflags": key_negatives,
         "pertinent_exam": pertinent_exam,
+        "relevant_history": relevant_history,
+        "social_history": social_history,
+        "functional_impact": functional_impact,
         "treatments_tried": treatments,
         "pending_items": "",
         "working_dx_and_ddx": working_dx,
