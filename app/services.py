@@ -1719,11 +1719,16 @@ def make_soap(context: SessionContext, attachments_text: str = "") -> dict:
         scrubbed_text,
         include_procedure=should_include_procedure_section(extraction),
     )
+    provenance = {
+        "issues": extraction.get("issues", []),
+        "plan_facts_by_issue": extraction.get("plan_facts_by_issue", {}),
+    }
 
     return {
         "soap_text": final_text,
         "generated_at": _now_utc(),
         "context_hash": _hash_context(context),
+        "provenance": provenance,
     }
 
 
