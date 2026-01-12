@@ -356,3 +356,6 @@ class SessionContext(StrictBaseModel):
 
     # Session-scoped billing helpers (ICD-9 chips, suggestions)
     billing: BillingSession = Field(default_factory=BillingSession)
+
+    # Ambient capture state (session scoped, no raw audio persistence)
+    ambient: AmbientState = Field(default_factory=AmbientState)
