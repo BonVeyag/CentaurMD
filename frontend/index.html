@@ -744,7 +744,7 @@ textarea::-webkit-scrollbar-track{
     box-shadow: var(--shadow-xs),
                 inset 0 0 0 1px var(--primary-border),
                 inset 0 1px 0 var(--edge-hi),
-                0 0 0 5px rgba(59,130,246,0.18);
+                0 0 0 2.5px rgba(59,130,246,0.18);
   }
   100%{
     box-shadow: var(--shadow-xs),
@@ -1289,6 +1289,81 @@ textarea::-webkit-scrollbar-track{
   color: var(--danger);
   font-weight:650;
 }
+.note-log-panel{
+  width:min(980px, 94vw);
+  height:min(82vh, 720px);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.note-log-body{
+  display:grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(360px, 1.7fr);
+  gap:12px;
+  flex:1;
+  min-height:0;
+}
+.note-log-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  min-height:0;
+}
+.note-log-list input{
+  width:100%;
+  border-radius:12px;
+  border:none;
+  padding:8px 10px;
+  font-size:13px;
+  background: color-mix(in oklab, var(--panel) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.note-log-items{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  overflow:auto;
+  min-height:0;
+}
+.note-log-item{
+  text-align:left;
+  padding:10px 12px;
+  border-radius:12px;
+  background: color-mix(in oklab, var(--panel2) 96%, transparent);
+  color: var(--text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.note-log-item.active{
+  box-shadow: var(--shadow-sm),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+}
+.note-log-item-title{
+  font-weight:650;
+  font-size:13px;
+}
+.note-log-item-sub{
+  font-size:12px;
+  color: var(--muted);
+  margin-top:4px;
+}
+.note-log-detail{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  min-height:0;
+}
+.note-log-section{
+  flex:1;
+  min-height:0;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+}
 @keyframes referralSpin{
   to { transform: rotate(360deg); }
 }
@@ -1671,6 +1746,7 @@ textarea::-webkit-scrollbar-track{
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
           <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
+          <button id="noteLogBtn" type="button" class="menu-item" style="display:none">Note Log</button>
           <button id="feedbackBtn" type="button" class="menu-item">Feedback</button>
           <button id="aboutBtn" type="button" class="menu-item">About</button>
         </div>
@@ -2021,6 +2097,34 @@ and for the care, day after day, you give.</div>
     </div>
   </div>
 </div>
+<div id="noteLogOverlay" class="macro-overlay" style="display:none"></div>
+<div id="noteLogPanel" class="macro-panel note-log-panel" style="display:none" aria-label="Note Log">
+  <div class="macro-head">
+    <div class="headline">Note Log</div>
+    <button id="noteLogCloseBtn" type="button">✕</button>
+  </div>
+  <div class="note-log-body">
+    <div class="note-log-list panel-white">
+      <input id="noteLogSearch" type="text" placeholder="Search name or complaint" />
+      <div id="noteLogList" class="note-log-items"></div>
+    </div>
+    <div class="note-log-detail">
+      <div class="seg note-log-tabs">
+        <button id="noteLogTabOutputs" type="button" class="active">Outputs</button>
+        <button id="noteLogTabInputs" type="button">Inputs</button>
+        <button id="noteLogTabMeta" type="button">Metadata</button>
+      </div>
+      <div id="noteLogOutputs" class="panel-white note-log-section" aria-label="Note log outputs"></div>
+      <div id="noteLogInputs" class="panel-white note-log-section" style="display:none" aria-label="Note log inputs"></div>
+      <div id="noteLogMeta" class="panel-white note-log-section" style="display:none" aria-label="Note log metadata"></div>
+      <div id="noteLogStatus" class="macro-status"></div>
+      <div class="macro-editor-actions">
+        <button id="noteLogDeleteBtn" type="button">Delete</button>
+        <button id="noteLogCloseBtn2" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <div id="billingArchiveOverlay" class="macro-overlay" style="display:none"></div>
@@ -2162,6 +2266,8 @@ let billingArchiveCurrent = "";
 let billingArchiveCurrentMeta = null;
 let hasBilledCurrentPatient = false;
 let wakeLockSentinel = null;
+let noteLogItems = [];
+let noteLogCurrentId = "";
 
 // Patient anchor (best-effort)
 let patientName = "";
@@ -2218,6 +2324,21 @@ const feedbackMessage = document.getElementById("feedbackMessage");
 const feedbackStatus = document.getElementById("feedbackStatus");
 const feedbackSendBtn = document.getElementById("feedbackSendBtn");
 const feedbackCancelBtn = document.getElementById("feedbackCancelBtn");
+const noteLogBtn = document.getElementById("noteLogBtn");
+const noteLogOverlay = document.getElementById("noteLogOverlay");
+const noteLogPanel = document.getElementById("noteLogPanel");
+const noteLogCloseBtn = document.getElementById("noteLogCloseBtn");
+const noteLogCloseBtn2 = document.getElementById("noteLogCloseBtn2");
+const noteLogSearch = document.getElementById("noteLogSearch");
+const noteLogList = document.getElementById("noteLogList");
+const noteLogOutputs = document.getElementById("noteLogOutputs");
+const noteLogInputs = document.getElementById("noteLogInputs");
+const noteLogMeta = document.getElementById("noteLogMeta");
+const noteLogStatus = document.getElementById("noteLogStatus");
+const noteLogDeleteBtn = document.getElementById("noteLogDeleteBtn");
+const noteLogTabOutputs = document.getElementById("noteLogTabOutputs");
+const noteLogTabInputs = document.getElementById("noteLogTabInputs");
+const noteLogTabMeta = document.getElementById("noteLogTabMeta");
 const profileOverlay = document.getElementById("profileOverlay");
 const profilePanel = document.getElementById("profilePanel");
 const profileCloseBtn = document.getElementById("profileCloseBtn");
@@ -2894,9 +3015,189 @@ function closeFeedbackPanel() {
   feedbackPanel.style.display = "none";
 }
 
+function openNoteLogPanel() {
+  if (!noteLogPanel || !noteLogOverlay) return;
+  noteLogOverlay.style.display = "block";
+  noteLogPanel.style.display = "flex";
+  setNoteLogStatus("");
+  setNoteLogTab("outputs");
+  loadNoteLogList();
+}
+
+function closeNoteLogPanel() {
+  if (!noteLogPanel || !noteLogOverlay) return;
+  noteLogOverlay.style.display = "none";
+  noteLogPanel.style.display = "none";
+}
+
+function setNoteLogStatus(message, isError=false) {
+  if (!noteLogStatus) return;
+  noteLogStatus.textContent = message || "";
+  noteLogStatus.className = "macro-status" + (isError ? " error" : "");
+}
+
+function setNoteLogTab(tab) {
+  if (!noteLogOutputs || !noteLogInputs || !noteLogMeta) return;
+  noteLogOutputs.style.display = tab === "outputs" ? "block" : "none";
+  noteLogInputs.style.display = tab === "inputs" ? "block" : "none";
+  noteLogMeta.style.display = tab === "meta" ? "block" : "none";
+  if (noteLogTabOutputs) noteLogTabOutputs.classList.toggle("active", tab === "outputs");
+  if (noteLogTabInputs) noteLogTabInputs.classList.toggle("active", tab === "inputs");
+  if (noteLogTabMeta) noteLogTabMeta.classList.toggle("active", tab === "meta");
+}
+
+function formatNoteLogTimestamp(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString();
+  } catch {
+    return iso;
+  }
+}
+
+function renderNoteLogList(items) {
+  if (!noteLogList) return;
+  noteLogList.innerHTML = "";
+  if (!items.length) {
+    const empty = document.createElement("div");
+    empty.className = "note-log-item-sub";
+    empty.textContent = "No note logs found.";
+    noteLogList.appendChild(empty);
+    return;
+  }
+  for (const item of items) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "note-log-item";
+    if (noteLogCurrentId && item.id === noteLogCurrentId) {
+      btn.classList.add("active");
+    }
+    const title = `${item.patient_name || "Unknown"} — ${item.chief_complaint || "No complaint"} — ${formatNoteLogTimestamp(item.created_at_utc)}`;
+    const titleEl = document.createElement("div");
+    titleEl.className = "note-log-item-title";
+    titleEl.textContent = title;
+    const sub = document.createElement("div");
+    sub.className = "note-log-item-sub";
+    const types = Array.isArray(item.module_types) ? item.module_types.join(", ") : "";
+    sub.textContent = types ? `Modules: ${types}` : "Modules: —";
+    btn.appendChild(titleEl);
+    btn.appendChild(sub);
+    btn.addEventListener("click", async () => {
+      await loadNoteLogDetail(item.id);
+    });
+    noteLogList.appendChild(btn);
+  }
+}
+
+function filterNoteLogItems(query) {
+  const q = (query || "").trim().toLowerCase();
+  if (!q) return noteLogItems.slice();
+  return noteLogItems.filter((item) => {
+    const name = (item.patient_name || "").toLowerCase();
+    const complaint = (item.chief_complaint || "").toLowerCase();
+    return name.includes(q) || complaint.includes(q);
+  });
+}
+
+async function loadNoteLogList() {
+  try {
+    const data = await apiGet("/note_log?limit=50&offset=0");
+    noteLogItems = Array.isArray(data?.items) ? data.items : [];
+    renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
+    if (noteLogItems.length) {
+      const firstId = noteLogCurrentId || noteLogItems[0].id;
+      await loadNoteLogDetail(firstId);
+    } else {
+      noteLogCurrentId = "";
+      if (noteLogOutputs) noteLogOutputs.textContent = "No outputs stored.";
+      if (noteLogInputs) noteLogInputs.textContent = "No inputs stored.";
+      if (noteLogMeta) noteLogMeta.textContent = "No metadata.";
+    }
+    setNoteLogStatus("");
+  } catch (err) {
+    setNoteLogStatus(err?.message || "Failed to load note logs.", true);
+  }
+}
+
+function formatNoteLogOutputs(outputs) {
+  const parts = [];
+  if (outputs?.soap_note) parts.push(`SOAP\n${outputs.soap_note}`);
+  if (outputs?.referral_letter) parts.push(`Referral\n${outputs.referral_letter}`);
+  if (outputs?.ddx_output) parts.push(`DDx\n${outputs.ddx_output}`);
+  if (outputs?.billing_text) parts.push(`Billing\n${outputs.billing_text}`);
+  return parts.join("\n\n").trim() || "No outputs stored.";
+}
+
+function formatNoteLogInputs(inputs) {
+  const parts = [];
+  if (inputs?.transcript) parts.push(`Transcript\n${inputs.transcript}`);
+  if (inputs?.clinical_background) parts.push(`Clinical background\n${inputs.clinical_background}`);
+  if (inputs?.netcare_background) parts.push(`Netcare background\n${inputs.netcare_background}`);
+  if (inputs?.clinical_query_log) parts.push(`Clinical query log\n${inputs.clinical_query_log}`);
+  if (inputs?.derived_context) {
+    parts.push(`Derived context\n${safeJsonStringify(inputs.derived_context)}`);
+  }
+  return parts.join("\n\n").trim() || "No inputs stored.";
+}
+
+function formatNoteLogMeta(meta) {
+  const lines = [];
+  if (meta?.user) lines.push(`User: ${meta.user}`);
+  if (meta?.session_id) lines.push(`Session: ${meta.session_id}`);
+  if (meta?.patient_name) lines.push(`Patient: ${meta.patient_name}`);
+  if (meta?.patient_id) lines.push(`Patient ID: ${meta.patient_id}`);
+  if (meta?.chief_complaint) lines.push(`Chief complaint: ${meta.chief_complaint}`);
+  return lines.join("\n") || "No metadata.";
+}
+
+async function loadNoteLogDetail(entryId) {
+  if (!entryId) return;
+  noteLogCurrentId = entryId;
+  try {
+    const data = await apiGet(`/note_log/${encodeURIComponent(entryId)}`);
+    const entry = data?.entry || {};
+    if (noteLogOutputs) noteLogOutputs.textContent = formatNoteLogOutputs(entry.outputs || {});
+    if (noteLogInputs) noteLogInputs.textContent = formatNoteLogInputs(entry.inputs || {});
+    if (noteLogMeta) noteLogMeta.textContent = formatNoteLogMeta(entry.metadata || {});
+    renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
+    setNoteLogStatus("");
+  } catch (err) {
+    setNoteLogStatus(err?.message || "Failed to load entry.", true);
+  }
+}
+
+async function deleteNoteLogEntry() {
+  if (!noteLogCurrentId) return;
+  try {
+    await apiDelete(`/note_log/${encodeURIComponent(noteLogCurrentId)}`);
+    noteLogCurrentId = "";
+    await loadNoteLogList();
+  } catch (err) {
+    setNoteLogStatus(err?.message || "Delete failed.", true);
+  }
+}
+
+async function maybeCreateNoteLogSnapshot() {
+  if (!authUser?.is_admin) return;
+  if (!sessionId) return;
+  if (!hasCurrentPatientData()) return;
+  const payload = {
+    session_id: sessionId,
+    billing_text: (dailyBillingText?.value || "").trim(),
+    referral_text: (referralLetterText?.textContent || "").trim(),
+    clinical_query_text: extractClinicalQueryText(),
+  };
+  try {
+    await apiPost("/note_log", payload);
+  } catch (err) {
+    console.warn("Note log snapshot failed:", err);
+  }
+}
+
 function setAdminUIVisibility() {
   const isAdmin = !!authUser?.is_admin;
   if (localKbBtn) localKbBtn.style.display = isAdmin ? "block" : "none";
+  if (noteLogBtn) noteLogBtn.style.display = isAdmin ? "block" : "none";
 }
 
 function openKbPanel() {
