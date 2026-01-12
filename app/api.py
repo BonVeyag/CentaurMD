@@ -961,6 +961,110 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
 
 
 # =========================
+# Ambient mode
+# =========================
+
+@router.post("/ambient/start_encounter")
+def ambient_start_encounter(payload: AmbientStartPayload, user: AuthUser = Depends(require_user)):
+    context = _get_context_or_404(payload.session_id)
+
+    encounter_id = str(uuid4())
+    context.ambient.active = AmbientEncounter(
+        encounter_id=encounter_id,
+        session_id=context.session_meta.session_id,
+        consent_confirmed=bool(payload.consent_confirmed),
+    )
+    _touch(context)
+    logger.info(f"Ambient encounter started (sid={context.session_meta.session_id}, eid={encounter_id})")
+    return {"encounter_id": encounter_id}
+
+
+@router.post("/ambient/upload_segment")
+async def ambient_upload_segment(
+    session_id: str = Form(...),
+    encounter_id: str = Form(...),
+    segment_id: str = Form(...),
+    start_ts: str = Form(...),
+    end_ts: str = Form(...),
+    language_hint: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    user: AuthUser = Depends(require_user),
+):
+    context = _get_context_or_404(session_id)
+    encounter = context.ambient.active
+    if not encounter or encounter.encounter_id != encounter_id:
+        raise HTTPException(status_code=409, detail="Active encounter not found.")
+    if not encounter.consent_confirmed:
+        raise HTTPException(status_code=403, detail="Consent not confirmed.")
+
+    if any(seg.segment_id == segment_id for seg in encounter.segments):
+        return {"text": "", "segment_id": segment_id, "deduped": True}
+
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        return {"text": "", "segment_id": segment_id}
+
+    text = transcribe_audio_bytes(audio_bytes=audio_bytes, filename=file.filename or "segment.wav")
+    if not text:
+        return {"text": "", "segment_id": segment_id}
+
+    start_dt = _parse_dt(start_ts)
+    end_dt = _parse_dt(end_ts)
+    segment = AmbientSegment(
+        segment_id=segment_id,
+        start_ts=start_dt,
+        end_ts=end_dt,
+        text=text,
+        language=language_hint or None,
+    )
+    encounter.segments.append(segment)
+    encounter.segments.sort(key=lambda s: s.start_ts)
+
+    encounter.transcript_assembled = "\n".join(
+        s.text for s in encounter.segments if s.text
+    ).strip()
+
+    context.transcript.raw_text = encounter.transcript_assembled
+    context.transcript.segments = [
+        *[
+            s for s in context.transcript.segments
+            if getattr(s, "timestamp_start", None) and getattr(s, "timestamp_end", None)
+        ],
+        *[
+            TranscriptSegment(
+                speaker="other",
+                text=s.text,
+                timestamp_start=s.start_ts,
+                timestamp_end=s.end_ts,
+            )
+            for s in encounter.segments
+        ],
+    ]
+    _touch(context)
+
+    return {
+        "text": text,
+        "segment_id": segment_id,
+        "encounter_id": encounter_id,
+        "transcript_len": len(encounter.transcript_assembled),
+    }
+
+
+@router.post("/ambient/stop_encounter")
+def ambient_stop_encounter(payload: AmbientStopPayload, user: AuthUser = Depends(require_user)):
+    context = _get_context_or_404(payload.session_id)
+    encounter = context.ambient.active
+    if not encounter or encounter.encounter_id != payload.encounter_id:
+        raise HTTPException(status_code=409, detail="Active encounter not found.")
+
+    transcript_text = encounter.transcript_assembled or ""
+    context.ambient.active = None
+    _touch(context)
+    logger.info(f"Ambient encounter stopped (sid={context.session_meta.session_id}, eid={payload.encounter_id})")
+    return {"status": "ok", "transcript": transcript_text}
+
+
+# =========================
 # Session lifecycle
 # =========================
 
