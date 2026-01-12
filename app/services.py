@@ -1709,6 +1709,33 @@ def normalize_soap_output(text: str, include_procedure: bool) -> str:
     return "\n\n".join(out_sections).strip()
 
 
+def validate_soap_output(text: str, include_procedure: bool) -> bool:
+    lines = (text or "").splitlines()
+    for line in lines:
+        raw = line.lstrip()
+        if raw.startswith("- ") or raw.startswith("•"):
+            return False
+
+    headers = [
+        "Issues",
+        "Subjective",
+        "Safety / Red Flags",
+        "Social Hx",
+        "Objective",
+        "Assessment",
+        "Plan",
+    ]
+    if include_procedure:
+        headers.insert(6, "Procedure")
+
+    found = [line.strip() for line in lines if line.strip().startswith("**") and line.strip().endswith("**")]
+    expected = [f"**{h}:**" for h in headers]
+    for h in expected:
+        if h not in found:
+            return False
+    return True
+
+
 def make_soap(context: SessionContext, attachments_text: str = "") -> dict:
     packet = build_encounter_packet(context, attachments_text=attachments_text)
     extraction = _run_structure_extraction_chunked(packet)
@@ -1719,6 +1746,8 @@ def make_soap(context: SessionContext, attachments_text: str = "") -> dict:
         scrubbed_text,
         include_procedure=should_include_procedure_section(extraction),
     )
+    if not validate_soap_output(final_text, include_procedure=should_include_procedure_section(extraction)):
+        logger.warning("SOAP format validation failed; returning normalized output.")
     provenance = {
         "issues": extraction.get("issues", []),
         "plan_facts_by_issue": extraction.get("plan_facts_by_issue", {}),
