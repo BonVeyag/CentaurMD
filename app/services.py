@@ -1324,7 +1324,7 @@ Return ONLY valid JSON matching this schema:
 { "issues": [...], "subjective_by_issue": {...}, "social_from_transcript": [...], "objective_facts": {...}, "procedures": {...}, "assessment_candidates": {...}, "plan_facts_by_issue": {...} }
 """.strip()
 
-SOAP_SYNTHESIS_SYSTEM = """You are an expert Canadian family physician producing a best-in-class SOAP note for family medicine. Use the EncounterPacket and StructuredExtraction. Do not invent. Do not include anything unsupported. You may perform controlled synthesis: group related symptoms into issues and state soft-inference diagnoses only if strongly supported by the facts. Avoid exhaustive ROS. Social Hx must be derived only from today’s transcript.
+SOAP_SYNTHESIS_SYSTEM = """You are an expert Canadian family physician producing a best-in-class SOAP note for family medicine. Use the EncounterPacket and StructuredExtraction. Do not invent. Do not include anything unsupported. You may perform controlled synthesis: group related symptoms into issues and state soft-inference diagnoses only if strongly supported by the facts. Avoid exhaustive ROS. Social Hx must be derived only from today's transcript.
 
 Formatting rules:
 - No commentary before or after.
@@ -1351,7 +1351,7 @@ Medication rules:
 - Include dosing only if explicitly present OR clinician clearly initiated therapy and dosing is standard in Canada; otherwise omit dosing.
 """.strip()
 
-SOAP_SCRUB_SYSTEM = """You are a strict clinical note auditor. Your task: remove anything not supported by the EncounterPacket or StructuredExtraction; remove filler; ensure Social Hx is transcript-only; ensure no “not mentioned” phrases; ensure format is EXACT (bold section titles, no bullets, each point new line, one blank line between sections). Output ONLY the final SOAP note text.
+SOAP_SCRUB_SYSTEM = """You are a strict clinical note auditor. Your task: remove anything not supported by the EncounterPacket or StructuredExtraction; remove filler; ensure Social Hx is transcript-only; ensure no "not mentioned" phrases; ensure format is EXACT (bold section titles, no bullets, each point new line, one blank line between sections). Output ONLY the final SOAP note text.
 """.strip()
 
 
