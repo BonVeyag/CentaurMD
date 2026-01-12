@@ -120,6 +120,76 @@ def _require_admin(user: AuthUser) -> None:
         raise HTTPException(status_code=403, detail="Admin access required.")
 
 
+def _first_sentence(text: str, max_len: int = 120) -> str:
+    raw = (text or "").strip()
+    if not raw:
+        return ""
+    first = re.split(r"[.!?\\n]+", raw, maxsplit=1)[0].strip()
+    if len(first) > max_len:
+        first = first[: max_len - 1].rstrip() + "…"
+    return first
+
+
+def _extract_issues_first(soap_text: str) -> str:
+    if not soap_text:
+        return ""
+    lines = [ln.strip() for ln in (soap_text or "").splitlines()]
+    issues_idx = None
+    for i, ln in enumerate(lines):
+        if ln.lower() == "issues:":
+            issues_idx = i
+            break
+    if issues_idx is None:
+        return ""
+    for ln in lines[issues_idx + 1 :]:
+        if not ln:
+            continue
+        match = re.match(r"^\\d+[\\).:-]\\s*(.+)$", ln)
+        if match:
+            return match.group(1).strip()
+        if re.match(r"^[A-Za-z]", ln):
+            return ln.strip()
+    return ""
+
+
+def _extract_chief_complaint_line(soap_text: str) -> str:
+    if not soap_text:
+        return ""
+    for ln in (soap_text or "").splitlines():
+        if "chief complaint" in ln.lower():
+            parts = ln.split(":", 1)
+            if len(parts) == 2:
+                val = parts[1].strip()
+                if val and val.lower() not in {"not documented.", "not documented"} and val != "...":
+                    return val
+    return ""
+
+
+def _extract_referral_reason(referral_text: str) -> str:
+    if not referral_text:
+        return ""
+    lines = [ln.strip() for ln in referral_text.splitlines()]
+    for i, ln in enumerate(lines):
+        if ln.lower().startswith("reason for referral"):
+            # next non-empty line is the content
+            for j in range(i + 1, min(i + 4, len(lines))):
+                nxt = lines[j].strip()
+                if nxt:
+                    return nxt
+    return ""
+
+
+def _infer_chief_complaint(soap_text: str, referral_text: str, transcript: str) -> str:
+    cc = _extract_chief_complaint_line(soap_text)
+    if not cc:
+        cc = _extract_issues_first(soap_text)
+    if not cc:
+        cc = _extract_referral_reason(referral_text)
+    if not cc:
+        cc = _first_sentence(transcript)
+    return cc.strip()
+
+
 def _valid_email(email: str) -> bool:
     e = (email or "").strip().lower()
     return ("@" in e) and ("." in e.split("@")[-1])
