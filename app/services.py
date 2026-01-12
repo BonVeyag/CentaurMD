@@ -1376,11 +1376,6 @@ Problem or diagnosis 1
 Problem or diagnosis 2
 ... (continue in the same format for additional problems if explicitly mentioned)
 
-[Clinician/User Name]
-Family Medicine
-[Clinic/Hospital Name]
-{today}
-
 INPUT:
 === EMR_DATA_VERBATIM ===
 {emr}
