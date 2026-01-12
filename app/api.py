@@ -28,8 +28,17 @@ from app.services import (
     update_demographics_from_text,
     extract_demographics_from_text,  # <-- unify identifier parsing with services
     generate_patient_summary,
+    CLINICAL_QUERY_TEXT_MODEL,
+    PATIENT_SUMMARY_MODEL,
+    BILLING_MODEL,
+    DIFFERENTIAL_MODEL,
 )
-from app.referral_draft import build_referral_draft, render_referral_letter
+from app.referral_draft import (
+    build_referral_draft,
+    render_referral_letter,
+    REFERRAL_MODEL,
+    REFERRAL_AUDIT_MODEL,
+)
 from app.transcription import transcribe_audio_bytes
 from app.attachment_store import (
     ATTACHMENT_BLOBS,
@@ -78,6 +87,12 @@ from app.local_kb import (
     get_guideline_detail as kb_get_guideline_detail,
     save_guideline_patch as kb_save_guideline_patch,
     reextract_guideline as kb_reextract_guideline,
+)
+from app.note_log import (
+    create_note_log_entry,
+    list_note_log_entries,
+    get_note_log_entry,
+    delete_note_log_entry,
 )
 
 # -------------------------
