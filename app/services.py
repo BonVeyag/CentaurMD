@@ -1328,6 +1328,8 @@ OUTPUT:
 Emit the template below with the same headings and labels. Omit any bullet line that
 is not explicitly supported. If a section would be empty after omitting, output
 "- Not documented." for that section.
+Replace "Problem or diagnosis N" with the actual problem name (if explicitly
+mentioned). Do not output placeholder problem lines.
 
 Subjective
 - Chief complaint and description of present symptoms: ...
