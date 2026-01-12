@@ -1435,6 +1435,8 @@ Template rules:
 - Keep bullet labels when they are supported; remove or weaken only the content.
 - If a section would become empty after deletions, replace its content with
   a single line: "- Not documented."
+- Keep the trailing signature block lines as-is (clinician name, "Family Medicine",
+  clinic name, date), unless they are missing entirely from the draft.
 """.strip()
 
 SOAP_GENERATOR_TEMP = 0.4
