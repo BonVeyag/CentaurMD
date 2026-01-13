@@ -5320,6 +5320,10 @@ async function bootstrapApp() {
   await createSession();
   renderDraft();
   await initMacros();
+  if (!audioStream) {
+    const ok = await requestMicrophonePermission();
+    if (!ok) showToast("Click the waveform to allow microphone access.", "warn");
+  }
   await initAmbientMode();
 
   snapshotPanel.textContent = snapshotPanel.textContent || "";
@@ -5506,6 +5510,20 @@ async function getPreferredAudioStream() {
     return await navigator.mediaDevices.getUserMedia(constraints);
   } catch {
     return await navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+async function requestMicrophonePermission() {
+  try {
+    const stream = await getPreferredAudioStream();
+    if (!audioStream) {
+      audioStream = stream;
+    } else {
+      try { stream.getTracks().forEach(t => t.stop()); } catch {}
+    }
+    return true;
+  } catch (err) {
+    console.warn("Mic permission denied or blocked:", err);
+    return false;
   }
 }
 function activateAudioStream(stream) {
@@ -5814,10 +5832,20 @@ class AmbientController {
       this.source.connect(this.processor);
       this.processor.connect(this.gainNode);
       this.gainNode.connect(this.audioContext.destination);
+      try {
+        if (this.audioContext.state === "suspended") {
+          await this.audioContext.resume();
+        }
+      } catch (err) {
+        console.warn("AudioContext resume blocked:", err);
+      }
       this.processor.onaudioprocess = (e) => {
         const input = e.inputBuffer.getChannelData(0);
         this.handleAudioFrame(input);
       };
+    }
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      throw new Error("AudioContext suspended");
     }
   }
 
@@ -5862,6 +5890,9 @@ class AmbientController {
 
   async resume() {
     this.paused = false;
+    if (this.audioContext && this.audioContext.state === "suspended") {
+      try { await this.audioContext.resume(); } catch {}
+    }
     await this.startMic();
     if (!this.encounterId) await this.startEncounter();
     await requestWakeLock();
@@ -6824,6 +6855,7 @@ authLoginForm?.addEventListener("submit", async (e) => {
     if (authLoginPassword) authLoginPassword.value = "";
     setAdminUIVisibility();
     hideAuthOverlay();
+    try { await requestMicrophonePermission(); } catch {}
     await bootstrapApp();
   } catch (err) {
     showAuthError(err?.message || "Login failed.");
@@ -6845,6 +6877,7 @@ authSignupForm?.addEventListener("submit", async (e) => {
     if (authSignupPassword) authSignupPassword.value = "";
     setAdminUIVisibility();
     hideAuthOverlay();
+    try { await requestMicrophonePermission(); } catch {}
     await bootstrapApp();
   } catch (err) {
     showAuthError(err?.message || "Sign up failed.");
