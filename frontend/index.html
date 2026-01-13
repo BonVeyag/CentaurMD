@@ -686,12 +686,6 @@ textarea::-webkit-scrollbar-track{
   box-shadow: 0 0 0 4px rgba(220,38,38,.0);
   transition: box-shadow var(--t) var(--ease), background-color var(--t) var(--ease);
 }
-.timer{
-  font-size:inherit;
-  font-weight:700;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:0.2px;
-}
 
 .transcript-btnrow{
   display:grid;
@@ -1876,7 +1870,6 @@ textarea::-webkit-scrollbar-track{
   .transcript-box{ resize:vertical; }
   .stack-top, .stack-bot{ height:auto; }
   .transcript-btnrow{ grid-template-columns: 1fr; }
-  .timer{ font-size:inherit; }
   .cq-draft-name{ max-width: 220px; }
   .chatinput{ position: relative; bottom: auto; }
   .popover{ right:0; }
@@ -1973,7 +1966,6 @@ textarea::-webkit-scrollbar-track{
             <div class="eyebrow" aria-label="Recording status">
               <span class="status-pill" id="tx_state">IDLE</span>
               <span class="rec-dot" title="Recording status"></span>
-              <span class="timer">00:00</span>
             </div>
           </div>
 
@@ -2448,8 +2440,6 @@ setInterval(() => {
 let sessionId = null;
 let recorder = null;
 let audioStream = null;
-let timerInterval = null;
-let secondsElapsed = 0;
 let isRecording = false;
 let recState = "idle"; // "idle" | "recording" | "paused"
 let chosenMime = "";
@@ -2500,7 +2490,6 @@ let patientAge = ""; // years as string, e.g. "27"
 // -------------------------
 const transcriptBox = document.getElementById("transcript_box");
 const recDot = document.querySelector(".rec-dot");
-const timerEl = document.querySelector(".timer");
 const waveformBtn = document.getElementById("waveform_btn");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
@@ -2711,25 +2700,6 @@ window.addEventListener("unhandledrejection", (e) => {
 function setRecordingUI(active) {
   recDot.style.background = active ? "#DC2626" : "#9CA3AF";
   recDot.style.boxShadow = active ? "0 0 0 4px rgba(220,38,38,.15)" : "0 0 0 4px rgba(220,38,38,.0)";
-}
-function formatTime(totalSeconds) {
-  const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const s = String(totalSeconds % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
-function startTimer(reset=true) {
-  if (reset) secondsElapsed = 0;
-  timerEl.textContent = formatTime(secondsElapsed);
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    secondsElapsed++;
-    timerEl.textContent = formatTime(secondsElapsed);
-  }, 1000);
-}
-function stopTimer(preserve=true) {
-  clearInterval(timerInterval);
-  if (!preserve) secondsElapsed = 0;
-  timerEl.textContent = formatTime(secondsElapsed);
 }
 function escapeHtml(s) {
   return (s || "")
@@ -5534,7 +5504,6 @@ async function createSession() {
   sessionId = data.session_id;
   console.log("Session created:", sessionId);
   if (ambientController) ambientController.setSession(sessionId);
-  startTimer(true);
   return sessionId;
 }
 async function ensureSession() { if (!sessionId) await createSession(); }
@@ -5672,7 +5641,6 @@ async function startRecording() {
     uiError("Start recording", err);
     recState = "idle";
     isRecording = false;
-    try { stopTimer(false); } catch {}
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
     releaseAudioStream();
     recorder = null;
@@ -5687,7 +5655,6 @@ function stopRecording(releaseStream=false) {
   else deactivateAudioStream(audioStream);
   recorder = null;
   setRecordingUI(false);
-  stopTimer(false);
   releaseWakeLock();
 }
 
@@ -7282,7 +7249,6 @@ window.addEventListener("beforeunload", () => {
 (async function init() {
   try {
     updateAmbientUI("initializing");
-    stopTimer(false);
     initTheme();
 
     const authed = await ensureAuth();
