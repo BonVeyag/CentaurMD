@@ -1598,6 +1598,8 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
             soap_text = (context.derived_outputs.soap_note.text or "").strip()
         except Exception:
             soap_text = ""
+    if not soap_text:
+        return {"skipped": True, "reason": "no_soap"}
     referral_text = (payload.referral_text or "").strip()
     if not referral_text:
         try:
@@ -1610,36 +1612,11 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
 
     chief = _infer_chief_complaint(soap_text, referral_text, transcript)
 
-    module_types = []
-    if soap_text:
-        module_types.append("SOAP")
-    if referral_text:
-        module_types.append("Referral")
-    if ddx_output:
-        module_types.append("DDx")
-    if (payload.billing_text or "").strip():
-        module_types.append("Billing")
-    if (payload.clinical_query_text or "").strip():
-        module_types.append("ClinicalQuery")
-
-    derived_context: Dict[str, Any] = {
-        "patient_anchor": context.patient_anchor.model_dump() if hasattr(context.patient_anchor, "model_dump") else {},
-    }
-    if emr:
-        try:
-            derived_context["patient_summary"] = generate_patient_summary(context)
-        except Exception:
-            derived_context["patient_summary"] = {}
+    module_types = ["SOAP"]
 
     models = {
         "soap": "gpt-5.2",
         "soap_audit": "gpt-5.2",
-        "referral": REFERRAL_MODEL,
-        "referral_audit": REFERRAL_AUDIT_MODEL,
-        "coach": DIFFERENTIAL_MODEL,
-        "clinical_query": CLINICAL_QUERY_TEXT_MODEL,
-        "patient_summary": PATIENT_SUMMARY_MODEL,
-        "billing": BILLING_MODEL,
     }
 
     entry = {
@@ -1657,18 +1634,9 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
             "patient_id": patient_id,
             "chief_complaint": chief,
         },
-        "inputs": {
-            "clinical_background": emr,
-            "netcare_background": netcare,
-            "transcript": transcript,
-            "derived_context": derived_context,
-            "clinical_query_log": (payload.clinical_query_text or "").strip(),
-        },
+        "inputs": {},
         "outputs": {
             "soap_note": soap_text,
-            "referral_letter": referral_text,
-            "billing_text": (payload.billing_text or "").strip(),
-            "ddx_output": ddx_output,
         },
         "models": models,
     }
