@@ -113,9 +113,110 @@ FEEDBACK_RATE_LIMIT_MAX = 5
 FEEDBACK_RATE_LIMIT: Dict[str, List[float]] = {}
 FEEDBACK_RATE_LOCK = ThreadLock()
 
+TRANSCRIBE_USE_EMR_TERMS = os.getenv("TRANSCRIBE_USE_EMR_TERMS", "1").strip() == "1"
+TRANSCRIBE_EMR_MAX_TERMS = int(os.getenv("TRANSCRIBE_EMR_MAX_TERMS", "40"))
+TRANSCRIBE_EMR_MAX_LINES = int(os.getenv("TRANSCRIBE_EMR_MAX_LINES", "30"))
+
 
 def _is_admin(user: AuthUser) -> bool:
     return bool(getattr(user, "is_admin", False))
+
+
+_TRANSCRIBE_TERM_HEADERS = [
+    "Medications",
+    "Meds",
+    "Allergies",
+    "Allergies/Intolerances",
+    "Health Profile",
+    "Problem List",
+    "Diagnoses",
+]
+
+
+def _extract_emr_block_lines(text: str, headers: List[str], max_lines: int) -> List[str]:
+    if not text:
+        return []
+    header_set = {h.lower().strip() for h in headers}
+    lines = text.splitlines()
+    start_indices: List[int] = []
+    for i, line in enumerate(lines):
+        norm = (line or "").strip().lower().rstrip(":")
+        if norm in header_set:
+            start_indices.append(i + 1)
+    if not start_indices:
+        return []
+    start = start_indices[-1]
+    collected: List[str] = []
+    for j in range(start, len(lines)):
+        raw = (lines[j] or "").strip()
+        if not raw:
+            continue
+        norm = raw.lower().rstrip(":")
+        if norm in header_set:
+            break
+        if norm.endswith(":") and len(norm.split()) <= 4:
+            break
+        collected.append(raw)
+        if len(collected) >= max_lines:
+            break
+    return collected
+
+
+def _looks_like_address_or_phone(line: str) -> bool:
+    if re.search(r"\b(ave|avenue|st|street|rd|road|blvd|drive|dr|unit|suite|po box)\b", line, re.I):
+        if re.search(r"\d", line):
+            return True
+    if re.search(r"\b\d{3}[- )]\d{3}[- ]\d{4}\b", line):
+        return True
+    return False
+
+
+def _extract_term_from_line(line: str) -> Optional[str]:
+    if not line or _looks_like_address_or_phone(line) or "@" in line:
+        return None
+    raw = line.split("|")[0].strip()
+    raw = re.sub(r"^[•*\-\d\.\)\s]+", "", raw).strip()
+    if not raw:
+        return None
+    # Prefer the leading medication/condition phrase before dose or code
+    match = re.match(r"([A-Za-z][A-Za-z0-9/\-]+(?:\s+[A-Za-z][A-Za-z0-9/\-]+){0,2})\s+\d", raw)
+    if match:
+        term = match.group(1)
+    else:
+        term = re.sub(r"\s+\d.*$", "", raw).strip()
+    if len(term) < 3:
+        return None
+    if re.fullmatch(r"(mg|mcg|g|ml|tab|tabs|tablet|tablets|capsule|capsules|puff|puffs)", term, re.I):
+        return None
+    return term
+
+
+def _build_transcribe_prompt_terms(context: SessionContext) -> List[str]:
+    if not TRANSCRIBE_USE_EMR_TERMS:
+        return []
+    emr = (getattr(context.clinical_background, "emr_dump", None) or "").strip()
+    if not emr:
+        return []
+    lines: List[str] = []
+    for header in _TRANSCRIBE_TERM_HEADERS:
+        lines.extend(_extract_emr_block_lines(emr, [header], max_lines=TRANSCRIBE_EMR_MAX_LINES))
+    terms: List[str] = []
+    for line in lines:
+        term = _extract_term_from_line(line)
+        if term:
+            terms.append(term)
+    # Deduplicate, preserve order
+    seen = set()
+    deduped: List[str] = []
+    for term in terms:
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(term)
+        if len(deduped) >= TRANSCRIBE_EMR_MAX_TERMS:
+            break
+    return deduped
 
 
 def _require_admin(user: AuthUser) -> None:
