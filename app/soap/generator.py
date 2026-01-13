@@ -119,11 +119,23 @@ def _usage_tokens(resp: Any) -> Tuple[Optional[int], Optional[int]]:
     return getattr(usage, "input_tokens", None), getattr(usage, "output_tokens", None)
 
 
-def _log_event(stage: str, model: str, transcript_hash: str, transcript_chars: int, ok: bool, input_tokens=None, output_tokens=None):
+def _log_event(
+    stage: str,
+    model: str,
+    transcript_hash: str,
+    transcript_chars: int,
+    ok: bool,
+    input_tokens=None,
+    output_tokens=None,
+    effort: Optional[str] = None,
+    verbosity: Optional[str] = None,
+):
     logger.info(
-        "soap.%s model=%s transcript_hash=%s transcript_chars=%s ok=%s input_tokens=%s output_tokens=%s",
+        "soap.%s model=%s effort=%s verbosity=%s transcript_hash=%s transcript_chars=%s ok=%s input_tokens=%s output_tokens=%s",
         stage,
         model,
+        effort,
+        verbosity,
         transcript_hash[:12],
         transcript_chars,
         ok,
@@ -137,7 +149,17 @@ def _call_response(payload: Dict[str, Any], stage: str, model: str, transcript_h
         resp = _responses_create(payload)
         text = _extract_output_text(resp)
         inp, out = _usage_tokens(resp)
-        _log_event(stage, model, transcript_hash, transcript_chars, True, inp, out)
+        _log_event(
+            stage,
+            model,
+            transcript_hash,
+            transcript_chars,
+            True,
+            inp,
+            out,
+            effort=(payload.get("reasoning") or {}).get("effort"),
+            verbosity=(payload.get("text") or {}).get("verbosity"),
+        )
         return text or ""
     except Exception as e:
         msg = str(e).lower()
@@ -146,9 +168,29 @@ def _call_response(payload: Dict[str, Any], stage: str, model: str, transcript_h
             resp = _responses_create(payload)
             text = _extract_output_text(resp)
             inp, out = _usage_tokens(resp)
-            _log_event(stage, model, transcript_hash, transcript_chars, True, inp, out)
+            _log_event(
+                stage,
+                model,
+                transcript_hash,
+                transcript_chars,
+                True,
+                inp,
+                out,
+                effort=(payload.get("reasoning") or {}).get("effort"),
+                verbosity=(payload.get("text") or {}).get("verbosity"),
+            )
             return text or ""
-        _log_event(stage, model, transcript_hash, transcript_chars, False, None, None)
+        _log_event(
+            stage,
+            model,
+            transcript_hash,
+            transcript_chars,
+            False,
+            None,
+            None,
+            effort=(payload.get("reasoning") or {}).get("effort"),
+            verbosity=(payload.get("text") or {}).get("verbosity"),
+        )
         raise
 
 
