@@ -291,6 +291,8 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
     transcript_chars = len(transcript)
 
     packet_for_prompt, compacted = _prepare_packet(packet)
+    if compacted:
+        logger.info("soap.compact transcript_hash=%s transcript_chars=%s", transcript_hash[:12], transcript_chars)
     transcript_for_prompt = (packet_for_prompt.get("transcript", {}) or {}).get("text", "") or ""
 
     if SOAP_DEBUG_LOG_PROMPTS:
