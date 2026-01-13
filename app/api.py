@@ -187,9 +187,7 @@ def _infer_chief_complaint(soap_text: str, referral_text: str, transcript: str) 
     if not cc:
         cc = _extract_issues_first(soap_text)
     if not cc:
-        cc = _extract_referral_reason(referral_text)
-    if not cc:
-        cc = _first_sentence(transcript)
+        cc = _first_sentence(soap_text)
     return cc.strip()
 
 
