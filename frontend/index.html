@@ -2022,8 +2022,9 @@ textarea::-webkit-scrollbar-track{
       </div>
 
       <div class="query-actions">
-        <button class="primary" type="button">SOAP</button>
-        <button class="primary" type="button">Referral</button>
+        <button class="primary" type="button" id="soapBtn">SOAP</button>
+        <button class="primary" type="button" id="referralBtn">Referral</button>
+        <button class="primary" type="button" id="rxBtn">Rx</button>
       </div>
 
       <div class="macro-row">
@@ -2487,8 +2488,9 @@ const coachPanel    = document.getElementById("coach_panel");
 const chatLog   = document.querySelector(".chatlog");
 const chatInput = document.getElementById("cqTextArea");
 const sendBtn   = document.getElementById("cqSendBtn");
-const soapBtn       = document.querySelector(".query-actions button:nth-child(1)");
-const referralBtn   = document.querySelector(".query-actions button:nth-child(2)");
+const soapBtn       = document.getElementById("soapBtn");
+const referralBtn   = document.getElementById("referralBtn");
+const rxBtn         = document.getElementById("rxBtn");
 
 const cqChatInputWrap = document.getElementById("cqChatInputWrap");
 
@@ -4021,6 +4023,39 @@ async function generateTemplateDraft(macroContent, modelOverride="gpt-5.2") {
   const rawContent = (data?.response !== undefined) ? data.response : data;
   const readable = readableFromMaybeJson(rawContent);
   return stripPairedMarkdownEmphasis(readable);
+}
+
+async function generateRxDraft() {
+  const transcript = (transcriptBox?.value || "").trim();
+  const emr = (emrBackgroundText || "").trim();
+  const rxPrompt = `
+TASK: RX_RECOMMENDATION_CANADA
+
+Use ONLY today's transcript and EMR background. Do not invent diagnoses, meds, or allergies.
+If there is not enough information to recommend a prescription, return exactly:
+Insufficient information to recommend a prescription.
+
+Requirements:
+- Prefer Canadian/Alberta-available medications.
+- Check interactions against listed meds and allergies; if a conflict exists, do NOT suggest that drug.
+- If no med list or allergies are provided, state that explicitly in the interaction/allergy line.
+- Suggest at most 1–2 options.
+
+Output format (plain text, no bullets):
+Prescription:
+<Drug name + strength> | <form (tab/cap/puff/ml)> | <frequency> | <duration> | <PRN or scheduled> | <total quantity> | <route>
+Instructions: <how to take/administer>
+Side effects to monitor: <short list>
+Interaction/allergy check: <state checks; if issue, give alternative line>
+
+TRANSCRIPT:
+${transcript || "[none]"}
+
+EMR:
+${emr || "[none]"}
+`.trim();
+
+  return await generateTemplateDraft(rxPrompt, "gpt-5.2");
 }
 
 const REFERRAL_MISSING_LABELS = {
@@ -7232,6 +7267,15 @@ soapBtn.addEventListener("click", async () => {
   });
 });
 referralBtn.addEventListener("click", () => { openReferralPanel(); });
+rxBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(rxBtn, "Working…", async () => {
+    await openNoteDraftPanel({
+      templateId: "rx",
+      templateLabel: "Rx Recommendation",
+      generate: generateRxDraft,
+    });
+  });
+});
 
 // -------------------------
 // Billing wiring (SIMPLIFIED)
