@@ -5557,7 +5557,14 @@ function primeMicOnFirstUserGesture() {
     document.removeEventListener("pointerdown", handler);
     document.removeEventListener("keydown", handler);
     try { await requestMicrophonePermission(); } catch {}
-    try { if (ambientController?.enabled && ambientController?.paused) await ambientController.resume(); } catch {}
+    try {
+      if (!ambientController) ambientController = new AmbientController();
+      if (!ambientController.enabled || ambientController.error) {
+        await setAmbientEnabled(true);
+      } else if (ambientController.paused) {
+        await ambientController.resume();
+      }
+    } catch {}
   };
   document.addEventListener("pointerdown", handler, { once: true });
   document.addEventListener("keydown", handler, { once: true });
