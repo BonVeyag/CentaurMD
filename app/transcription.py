@@ -11,14 +11,39 @@ logger = logging.getLogger("centaurweb.transcription")
 # Prefer explicit key in env; OpenAI() will also read OPENAI_API_KEY automatically
 client = OpenAI()
 
-# Default to your chosen STT model; allow override via env
-MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-mini-transcribe")
+# Default to highest-accuracy STT model; allow override via env
+MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-transcribe")
 
 # Conservative min size (prevents empty/partial container chunks)
 MIN_AUDIO_BYTES = int(os.getenv("MIN_AUDIO_BYTES", "3000"))
 
 # Optional: language hint (e.g., "en"). If unset, model auto-detects.
 LANGUAGE_HINT = (os.getenv("TRANSCRIBE_LANGUAGE") or "").strip() or None
+
+# STT response format (text or verbose_json).
+RESPONSE_FORMAT = (os.getenv("TRANSCRIBE_RESPONSE_FORMAT") or "text").strip().lower()
+
+# Temperature (if supported by the model).
+def _float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+TEMPERATURE = _float_env("TRANSCRIBE_TEMPERATURE", 0.0)
+
+# Optional custom prompt for medical dictation (can be overridden per-call).
+PROMPT_BASE = os.getenv(
+    "TRANSCRIBE_PROMPT",
+    "Clinical visit dictation in Canadian English. Preserve medical terms, drug names, labs, and units.",
+).strip()
+PROMPT_MAX_CHARS = int(os.getenv("TRANSCRIBE_PROMPT_MAX_CHARS", "1000"))
+VOCAB_PATH = (os.getenv("TRANSCRIBE_VOCAB_PATH") or "").strip()
+VOCAB_MAX_TERMS = int(os.getenv("TRANSCRIBE_VOCAB_MAX_TERMS", "80"))
 
 # If true, we will return English-only text (best effort) by translating non-English.
 TRANSLATE_TO_EN = (os.getenv("TRANSCRIBE_TRANSLATE_TO_EN", "0").strip() == "1")
@@ -40,6 +65,69 @@ def _normalize_whitespace(text: str) -> str:
     t = (text or "").replace("\r\n", "\n").replace("\r", "\n")
     t = " ".join(t.split())  # collapses all runs of whitespace to single spaces
     return t.strip()
+
+
+_VOCAB_TERMS: Optional[list[str]] = None
+
+
+def _load_vocab_terms() -> list[str]:
+    global _VOCAB_TERMS
+    if _VOCAB_TERMS is not None:
+        return _VOCAB_TERMS
+    terms: list[str] = []
+    if VOCAB_PATH and os.path.exists(VOCAB_PATH):
+        try:
+            with open(VOCAB_PATH, "r", encoding="utf-8") as f:
+                for raw in f:
+                    line = raw.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "," in line:
+                        parts = [p.strip() for p in line.split(",") if p.strip()]
+                        terms.extend(parts)
+                    else:
+                        terms.append(line)
+        except Exception as e:
+            logger.warning(f"Failed to load transcribe vocab file: {e}")
+    # Deduplicate while preserving order
+    seen = set()
+    deduped: list[str] = []
+    for term in terms:
+        key = term.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(term)
+    _VOCAB_TERMS = deduped
+    return _VOCAB_TERMS
+
+
+def _build_transcribe_prompt(
+    prompt_override: Optional[str],
+    extra_terms: Optional[list[str]] = None,
+) -> Optional[str]:
+    base = PROMPT_BASE if prompt_override is None else (prompt_override or "")
+    terms = _load_vocab_terms()
+    if extra_terms:
+        terms = terms + extra_terms
+    if terms:
+        # De-dupe merged terms in order
+        seen = set()
+        merged: list[str] = []
+        for term in terms:
+            key = term.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(term)
+        vocab = ", ".join(merged[:VOCAB_MAX_TERMS])
+        base = f"{base} Key terms: {vocab}".strip()
+    base = (base or "").strip()
+    if not base:
+        return None
+    if len(base) > PROMPT_MAX_CHARS:
+        return base[:PROMPT_MAX_CHARS].rstrip()
+    return base
 
 
 def _looks_english(text: str) -> bool:
@@ -190,7 +278,14 @@ def _should_drop_transcript(text: str) -> bool:
     return False
 
 
-def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
+def transcribe_audio_bytes(
+    audio_bytes: bytes,
+    filename: str,
+    *,
+    prompt: Optional[str] = None,
+    prompt_terms: Optional[list[str]] = None,
+    language_hint: Optional[str] = None,
+) -> str:
     """
     Transcribe audio bytes using OpenAI Speech-to-Text.
 
@@ -217,15 +312,18 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
             temp_path = f.name
 
         with open(temp_path, "rb") as af:
+            prompt_text = _build_transcribe_prompt(prompt, prompt_terms)
             kwargs = {
                 "model": MODEL,
                 "file": af,
-                "response_format": "text",
-                "temperature": 0,
+                "response_format": RESPONSE_FORMAT,
+                "temperature": TEMPERATURE,
             }
             # Language hint improves stability/latency when you know the default
-            if LANGUAGE_HINT:
-                kwargs["language"] = LANGUAGE_HINT
+            if language_hint or LANGUAGE_HINT:
+                kwargs["language"] = (language_hint or LANGUAGE_HINT)
+            if prompt_text:
+                kwargs["prompt"] = prompt_text
 
             tr = client.audio.transcriptions.create(**kwargs)
 
@@ -234,6 +332,8 @@ def transcribe_audio_bytes(audio_bytes: bytes, filename: str) -> str:
             text = tr
         else:
             text = getattr(tr, "text", "") or ""
+            if not text and isinstance(tr, dict):
+                text = tr.get("text") or tr.get("transcript") or ""
 
         text = _normalize_whitespace(text)
 
