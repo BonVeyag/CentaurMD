@@ -29,9 +29,18 @@ def _filter_placeholders(lines: List[str]) -> List[str]:
     return out
 
 
+def _item_to_dict(item: Any) -> Dict:
+    if hasattr(item, "model_dump"):
+        return item.model_dump()
+    if hasattr(item, "dict"):
+        return item.dict()
+    return item
+
+
 def _render_issue_lines(items: List[Dict], issue_map: Dict[int, int]) -> List[str]:
     out: List[str] = []
     for item in items:
+        item = _item_to_dict(item)
         try:
             issue_num = int(item.get("issue_number", 0))
         except Exception:
@@ -58,18 +67,9 @@ def render_soap(soap: SoapStructured) -> str:
         if title:
             rendered_issues.append(f"{idx}. {title}")
 
-    subjective_lines = _render_issue_lines(
-        [s.dict() if hasattr(s, "dict") else s for s in (soap.subjective or [])],
-        issue_map,
-    )
-    assessment_lines = _render_issue_lines(
-        [a.dict() if hasattr(a, "dict") else a for a in (soap.assessment or [])],
-        issue_map,
-    )
-    plan_lines = _render_issue_lines(
-        [p.dict() if hasattr(p, "dict") else p for p in (soap.plan or [])],
-        issue_map,
-    )
+    subjective_lines = _render_issue_lines(list(soap.subjective or []), issue_map)
+    assessment_lines = _render_issue_lines(list(soap.assessment or []), issue_map)
+    plan_lines = _render_issue_lines(list(soap.plan or []), issue_map)
 
     safety_lines: List[str] = []
     if isinstance(soap.safety_red_flags, str):
