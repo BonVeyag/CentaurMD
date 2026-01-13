@@ -5324,6 +5324,7 @@ async function bootstrapApp() {
     const ok = await requestMicrophonePermission();
     if (!ok) showToast("Click the waveform to allow microphone access.", "warn");
   }
+  primeMicOnFirstUserGesture();
   await initAmbientMode();
 
   snapshotPanel.textContent = snapshotPanel.textContent || "";
@@ -5548,6 +5549,20 @@ async function getOrCreateAudioStream() {
   return await getPreferredAudioStream();
 }
 
+let micPrimed = false;
+function primeMicOnFirstUserGesture() {
+  if (micPrimed) return;
+  micPrimed = true;
+  const handler = async () => {
+    document.removeEventListener("pointerdown", handler);
+    document.removeEventListener("keydown", handler);
+    try { await requestMicrophonePermission(); } catch {}
+    try { if (ambientController?.enabled && ambientController?.paused) await ambientController.resume(); } catch {}
+  };
+  document.addEventListener("pointerdown", handler, { once: true });
+  document.addEventListener("keydown", handler, { once: true });
+}
+
 function pickBestMime() {
   const candidates = [
     { mime: "audio/webm;codecs=opus", ext: "webm" },
@@ -5766,7 +5781,9 @@ class AmbientController {
     this.inFlight = 0;
     this.maxInFlight = 1;
     this.maxQueue = 3;
-    this.noiseFloor = 0.008;
+    this.noiseFloor = 0.003;
+    this.vadFloor = 0.004;
+    this.vadMultiplier = 1.8;
     this.vadState = "silence";
     this.speechMs = 0;
     this.silenceMs = 0;
@@ -5777,7 +5794,7 @@ class AmbientController {
     this.preRollMs = 500;
     this.postRollMs = 800;
     this.maxSegmentMs = 12000;
-    this.minSegmentMs = 800;
+    this.minSegmentMs = 500;
     this.ringBufferSeconds = 120;
   }
 
@@ -5920,7 +5937,7 @@ class AmbientController {
     const frameMs = (input.length / this.sampleRate) * 1000;
     const rms = Math.sqrt(input.reduce((sum, v) => sum + v * v, 0) / input.length);
     this.noiseFloor = (this.noiseFloor * 0.95) + (rms * 0.05);
-    const threshold = Math.max(0.012, this.noiseFloor * 3.0);
+    const threshold = Math.max(this.vadFloor, this.noiseFloor * this.vadMultiplier);
     const isVoice = rms > threshold;
 
     if (this.vadState === "silence") {
