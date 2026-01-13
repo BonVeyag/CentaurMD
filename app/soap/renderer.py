@@ -23,6 +23,8 @@ def _filter_placeholders(lines: List[str]) -> List[str]:
         if not clean:
             continue
         low = clean.lower()
+        if low in {"none", "n/a"}:
+            continue
         if "not mentioned" in low or "not documented" in low or "not discussed" in low:
             continue
         out.append(clean)
