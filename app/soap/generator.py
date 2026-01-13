@@ -294,6 +294,11 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
     if compacted:
         logger.info("soap.compact transcript_hash=%s transcript_chars=%s", transcript_hash[:12], transcript_chars)
     transcript_for_prompt = (packet_for_prompt.get("transcript", {}) or {}).get("text", "") or ""
+    if compacted and transcript_for_prompt:
+        transcript_for_prompt = (
+            "Transcript exceeded size limits; using compacted facts with quotes below.\n"
+            + transcript_for_prompt
+        )
 
     if SOAP_DEBUG_LOG_PROMPTS:
         logger.warning("SOAP_DEBUG_LOG_PROMPTS=1; logging prompts to stdout (PHI risk).")
