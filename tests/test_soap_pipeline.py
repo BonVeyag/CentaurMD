@@ -52,7 +52,7 @@ class TestSoapPipeline(unittest.TestCase):
         out = render_soap(payload)
         self.assertIn("**Issues:**", out)
         self.assertIn("**Safety / Red Flags:**\nnone", out)
-        self.assertNotRegex(out, r"^[-•]\s", msg="No bullets allowed")
+        self.assertIsNone(re.search(r"(?m)^\s*[-•]\s", out), "No bullets allowed")
         # Exactly one blank line between sections
         self.assertNotIn("\n\n\n", out)
 
