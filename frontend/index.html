@@ -681,7 +681,7 @@ textarea::-webkit-scrollbar-track{
 
 .transcript-btnrow{
   display:grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap:10px;
   align-items:stretch;
   margin-bottom:8px; /* tighter to increase transcript area */
@@ -696,6 +696,26 @@ textarea::-webkit-scrollbar-track{
   font-weight:800;
 }
 .transcript-btnrow button#waveform_btn{ font-weight:850; }
+
+.transcript-status{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  justify-content:flex-end;
+}
+.rec-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+}
+.timer{
+  font-size:18px;
+  font-weight:700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing:0.3px;
+  color: var(--muted);
+}
 .ambient-bar{
   display:flex;
   align-items:center;
@@ -1955,21 +1975,25 @@ textarea::-webkit-scrollbar-track{
               <div class="subhead">Speak in any language.</div>
             </div>
 
-          <div class="eyebrow" aria-label="Recording status">
+          <div class="eyebrow transcript-status" aria-label="Recording status">
+            <span class="rec-dot" id="recDot" title="Recording status"></span>
+            <span class="timer" id="recordTimer">00:00</span>
           </div>
           </div>
 
           <div class="transcript-btnrow">
-            <button id="waveform_btn" class="waveform recording" type="button" aria-label="Recording waveform">
-              <span class="waveform-bars" aria-hidden="true">
-                <span class="waveform-bar"></span>
-                <span class="waveform-bar"></span>
-                <span class="waveform-bar"></span>
-                <span class="waveform-bar"></span>
-                <span class="waveform-bar"></span>
-                <span class="waveform-bar"></span>
+            <button id="record_btn" type="button" class="primary record-glow">
+              <span class="record-btn-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <rect x="9" y="3" width="6" height="10" rx="3"></rect>
+                  <path d="M5 10v2a7 7 0 0 0 14 0v-2"></path>
+                  <path d="M12 19v2"></path>
+                  <path d="M8 21h8"></path>
+                </svg>
               </span>
+              <span>Record</span>
             </button>
+            <button id="pause_btn" type="button">Pause</button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
 
@@ -2436,6 +2460,8 @@ let recState = "idle"; // "idle" | "recording" | "paused"
 let chosenMime = "";
 let chosenExt = "webm";
 let chunkStopTimeout = null;
+let timerInterval = null;
+let secondsElapsed = 0;
 let snapshotDebounce = null;
 let lastSnapshotHash = "";
 let lastPatientSummaryHash = "";
@@ -2481,6 +2507,10 @@ let patientAge = ""; // years as string, e.g. "27"
 // -------------------------
 const transcriptBox = document.getElementById("transcript_box");
 const waveformBtn = document.getElementById("waveform_btn");
+const recDot = document.getElementById("recDot");
+const timerEl = document.getElementById("recordTimer");
+const recordBtn = document.getElementById("record_btn");
+const pauseBtn = document.getElementById("pause_btn");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
@@ -2689,7 +2719,26 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 function setRecordingUI(active) {
-  return;
+  if (recDot) recDot.style.background = active ? "#DC2626" : "#9CA3AF";
+  if (recordBtn) recordBtn.disabled = active;
+  if (pauseBtn) pauseBtn.disabled = !active;
+}
+function formatTime(totalSeconds) {
+  const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const s = String(totalSeconds % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+function startTimer() {
+  secondsElapsed = 0;
+  if (timerEl) timerEl.textContent = "00:00";
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    secondsElapsed++;
+    if (timerEl) timerEl.textContent = formatTime(secondsElapsed);
+  }, 1000);
+}
+function stopTimer() {
+  clearInterval(timerInterval);
 }
 function escapeHtml(s) {
   return (s || "")
@@ -5285,17 +5334,8 @@ function closeNewPatientConfirm() {
 }
 
 async function startNewPatientSession() {
-  const ambientActive = Boolean(ambientController?.enabled);
-  const wasPaused = Boolean(ambientController?.paused);
   try {
-    if (ambientActive) ambientController.pause();
-    else stopRecording();
-  } catch {}
-  try {
-    if (ambientActive) {
-      await ambientController.stopEncounter();
-      ambientController.clearBuffer();
-    }
+    stopRecording();
   } catch {}
   recState = "idle";
 
@@ -5325,10 +5365,6 @@ async function startNewPatientSession() {
   patientAge = "";
 
   await createSession();
-  if (ambientActive) {
-    if (!wasPaused) await ambientController.resume();
-    else ambientController.updateStatus();
-  }
   logChat("System", "New patient session created.");
 }
 async function ensureAuth() {
@@ -5355,12 +5391,7 @@ async function bootstrapApp() {
   await createSession();
   renderDraft();
   await initMacros();
-  if (!audioStream) {
-    const ok = await requestMicrophonePermission();
-    if (!ok) showToast("Click the waveform to allow microphone access.", "warn");
-  }
-  primeMicOnFirstUserGesture();
-  await initAmbientMode();
+  setRecordingUI(false);
 
   snapshotPanel.textContent = snapshotPanel.textContent || "";
   coachPanel.textContent = coachPanel.textContent || "";
@@ -5665,6 +5696,9 @@ async function startRecording() {
     audioStream = await getOrCreateAudioStream();
     activateAudioStream(audioStream);
     isRecording = true;
+    recState = "recording";
+    setRecordingUI(true);
+    startTimer();
     await requestWakeLock();
 
     const startNextChunk = () => {
@@ -5701,17 +5735,19 @@ async function startRecording() {
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
     releaseAudioStream();
     recorder = null;
-    updateAmbientUI("error");
+    setRecordingUI(false);
   }
 }
 function stopRecording(releaseStream=false) {
   isRecording = false;
+  recState = "idle";
   clearTimeout(chunkStopTimeout);
   try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
   if (releaseStream) releaseAudioStream();
   else deactivateAudioStream(audioStream);
   recorder = null;
   setRecordingUI(false);
+  stopTimer();
   releaseWakeLock();
 }
 
@@ -6914,7 +6950,6 @@ authLoginForm?.addEventListener("submit", async (e) => {
     if (authLoginPassword) authLoginPassword.value = "";
     setAdminUIVisibility();
     hideAuthOverlay();
-    try { await requestMicrophonePermission(); } catch {}
     await bootstrapApp();
   } catch (err) {
     showAuthError(err?.message || "Login failed.");
@@ -6936,7 +6971,6 @@ authSignupForm?.addEventListener("submit", async (e) => {
     if (authSignupPassword) authSignupPassword.value = "";
     setAdminUIVisibility();
     hideAuthOverlay();
-    try { await requestMicrophonePermission(); } catch {}
     await bootstrapApp();
   } catch (err) {
     showAuthError(err?.message || "Sign up failed.");
@@ -7001,6 +7035,12 @@ feedbackPanel?.addEventListener("click", (e) => e.stopPropagation());
 feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
 feedbackSendBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
+});
+recordBtn?.addEventListener("click", async () => {
+  await runWithButtonBusy(recordBtn, "Recording…", startRecording);
+});
+pauseBtn?.addEventListener("click", () => {
+  stopRecording();
 });
 profileCloseBtn?.addEventListener("click", () => closeProfilePanel());
 profileOverlay?.addEventListener("click", () => closeProfilePanel());
@@ -7331,7 +7371,7 @@ window.addEventListener("beforeunload", () => {
 // -------------------------
 (async function init() {
   try {
-    updateAmbientUI("initializing");
+    setRecordingUI(false);
     initTheme();
 
     const authed = await ensureAuth();
