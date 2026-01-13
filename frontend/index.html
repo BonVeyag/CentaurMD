@@ -703,6 +703,16 @@ textarea::-webkit-scrollbar-track{
   gap:10px;
   justify-content:flex-end;
 }
+.mic-level-canvas{
+  width:140px;
+  height:22px;
+  border-radius:6px;
+  background: color-mix(in oklab, var(--panel2) 90%, transparent);
+  display:none;
+}
+.mic-level-canvas.active{
+  display:block;
+}
 .rec-dot{
   width:10px;
   height:10px;
@@ -1976,6 +1986,7 @@ textarea::-webkit-scrollbar-track{
             </div>
 
           <div class="eyebrow transcript-status" aria-label="Recording status">
+            <canvas class="mic-level-canvas" id="micLevelCanvas" width="140" height="22" aria-hidden="true"></canvas>
             <span class="rec-dot" id="recDot" title="Recording status"></span>
             <span class="timer" id="recordTimer">00:00</span>
           </div>
@@ -2462,6 +2473,11 @@ let chosenExt = "webm";
 let chunkStopTimeout = null;
 let timerInterval = null;
 let secondsElapsed = 0;
+let micVizAudioCtx = null;
+let micVizSource = null;
+let micVizAnalyser = null;
+let micVizData = null;
+let micVizRaf = null;
 let snapshotDebounce = null;
 let lastSnapshotHash = "";
 let lastPatientSummaryHash = "";
@@ -2511,6 +2527,7 @@ const recDot = document.getElementById("recDot");
 const timerEl = document.getElementById("recordTimer");
 const recordBtn = document.getElementById("record_btn");
 const pauseBtn = document.getElementById("pause_btn");
+const micLevelCanvas = document.getElementById("micLevelCanvas");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
@@ -2739,6 +2756,62 @@ function startTimer() {
 }
 function stopTimer() {
   clearInterval(timerInterval);
+}
+
+async function startMicViz(stream) {
+  if (!micLevelCanvas || !stream) return;
+  micLevelCanvas.classList.add("active");
+  const ctx = micLevelCanvas.getContext("2d");
+  if (!micVizAudioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    micVizAudioCtx = new AudioCtx();
+  }
+  if (micVizAudioCtx.state === "suspended") {
+    try { await micVizAudioCtx.resume(); } catch {}
+  }
+  try { micVizSource?.disconnect(); } catch {}
+  micVizAnalyser = micVizAudioCtx.createAnalyser();
+  micVizAnalyser.fftSize = 256;
+  micVizData = new Uint8Array(micVizAnalyser.fftSize);
+  micVizSource = micVizAudioCtx.createMediaStreamSource(stream);
+  micVizSource.connect(micVizAnalyser);
+
+  const width = micLevelCanvas.width;
+  const height = micLevelCanvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  const draw = () => {
+    micVizRaf = requestAnimationFrame(draw);
+    if (!micVizAnalyser || !micVizData) return;
+    micVizAnalyser.getByteTimeDomainData(micVizData);
+    let sum = 0;
+    for (let i = 0; i < micVizData.length; i++) {
+      const v = (micVizData[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / micVizData.length);
+    const lineHeight = Math.max(2, Math.min(height, rms * height * 2.2));
+    const y = (height - lineHeight) / 2;
+    ctx.drawImage(micLevelCanvas, -1, 0);
+    ctx.clearRect(width - 1, 0, 1, height);
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillRect(width - 1, y, 1, lineHeight);
+  };
+  draw();
+}
+
+function stopMicViz() {
+  if (micVizRaf) cancelAnimationFrame(micVizRaf);
+  micVizRaf = null;
+  try { micVizSource?.disconnect(); } catch {}
+  micVizSource = null;
+  micVizAnalyser = null;
+  micVizData = null;
+  if (micLevelCanvas) {
+    micLevelCanvas.classList.remove("active");
+    const ctx = micLevelCanvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, micLevelCanvas.width, micLevelCanvas.height);
+  }
 }
 function escapeHtml(s) {
   return (s || "")
@@ -5699,6 +5772,7 @@ async function startRecording() {
     recState = "recording";
     setRecordingUI(true);
     startTimer();
+    await startMicViz(audioStream);
     await requestWakeLock();
 
     const startNextChunk = () => {
@@ -5735,6 +5809,7 @@ async function startRecording() {
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
     releaseAudioStream();
     recorder = null;
+    stopMicViz();
     setRecordingUI(false);
   }
 }
@@ -5748,6 +5823,7 @@ function stopRecording(releaseStream=false) {
   recorder = null;
   setRecordingUI(false);
   stopTimer();
+  stopMicViz();
   releaseWakeLock();
 }
 
