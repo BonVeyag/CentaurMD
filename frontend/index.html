@@ -709,7 +709,7 @@ textarea::-webkit-scrollbar-track{
   border-radius:12px;
   font-weight:800;
 }
-.transcript-btnrow button#record_btn{ font-weight:850; }
+.transcript-btnrow button#waveform_btn{ font-weight:850; }
 .ambient-bar{
   display:flex;
   align-items:center;
@@ -850,6 +850,73 @@ textarea::-webkit-scrollbar-track{
                 inset 0 1px 0 var(--edge-hi),
                 0 0 0 0 rgba(59,130,246,0.0);
   }
+}
+
+.waveform{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-width:150px;
+  height:44px;
+  border-radius:999px;
+  padding:0 18px;
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--primary-border),
+              inset 0 1px 0 var(--edge-hi);
+  transition: 0.2s ease;
+}
+.waveform-bars{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.waveform-bar{
+  width:6px;
+  height:16px;
+  border-radius:6px;
+  background: currentColor;
+  opacity:0.8;
+  transform-origin:center;
+  animation: wavePulse 1.2s ease-in-out infinite;
+}
+.waveform.recording .waveform-bar:nth-child(1){ animation-delay:0ms; }
+.waveform.recording .waveform-bar:nth-child(2){ animation-delay:120ms; }
+.waveform.recording .waveform-bar:nth-child(3){ animation-delay:240ms; }
+.waveform.recording .waveform-bar:nth-child(4){ animation-delay:360ms; }
+.waveform.recording .waveform-bar:nth-child(5){ animation-delay:480ms; }
+.waveform.recording .waveform-bar:nth-child(6){ animation-delay:600ms; }
+.waveform.paused{
+  background: color-mix(in oklab, var(--panel) 70%, transparent);
+  color: var(--muted);
+  box-shadow: var(--shadow-xs),
+              inset 0 0 0 1px var(--edge-soft),
+              inset 0 1px 0 var(--edge-hi);
+}
+.waveform.paused .waveform-bar{
+  animation: none;
+  opacity:0.35;
+}
+.waveform.initializing{
+  color: var(--warn);
+}
+.waveform.initializing .waveform-bar{
+  animation: wavePulse 1.6s ease-in-out infinite;
+  opacity:0.6;
+}
+.waveform.error{
+  color: var(--danger);
+}
+.waveform.error .waveform-bar{
+  animation: none;
+  opacity:0.5;
+}
+@keyframes wavePulse{
+  0%{ transform: scaleY(0.4); opacity:0.4; }
+  50%{ transform: scaleY(1.1); opacity:1; }
+  100%{ transform: scaleY(0.5); opacity:0.6; }
 }
 
 /* Keep transcript stable; scroll inside */
@@ -1910,31 +1977,16 @@ textarea::-webkit-scrollbar-track{
             </div>
           </div>
 
-          <div id="ambientBar" class="ambient-bar" style="display:none" aria-live="polite">
-            <div class="ambient-status">
-              <span id="ambientStatusPill" class="status-pill">Listening</span>
-              <span id="ambientStatusText" class="ambient-status-text">Listening</span>
-              <span id="ambientQueueCount" class="ambient-queue"></span>
-            </div>
-            <div class="ambient-actions">
-              <button id="ambientConsentBtn" class="primary" type="button">Consent confirmed</button>
-              <button id="ambientPauseBtn" type="button">Pause</button>
-              <button id="ambientStopBtn" type="button">Stop</button>
-              <button id="ambientClearBtn" type="button">Clear last 2 min</button>
-              <button id="ambientSettingsBtn" type="button">Settings</button>
-            </div>
-          </div>
-
           <div class="transcript-btnrow">
-            <button id="record_btn" class="primary record-glow" type="button">
-              <span class="record-btn-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z"></path>
-                  <path d="M19 11a7 7 0 0 1-14 0"></path>
-                  <path d="M12 18v3"></path>
-                </svg>
+            <button id="waveform_btn" class="waveform recording" type="button" aria-label="Recording waveform">
+              <span class="waveform-bars" aria-hidden="true">
+                <span class="waveform-bar"></span>
+                <span class="waveform-bar"></span>
+                <span class="waveform-bar"></span>
+                <span class="waveform-bar"></span>
+                <span class="waveform-bar"></span>
+                <span class="waveform-bar"></span>
               </span>
-              <span class="record-btn-text">Record visit</span>
             </button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
@@ -2133,13 +2185,6 @@ and for the care, day after day, you give.</div>
         <option value="FFS">Fee for Service (FFS)</option>
         <option value="PCPCM">Primary Care Physician Compensation Model (PCPCM)</option>
       </select>
-    </div>
-    <div class="profile-toggle-row">
-      <span class="profile-toggle-label">Ambient Mode</span>
-      <label class="switch">
-        <input id="ambientModeToggle" type="checkbox" />
-        <span class="switch-slider"></span>
-      </label>
     </div>
     <div class="profile-clinic-group">
       <input id="profileClinicName" type="text" placeholder="Clinic Name" />
@@ -2410,17 +2455,19 @@ let recState = "idle"; // "idle" | "recording" | "paused"
 let chosenMime = "";
 let chosenExt = "webm";
 let chunkStopTimeout = null;
-let coachPollInterval = null;
 let snapshotDebounce = null;
 let lastSnapshotHash = "";
 let lastPatientSummaryHash = "";
 let hasAiSummary = false;
 let patientSummaryBusy = false;
 let lastCoachHash = "";
-const COACH_MIN_INTERVAL_MS = 60000;
-const COACH_MIN_DELTA_CHARS = 450;
+const COACH_MIN_DELTA_CHARS = 600;
+const COACH_MIN_DELTA_WORDS = 40;
+const COACH_SMALL_DELTA_CHARS = 250;
+const COACH_DEBOUNCE_MS = 25000;
 let lastCoachRunAt = 0;
-let lastCoachTranscriptLen = 0;
+let coachPendingChars = 0;
+let coachPendingWords = 0;
 let emrBackgroundText = "";
 let macros = [];
 let editingMacroId = "";
@@ -2440,8 +2487,7 @@ let noteDraftActive = false;
 let noteDraftKeyHandler = null;
 let noteDraftTemplateId = "";
 let noteDraftTemplateLabel = "";
-const AMBIENT_ENABLED_KEY = "centaur_ambient_enabled_v1";
-let ambientEnabled = false;
+let ambientEnabled = true;
 let ambientController = null;
 
 // Patient anchor (best-effort)
@@ -2455,7 +2501,7 @@ let patientAge = ""; // years as string, e.g. "27"
 const transcriptBox = document.getElementById("transcript_box");
 const recDot = document.querySelector(".rec-dot");
 const timerEl = document.querySelector(".timer");
-const recordBtn = document.getElementById("record_btn");
+const waveformBtn = document.getElementById("waveform_btn");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
@@ -2475,15 +2521,15 @@ const billingDateEl = document.getElementById("billingDate");
 const billBtn = document.getElementById("billBtn");
 const saveBillingBtn = document.getElementById("saveBillingBtn");
 const printBillingBtn = document.getElementById("printBillingBtn");
-const ambientBar = document.getElementById("ambientBar");
-const ambientStatusPill = document.getElementById("ambientStatusPill");
-const ambientStatusText = document.getElementById("ambientStatusText");
-const ambientQueueCount = document.getElementById("ambientQueueCount");
-const ambientConsentBtn = document.getElementById("ambientConsentBtn");
-const ambientPauseBtn = document.getElementById("ambientPauseBtn");
-const ambientStopBtn = document.getElementById("ambientStopBtn");
-const ambientClearBtn = document.getElementById("ambientClearBtn");
-const ambientSettingsBtn = document.getElementById("ambientSettingsBtn");
+const ambientBar = null;
+const ambientStatusPill = null;
+const ambientStatusText = null;
+const ambientQueueCount = null;
+const ambientConsentBtn = null;
+const ambientPauseBtn = null;
+const ambientStopBtn = null;
+const ambientClearBtn = null;
+const ambientSettingsBtn = null;
 
 // Menu + Macro UI refs
 const menuBtn = document.getElementById("menuBtn");
@@ -2533,7 +2579,7 @@ const profileClinicName = document.getElementById("profileClinicName");
 const profileClinicAddress = document.getElementById("profileClinicAddress");
 const profileClinicPhone = document.getElementById("profileClinicPhone");
 const profileClinicFax = document.getElementById("profileClinicFax");
-const ambientModeToggle = document.getElementById("ambientModeToggle");
+const ambientModeToggle = null;
 const profileStatus = document.getElementById("profileStatus");
 const profileSaveBtn = document.getElementById("profileSaveBtn");
 const profileCancelBtn = document.getElementById("profileCancelBtn");
@@ -4309,39 +4355,37 @@ function toggleTheme() {
 }
 
 // -------------------------
-// Recording UI state machine
+// Ambient UI state machine
 // -------------------------
-function updateRecUI(){
-  const txPill = document.getElementById("tx_state");
-  const iconHtml = `
-    <span class="record-btn-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 4a3 3 0 0 1 3 3v4a3 3 0 0 1-6 0V7a3 3 0 0 1 3-3z"></path>
-        <path d="M19 11a7 7 0 0 1-14 0"></path>
-        <path d="M12 18v3"></path>
-      </svg>
-    </span>
-  `;
-  const setRecordLabel = (label) => {
-    if (!recordBtn) return;
-    recordBtn.innerHTML = `${iconHtml}<span class="record-btn-text">${label}</span>`;
-  };
+function setWaveformState(state) {
+  if (!waveformBtn) return;
+  waveformBtn.classList.remove("recording", "paused", "initializing", "error");
+  waveformBtn.classList.add(state);
+}
 
-  if (recState === "recording") {
-    setRecordLabel("Pause");
-    recordBtn.classList.remove("record-glow");
+function updateAmbientUI(status) {
+  const txPill = document.getElementById("tx_state");
+  if (!txPill) return;
+  if (status === "listening") {
+    setPill(txPill, "LISTENING", "live");
     setRecordingUI(true);
-    if (txPill) setPill(txPill, "LIVE", "live");
-  } else if (recState === "paused") {
-    setRecordLabel("Resume");
-    recordBtn.classList.remove("record-glow");
+    setWaveformState("recording");
+  } else if (status === "paused") {
+    setPill(txPill, "PAUSED", "warn");
     setRecordingUI(false);
-    if (txPill) setPill(txPill, "PAUSED", "warn");
+    setWaveformState("paused");
+  } else if (status === "offline") {
+    setPill(txPill, "OFFLINE", "warn");
+    setRecordingUI(false);
+    setWaveformState("paused");
+  } else if (status === "error") {
+    setPill(txPill, "ERROR", "warn");
+    setRecordingUI(false);
+    setWaveformState("error");
   } else {
-    setRecordLabel("Record visit");
-    recordBtn.classList.add("record-glow");
+    setPill(txPill, "INITIALIZING", "");
     setRecordingUI(false);
-    if (txPill) setPill(txPill, "IDLE", "");
+    setWaveformState("initializing");
   }
 }
 
@@ -4364,7 +4408,7 @@ async function releaseWakeLock() {
   wakeLockSentinel = null;
 }
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && isRecording) {
+  if (document.visibilityState === "visible" && ambientController?.enabled && !ambientController?.paused) {
     requestWakeLock();
   }
 });
@@ -5259,15 +5303,19 @@ function closeNewPatientConfirm() {
 }
 
 async function startNewPatientSession() {
-  try { stopRecording(); } catch {}
+  const ambientActive = Boolean(ambientController?.enabled);
+  const wasPaused = Boolean(ambientController?.paused);
   try {
-    if (ambientController?.enabled) {
+    if (ambientActive) ambientController.pause();
+    else stopRecording();
+  } catch {}
+  try {
+    if (ambientActive) {
       await ambientController.stopEncounter();
       ambientController.clearBuffer();
     }
   } catch {}
   recState = "idle";
-  updateRecUI();
 
   transcriptBox.value = "";
   chatLog.innerHTML = "";
@@ -5285,7 +5333,8 @@ async function startNewPatientSession() {
   lastCoachHash = "";
   emrBackgroundText = "";
   lastCoachRunAt = 0;
-  lastCoachTranscriptLen = 0;
+  coachPendingChars = 0;
+  coachPendingWords = 0;
   lastAssistantPlainText = "";
   hasBilledCurrentPatient = false;
 
@@ -5294,6 +5343,10 @@ async function startNewPatientSession() {
   patientAge = "";
 
   await createSession();
+  if (ambientActive) {
+    if (!wasPaused) await ambientController.resume();
+    else ambientController.updateStatus();
+  }
   logChat("System", "New patient session created.");
 }
 async function ensureAuth() {
@@ -5318,7 +5371,6 @@ async function bootstrapApp() {
   appBootstrapped = true;
 
   await createSession();
-  startCoachPolling();
   renderDraft();
   await initMacros();
   await initAmbientMode();
@@ -5487,6 +5539,7 @@ async function createSession() {
   sessionId = data.session_id;
   console.log("Session created:", sessionId);
   if (ambientController) ambientController.setSession(sessionId);
+  startTimer(true);
   return sessionId;
 }
 async function ensureSession() { if (!sessionId) await createSession(); }
@@ -5562,10 +5615,10 @@ async function uploadAudioBlob(blob) {
   }
   const data = await res.json();
   const text = (data?.text || "").trim();
-  if (text) {
+  if (text && !isGarbageDelta(text)) {
     transcriptBox.value += (transcriptBox.value ? " " : "") + text;
     transcriptBox.scrollTop = transcriptBox.scrollHeight;
-    scheduleCoachRefreshSoon();
+    registerTranscriptDelta(text, { utteranceEnded: true });
     setPatientAnchorFromTextBestEffort(text);
     panelUpdatedAt.transcript = Date.now();
 
@@ -5628,7 +5681,7 @@ async function startRecording() {
     try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
     releaseAudioStream();
     recorder = null;
-    updateRecUI();
+    updateAmbientUI("error");
   }
 }
 function stopRecording(releaseStream=false) {
@@ -5738,7 +5791,7 @@ class AmbientController {
   constructor() {
     this.enabled = false;
     this.paused = false;
-    this.consentConfirmed = false;
+    this.error = false;
     this.encounterId = "";
     this.sessionId = "";
     this.audioContext = null;
@@ -5750,7 +5803,7 @@ class AmbientController {
     this.queue = [];
     this.inFlight = 0;
     this.maxInFlight = 1;
-    this.maxQueue = 10;
+    this.maxQueue = 3;
     this.noiseFloor = 0.008;
     this.vadState = "silence";
     this.speechMs = 0;
@@ -5772,15 +5825,20 @@ class AmbientController {
       this.clearBuffer();
     }
     this.sessionId = sessionId || "";
-    this.consentConfirmed = false;
     this.encounterId = "";
+    if (this.enabled && !this.paused) {
+      this.startEncounter();
+    }
     this.updateStatus();
   }
 
   async enable() {
     if (this.enabled) return;
     this.enabled = true;
+    this.paused = false;
+    this.error = false;
     await this.startMic();
+    await this.startEncounter();
     await requestWakeLock();
     this.updateStatus();
   }
@@ -5791,6 +5849,7 @@ class AmbientController {
     this.clearBuffer();
     this.stopMic();
     this.enabled = false;
+    this.paused = false;
     releaseWakeLock();
     this.updateStatus();
   }
@@ -5830,16 +5889,10 @@ class AmbientController {
     deactivateAudioStream(audioStream);
   }
 
-  async confirmConsent() {
-    this.consentConfirmed = true;
-    await this.startEncounter(true);
-    this.updateStatus();
-  }
-
-  async startEncounter(consentConfirmed=false) {
+  async startEncounter() {
     if (!this.sessionId) await ensureSession();
     if (this.encounterId) return;
-    const payload = { session_id: this.sessionId, consent_confirmed: consentConfirmed };
+    const payload = { session_id: this.sessionId, consent_confirmed: true };
     const data = await apiPost("/ambient/start_encounter", payload);
     this.encounterId = data?.encounter_id || "";
   }
@@ -5853,18 +5906,23 @@ class AmbientController {
       });
     } catch {}
     this.encounterId = "";
-    this.consentConfirmed = false;
     this.updateStatus();
   }
 
   pause() {
     this.paused = true;
+    this.stopMic();
+    releaseWakeLock();
     this.updateStatus();
   }
 
-  resume() {
+  async resume() {
     this.paused = false;
+    await this.startMic();
+    if (!this.encounterId) await this.startEncounter();
+    await requestWakeLock();
     this.updateStatus();
+    this.processQueue();
   }
 
   clearBuffer() {
@@ -5882,7 +5940,6 @@ class AmbientController {
 
   handleAudioFrame(input) {
     if (!this.enabled || this.paused) return;
-    if (!this.consentConfirmed) return;
     if (!input || !input.length) return;
     this.ringBuffer?.push(input);
     const frameMs = (input.length / this.sampleRate) * 1000;
@@ -5992,41 +6049,29 @@ class AmbientController {
   }
 
   updateStatus() {
-    if (!ambientBar) return;
     if (!this.enabled) {
-      ambientBar.style.display = "none";
-      if (recordBtn) recordBtn.disabled = false;
+      updateAmbientUI(this.error ? "error" : "initializing");
       return;
     }
-    ambientBar.style.display = "flex";
-    if (recordBtn) recordBtn.disabled = true;
-
-    let status = "Listening";
-    if (!navigator.onLine) status = "Offline";
-    else if (!this.consentConfirmed) status = "Consent required";
-    else if (this.paused) status = "Paused";
-    else if (this.inFlight > 0 || this.queue.length > 0) {
-      const pending = this.queue.length + this.inFlight;
-      status = `Uploading (${pending})`;
+    if (!navigator.onLine) {
+      updateAmbientUI("offline");
+      return;
     }
-
-    if (ambientStatusPill) ambientStatusPill.textContent = status;
-    if (ambientStatusText) ambientStatusText.textContent = status;
-    if (ambientQueueCount) {
-      ambientQueueCount.textContent = "";
+    if (this.paused) {
+      updateAmbientUI("paused");
+      return;
     }
-    if (ambientConsentBtn) ambientConsentBtn.style.display = this.consentConfirmed ? "none" : "inline-flex";
-    if (ambientPauseBtn) ambientPauseBtn.textContent = this.paused ? "Resume" : "Pause";
+    updateAmbientUI("listening");
   }
 
   async processQueue() {
-    if (!this.enabled) return;
+    if (!this.enabled || this.paused) return;
     if (!navigator.onLine) {
       this.updateStatus();
       return;
     }
     if (this.inFlight >= this.maxInFlight) return;
-    if (!this.consentConfirmed || !this.encounterId) return;
+    if (!this.encounterId) return;
     const next = this.queue.shift();
     if (!next) return;
     this.inFlight += 1;
@@ -6050,10 +6095,10 @@ class AmbientController {
       }
       const data = await res.json();
       const text = (data?.text || "").trim();
-      if (text) {
+      if (text && !isGarbageDelta(text)) {
         transcriptBox.value += (transcriptBox.value ? "\n" : "") + text;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;
-        scheduleCoachRefreshSoon();
+        registerTranscriptDelta(text, { utteranceEnded: true });
         setPatientAnchorFromTextBestEffort(text);
         panelUpdatedAt.transcript = Date.now();
         if ((emrBackgroundText || "").trim().length) {
@@ -6076,28 +6121,22 @@ class AmbientController {
 
 async function setAmbientEnabled(enabled) {
   ambientEnabled = Boolean(enabled);
-  try { localStorage.setItem(AMBIENT_ENABLED_KEY, ambientEnabled ? "1" : "0"); } catch {}
   if (!ambientController) ambientController = new AmbientController();
-  if (ambientEnabled) {
-    try { stopRecording(true); } catch {}
-  }
   try {
     if (ambientEnabled) await ambientController.enable();
     else await ambientController.disable();
   } catch (err) {
     ambientEnabled = false;
+    if (ambientController) ambientController.error = true;
     await ambientController.disable();
-    showToast("Ambient Mode could not start. Check mic permissions.", "warn");
+    showToast("Ambient mode could not start. Check mic permissions.", "warn");
   }
-  if (ambientModeToggle) ambientModeToggle.checked = ambientEnabled;
 }
 
 async function initAmbientMode() {
-  const saved = localStorage.getItem(AMBIENT_ENABLED_KEY);
-  ambientEnabled = saved === "1";
+  ambientEnabled = true;
   if (!ambientController) ambientController = new AmbientController();
   if (sessionId) ambientController.setSession(sessionId);
-  if (ambientModeToggle) ambientModeToggle.checked = ambientEnabled;
   await setAmbientEnabled(ambientEnabled);
 }
 
@@ -6127,14 +6166,6 @@ async function loadCoach(force=false) {
     panelUpdatedAt.coach = 0;
     return;
   }
-
-  if (!force) {
-    const now = Date.now();
-    const deltaChars = transcript.length - lastCoachTranscriptLen;
-    const timeOk = (now - lastCoachRunAt) >= COACH_MIN_INTERVAL_MS;
-    const growthOk = deltaChars >= COACH_MIN_DELTA_CHARS;
-    if (!timeOk && !growthOk) return;
-  }
   try {
     await ensureSession();
     const data = await apiPost(`/session/${sessionId}/differential`);
@@ -6142,13 +6173,11 @@ async function loadCoach(force=false) {
     const h = hashLite(diffText);
     if (!force && h === lastCoachHash) {
       lastCoachRunAt = Date.now();
-      lastCoachTranscriptLen = transcript.length;
       return;
     }
     lastCoachHash = h;
     renderCoachOutput(diffText);
     lastCoachRunAt = Date.now();
-    lastCoachTranscriptLen = transcript.length;
     markUpdated("coach");
   } catch (err) {
     coachPanel.textContent = "";
@@ -6156,20 +6185,52 @@ async function loadCoach(force=false) {
     uiError("Clinical Coach", err);
   }
 }
-function startCoachPolling() {
-  stopCoachPolling();
-  coachPollInterval = setInterval(() => {
-    const hasTranscript = (transcriptBox.value || "").trim().length > 20;
-    if (hasTranscript) loadCoach(false);
-  }, 60000);
+function countWords(text) {
+  const t = (text || "").trim();
+  if (!t) return 0;
+  return t.split(/\s+/).filter(Boolean).length;
 }
-function stopCoachPolling() { if (coachPollInterval) clearInterval(coachPollInterval); coachPollInterval = null; }
-let coachSoonTimer = null;
-function scheduleCoachRefreshSoon() {
-  const transcript = (transcriptBox.value || "").trim();
-  if (transcript.length <= 20) return;
-  clearTimeout(coachSoonTimer);
-  coachSoonTimer = setTimeout(() => { loadCoach(false); }, 1200);
+
+function isGarbageDelta(text) {
+  const t = (text || "").toLowerCase().trim();
+  if (t.length < 20) return false;
+  const patterns = [
+    "i am a student",
+    "i am an ai",
+    "i am a large language model",
+    "sottotitoli",
+    "amara.org",
+    "subtitles",
+  ];
+  if (!patterns.some(p => t.includes(p))) return false;
+  const words = t.match(/[a-z']+/g) || [];
+  if (words.length <= 6) return true;
+  const unique = new Set(words).size;
+  return (unique / words.length) < 0.45;
+}
+
+function registerTranscriptDelta(deltaText, opts = {}) {
+  const chunk = (deltaText || "").trim();
+  if (!chunk) return;
+  if (ambientController?.paused) return;
+  if (isGarbageDelta(chunk)) return;
+  coachPendingChars += chunk.length;
+  coachPendingWords += countWords(chunk);
+  maybeTriggerCoach(Boolean(opts.utteranceEnded));
+}
+
+function maybeTriggerCoach(utteranceEnded = false) {
+  if (ambientController?.paused) return;
+  const now = Date.now();
+  if (now - lastCoachRunAt < COACH_DEBOUNCE_MS) return;
+  const meetsChars = coachPendingChars >= COACH_MIN_DELTA_CHARS ||
+    (utteranceEnded && coachPendingChars >= COACH_SMALL_DELTA_CHARS);
+  const meetsWords = coachPendingWords >= COACH_MIN_DELTA_WORDS;
+  if (!meetsChars || !meetsWords) return;
+  coachPendingChars = 0;
+  coachPendingWords = 0;
+  lastCoachRunAt = now;
+  loadCoach(false);
 }
 
 function renderCoachOutput(rawText) {
@@ -6562,7 +6623,6 @@ async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOver
       }
       clearTimeout(snapshotDebounce);
       snapshotDebounce = setTimeout(() => loadSnapshot(false), 400);
-      scheduleCoachRefreshSoon();
       setPatientAnchorFromTextBestEffort(readable);
       hasAiSummary = false;
       loadPatientSummaryAI(false);
@@ -6582,7 +6642,6 @@ async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOver
     }
     clearTimeout(snapshotDebounce);
     snapshotDebounce = setTimeout(() => loadSnapshot(false), 400);
-    scheduleCoachRefreshSoon();
     setPatientAnchorFromTextBestEffort(readable);
     hasAiSummary = false;
     loadPatientSummaryAI(false);
@@ -7001,6 +7060,7 @@ newPatientConfirmOverlay?.addEventListener("click", () => closeNewPatientConfirm
 signOutBtn?.addEventListener("click", async () => {
   closeProfilePopover();
   try { stopRecording(true); } catch {}
+  try { await ambientController?.disable(); } catch {}
   try { await apiPost("/auth/logout"); } catch {}
   clearAuthToken();
   window.location.reload();
@@ -7047,31 +7107,6 @@ noteLogSearch?.addEventListener("input", () => {
   renderNoteLogList(filterNoteLogItems(noteLogSearch?.value || ""));
 });
 noteLogDeleteBtn?.addEventListener("click", () => deleteNoteLogEntry());
-ambientModeToggle?.addEventListener("change", async () => {
-  await setAmbientEnabled(ambientModeToggle.checked);
-});
-ambientConsentBtn?.addEventListener("click", async () => {
-  if (!ambientController) return;
-  await ambientController.confirmConsent();
-});
-ambientPauseBtn?.addEventListener("click", () => {
-  if (!ambientController) return;
-  if (ambientController.paused) ambientController.resume();
-  else ambientController.pause();
-});
-ambientStopBtn?.addEventListener("click", async () => {
-  if (!ambientController) return;
-  await ambientController.stopEncounter();
-  ambientController.clearBuffer();
-});
-ambientClearBtn?.addEventListener("click", () => {
-  if (!ambientController) return;
-  ambientController.clearBuffer();
-  showToast("Ambient buffer cleared.", "ok");
-});
-ambientSettingsBtn?.addEventListener("click", () => {
-  openProfilePanel();
-});
 macroSelect?.addEventListener("change", async () => {
   const id = macroSelect.value;
   const macro = macros.find(m => m.id === id);
@@ -7099,42 +7134,17 @@ macroPickerSelect?.addEventListener("change", () => {
     macroDeleteBtn.textContent = locked ? "Locked" : "Delete";
   }
 });
-recordBtn.addEventListener("click", async () => {
-  if (ambientEnabled) {
-    showToast("Ambient Mode is active. Disable it to use manual recording.", "warn");
+waveformBtn?.addEventListener("click", async () => {
+  if (!ambientController) return;
+  if (!ambientController.enabled || ambientController.error) {
+    await setAmbientEnabled(true);
     return;
   }
-  if (recState === "idle") {
-    recState = "recording";
-    updateRecUI();
-    try {
-      await startRecording();
-      startTimer(true);
-    } catch {
-      recState = "idle";
-      updateRecUI();
-    }
-  } else if (recState === "recording") {
-    recState = "paused";
-    updateRecUI();
-    isRecording = false;
-    clearTimeout(chunkStopTimeout);
-    try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
-    deactivateAudioStream(audioStream);
-    recorder = null;
-    stopTimer(true);
-    releaseWakeLock();
-  } else {
-    recState = "recording";
-    updateRecUI();
-    try {
-      await startRecording();
-      startTimer(false);
-    } catch {
-      recState = "paused";
-      updateRecUI();
-    }
+  if (ambientController.paused) {
+    await ambientController.resume();
+    return;
   }
+  ambientController.pause();
 });
 
 snapshotPanel.addEventListener("dblclick", () => loadPatientSummaryAI(true));
@@ -7276,7 +7286,7 @@ window.addEventListener("beforeunload", () => {
 // -------------------------
 (async function init() {
   try {
-    updateRecUI();
+    updateAmbientUI("initializing");
     stopTimer(false);
     initTheme();
 
