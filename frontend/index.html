@@ -703,8 +703,16 @@ textarea::-webkit-scrollbar-track{
   gap:10px;
   justify-content:flex-end;
 }
+.mic-level-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex:1;
+  min-width:60px;
+}
 .mic-level-canvas{
-  width:140px;
+  width:100%;
+  max-width:200px;
   height:22px;
   border-radius:6px;
   background: color-mix(in oklab, var(--panel2) 90%, transparent);
@@ -1985,8 +1993,10 @@ textarea::-webkit-scrollbar-track{
               <div class="subhead">Speak in any language.</div>
             </div>
 
+          <div class="mic-level-wrap">
+            <canvas class="mic-level-canvas" id="micLevelCanvas" width="200" height="22" aria-hidden="true"></canvas>
+          </div>
           <div class="eyebrow transcript-status" aria-label="Recording status">
-            <canvas class="mic-level-canvas" id="micLevelCanvas" width="140" height="22" aria-hidden="true"></canvas>
             <span class="rec-dot" id="recDot" title="Recording status"></span>
             <span class="timer" id="recordTimer">00:00</span>
           </div>
@@ -2478,6 +2488,7 @@ let micVizSource = null;
 let micVizAnalyser = null;
 let micVizData = null;
 let micVizRaf = null;
+let micVizLevel = 0;
 let snapshotDebounce = null;
 let lastSnapshotHash = "";
 let lastPatientSummaryHash = "";
@@ -2771,14 +2782,10 @@ async function startMicViz(stream) {
   }
   try { micVizSource?.disconnect(); } catch {}
   micVizAnalyser = micVizAudioCtx.createAnalyser();
-  micVizAnalyser.fftSize = 256;
+  micVizAnalyser.fftSize = 512;
   micVizData = new Uint8Array(micVizAnalyser.fftSize);
   micVizSource = micVizAudioCtx.createMediaStreamSource(stream);
   micVizSource.connect(micVizAnalyser);
-
-  const width = micLevelCanvas.width;
-  const height = micLevelCanvas.height;
-  ctx.clearRect(0, 0, width, height);
 
   const draw = () => {
     micVizRaf = requestAnimationFrame(draw);
@@ -2790,12 +2797,27 @@ async function startMicViz(stream) {
       sum += v * v;
     }
     const rms = Math.sqrt(sum / micVizData.length);
-    const lineHeight = Math.max(2, Math.min(height, rms * height * 2.2));
-    const y = (height - lineHeight) / 2;
-    ctx.drawImage(micLevelCanvas, -1, 0);
-    ctx.clearRect(width - 1, 0, 1, height);
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.fillRect(width - 1, y, 1, lineHeight);
+    const level = Math.max(0, Math.min(1, (rms - 0.02) * 6));
+    micVizLevel = micVizLevel * 0.8 + level * 0.2;
+
+    const width = micLevelCanvas.width;
+    const height = micLevelCanvas.height;
+    ctx.clearRect(0, 0, width, height);
+    const barCount = 18;
+    const gap = 3;
+    const totalGap = gap * (barCount - 1);
+    const barWidth = Math.max(2, Math.floor((width - totalGap) / barCount));
+    let x = 0;
+    const activeBars = Math.round(micVizLevel * barCount);
+    for (let i = 0; i < barCount; i++) {
+      const shape = Math.sin((i / (barCount - 1)) * Math.PI);
+      const maxH = height * (0.35 + 0.65 * shape);
+      const h = Math.max(2, maxH * Math.max(0.15, micVizLevel));
+      const y = (height - h) / 2;
+      ctx.fillStyle = i < activeBars ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)";
+      ctx.fillRect(x, y, barWidth, h);
+      x += barWidth + gap;
+    }
   };
   draw();
 }
@@ -2807,6 +2829,7 @@ function stopMicViz() {
   micVizSource = null;
   micVizAnalyser = null;
   micVizData = null;
+  micVizLevel = 0;
   if (micLevelCanvas) {
     micLevelCanvas.classList.remove("active");
     const ctx = micLevelCanvas.getContext("2d");
