@@ -1,14 +1,10 @@
+import re
 import unittest
 
 from app.models import SessionContext, SessionMeta
-from app.services import (
-    build_encounter_packet,
-    normalize_soap_output,
-    should_include_procedure_section,
-    SOAP_STRUCTURE_SYSTEM,
-    SOAP_SYNTHESIS_SYSTEM,
-    SOAP_SCRUB_SYSTEM,
-)
+from app.services import build_encounter_packet
+from app.soap.schema import SoapStructured
+from app.soap.renderer import render_soap
 
 
 class TestSoapPipeline(unittest.TestCase):
@@ -43,33 +39,53 @@ class TestSoapPipeline(unittest.TestCase):
         labs = packet["objective_data"]["labs"] or ""
         self.assertIn("Hb 120", labs)
 
-    def test_procedure_section_toggle(self):
-        self.assertFalse(should_include_procedure_section({"procedures": {"performed": False}}))
-        self.assertTrue(should_include_procedure_section({"procedures": {"performed": True}}))
+    def test_render_formatting_rules(self):
+        payload = SoapStructured.parse_obj({
+            "issues": [{"number": 1, "title": "Sore throat"}],
+            "subjective": [{"issue_number": 1, "lines": ["Patient reports sore throat."]}],
+            "safety_red_flags": [],
+            "social_hx": [],
+            "objective": [],
+            "assessment": [{"issue_number": 1, "lines": ["Likely viral pharyngitis."]}],
+            "plan": [{"issue_number": 1, "lines": ["Supportive care."]}],
+        })
+        out = render_soap(payload)
+        self.assertIn("**Issues:**", out)
+        self.assertIn("**Safety / Red Flags:**\nnone", out)
+        self.assertNotRegex(out, r"^[-•]\s", msg="No bullets allowed")
+        # Exactly one blank line between sections
+        self.assertNotIn("\n\n\n", out)
 
-    def test_social_hx_guardrails_in_prompts(self):
-        self.assertIn("Social history must come ONLY from today's transcript", SOAP_STRUCTURE_SYSTEM)
-        self.assertIn("Social Hx must be derived only from today", SOAP_SYNTHESIS_SYSTEM)
-        self.assertIn("Social Hx is transcript-only", SOAP_SCRUB_SYSTEM)
-
-    def test_format_normalization(self):
-        raw = """
-Issues:
-- 1. Sore throat
-
-Subjective:
-- Patient reports sore throat.
-
-Safety / Red Flags:
-
-Plan:
-- Supportive care.
-""".strip()
-        normalized = normalize_soap_output(raw, include_procedure=False)
-        self.assertIn("**Issues:**", normalized)
-        self.assertIn("Sore throat", normalized)
-        self.assertNotIn("-", normalized)
-        self.assertIn("**Safety / Red Flags:**\nnone", normalized)
+    def test_render_acceptance_example(self):
+        payload = SoapStructured.parse_obj({
+            "issues": [{"number": 1, "title": "Cough and chest symptoms"}],
+            "subjective": [{"issue_number": 1, "lines": [
+                "Cough for 2 months with intermittent shortness of breath.",
+            ]}],
+            "safety_red_flags": ["Pregnancy check discussed before imaging."],
+            "social_hx": [
+                "Works with occupational fume exposure; denies smoking or vaping today.",
+            ],
+            "objective": ["Lungs sound a little wet on exam."],
+            "assessment": [{"issue_number": 1, "lines": [
+                "Chronic cough with wet lung sounds discussed today.",
+            ]}],
+            "plan": [{"issue_number": 1, "lines": [
+                "CXR ordered.",
+                "Phone follow-up tomorrow between 2–3 PM.",
+            ]}],
+        })
+        out = render_soap(payload)
+        for phrase in [
+            "lungs sound a little wet",
+            "Pregnancy check discussed before imaging",
+            "CXR ordered",
+            "Phone follow-up tomorrow",
+            "fume exposure",
+            "denies smoking or vaping",
+        ]:
+            self.assertIn(phrase, out)
+        self.assertTrue(re.search(r"\\*\\*Plan:\\*\\*", out))
 
 
 if __name__ == "__main__":
