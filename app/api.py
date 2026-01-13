@@ -1037,9 +1037,11 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
 
     start = time.time()
     try:
+        prompt_terms = _build_transcribe_prompt_terms(context)
         text = transcribe_audio_bytes(
             audio_bytes=audio_bytes,
-            filename=file.filename or "chunk.webm"
+            filename=file.filename or "chunk.webm",
+            prompt_terms=prompt_terms,
         )
 
         if not getattr(context.transcript, "raw_text", None):
@@ -1104,7 +1106,13 @@ async def ambient_upload_segment(
     if not audio_bytes:
         return {"text": "", "segment_id": segment_id}
 
-    text = transcribe_audio_bytes(audio_bytes=audio_bytes, filename=file.filename or "segment.wav")
+    prompt_terms = _build_transcribe_prompt_terms(context)
+    text = transcribe_audio_bytes(
+        audio_bytes=audio_bytes,
+        filename=file.filename or "segment.wav",
+        prompt_terms=prompt_terms,
+        language_hint=language_hint,
+    )
     if not text:
         return {"text": "", "segment_id": segment_id}
 
