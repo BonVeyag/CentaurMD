@@ -17,6 +17,8 @@ from typing import Optional, Tuple, Dict, Any, List, Generator
 from zoneinfo import ZoneInfo
 
 from openai import OpenAI
+
+from app.soap.generator import generate_soap_note
 from app.models import SessionContext
 from app.local_kb import KB_ENABLED, search_kb, format_kb_context
 from app.guideline_runner import run_guideline_runner
@@ -1761,26 +1763,15 @@ def validate_soap_output(text: str, include_procedure: bool) -> bool:
 
 def make_soap(context: SessionContext, attachments_text: str = "") -> dict:
     packet = build_encounter_packet(context, attachments_text=attachments_text)
-    extraction = _run_structure_extraction_chunked(packet)
-    draft_text = _run_soap_synthesis(packet, extraction)
-    scrubbed_text = _run_soap_scrub(packet, extraction, draft_text)
-
-    final_text = normalize_soap_output(
-        scrubbed_text,
-        include_procedure=should_include_procedure_section(extraction),
-    )
-    if not validate_soap_output(final_text, include_procedure=should_include_procedure_section(extraction)):
-        logger.warning("SOAP format validation failed; returning normalized output.")
-    provenance = {
-        "issues": extraction.get("issues", []),
-        "plan_facts_by_issue": extraction.get("plan_facts_by_issue", {}),
-    }
-
+    result = generate_soap_note(packet)
     return {
-        "soap_text": final_text,
+        "soap_text": result.text,
         "generated_at": _now_utc(),
         "context_hash": _hash_context(context),
-        "provenance": provenance,
+        "provenance": {
+            "issues": result.structured.get("issues", []),
+        },
+        "structured": result.structured,
     }
 
 

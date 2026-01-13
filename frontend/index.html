@@ -678,14 +678,6 @@ textarea::-webkit-scrollbar-track{
 /* =====================
    LIVE TRANSCRIPT
 ===================== */
-.rec-dot{
-  width:12px;
-  height:12px;
-  border-radius:50%;
-  background:#9CA3AF;
-  box-shadow: 0 0 0 4px rgba(220,38,38,.0);
-  transition: box-shadow var(--t) var(--ease), background-color var(--t) var(--ease);
-}
 
 .transcript-btnrow{
   display:grid;
@@ -1963,10 +1955,8 @@ textarea::-webkit-scrollbar-track{
               <div class="subhead">Speak in any language.</div>
             </div>
 
-            <div class="eyebrow" aria-label="Recording status">
-              <span class="status-pill" id="tx_state">IDLE</span>
-              <span class="rec-dot" title="Recording status"></span>
-            </div>
+          <div class="eyebrow" aria-label="Recording status">
+          </div>
           </div>
 
           <div class="transcript-btnrow">
@@ -2489,7 +2479,6 @@ let patientAge = ""; // years as string, e.g. "27"
 // DOM refs
 // -------------------------
 const transcriptBox = document.getElementById("transcript_box");
-const recDot = document.querySelector(".rec-dot");
 const waveformBtn = document.getElementById("waveform_btn");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
@@ -2698,8 +2687,7 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 function setRecordingUI(active) {
-  recDot.style.background = active ? "#DC2626" : "#9CA3AF";
-  recDot.style.boxShadow = active ? "0 0 0 4px rgba(220,38,38,.15)" : "0 0 0 4px rgba(220,38,38,.0)";
+  return;
 }
 function escapeHtml(s) {
   return (s || "")
@@ -4330,26 +4318,20 @@ function setWaveformState(state) {
 
 function updateAmbientUI(status) {
   const txPill = document.getElementById("tx_state");
-  if (!txPill) return;
   if (status === "listening") {
-    setPill(txPill, "LISTENING", "live");
-    setRecordingUI(true);
+    if (txPill) setPill(txPill, "LISTENING", "live");
     setWaveformState("recording");
   } else if (status === "paused") {
-    setPill(txPill, "PAUSED", "warn");
-    setRecordingUI(false);
+    if (txPill) setPill(txPill, "PAUSED", "warn");
     setWaveformState("paused");
   } else if (status === "offline") {
-    setPill(txPill, "OFFLINE", "warn");
-    setRecordingUI(false);
+    if (txPill) setPill(txPill, "OFFLINE", "warn");
     setWaveformState("paused");
   } else if (status === "error") {
-    setPill(txPill, "ERROR", "warn");
-    setRecordingUI(false);
+    if (txPill) setPill(txPill, "ERROR", "warn");
     setWaveformState("error");
   } else {
-    setPill(txPill, "INITIALIZING", "");
-    setRecordingUI(false);
+    if (txPill) setPill(txPill, "INITIALIZING", "");
     setWaveformState("initializing");
   }
 }
