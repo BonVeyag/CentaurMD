@@ -1264,7 +1264,7 @@ def make_soap_endpoint(session_id: str):
     try:
         soap_obj = SoapNoteOutput(
             text=result["soap_text"],
-            structured=None,
+            structured=result.get("structured"),
             generated_at=result["generated_at"],
         )
         _safe_cache_derived(context, "soap_note", soap_obj)
