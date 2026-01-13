@@ -314,8 +314,11 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
         parsed = {}
 
     try:
-        structured = SoapStructured.parse_obj(parsed)
-        structured_dict = structured.dict()
+        if hasattr(SoapStructured, "model_validate"):
+            structured = SoapStructured.model_validate(parsed)
+        else:
+            structured = SoapStructured.parse_obj(parsed)
+        structured_dict = structured.model_dump() if hasattr(structured, "model_dump") else structured.dict()
     except Exception:
         structured_dict = {
             "issues": [],
@@ -326,7 +329,10 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
             "assessment": [],
             "plan": [],
         }
-        structured = SoapStructured.parse_obj(structured_dict)
+        if hasattr(SoapStructured, "model_validate"):
+            structured = SoapStructured.model_validate(structured_dict)
+        else:
+            structured = SoapStructured.parse_obj(structured_dict)
 
     final_text = render_soap(structured)
 
