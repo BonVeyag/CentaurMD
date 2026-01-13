@@ -3312,7 +3312,8 @@ function renderNoteLogList(items) {
     if (noteLogCurrentId && item.id === noteLogCurrentId) {
       btn.classList.add("active");
     }
-    const title = `${item.patient_name || "Unknown"} — ${item.chief_complaint || "No complaint"} — ${formatNoteLogTimestamp(item.created_at_utc)}`;
+    const complaint = item.chief_complaint || "Visit";
+    const title = `${item.patient_name || "Unknown"} — ${complaint} — ${formatNoteLogTimestamp(item.created_at_utc)}`;
     const titleEl = document.createElement("div");
     titleEl.className = "note-log-item-title";
     titleEl.textContent = title;
@@ -3456,14 +3457,8 @@ async function maybeCreateNoteLogSnapshot() {
   if (!authUser?.is_admin) return;
   if (!sessionId) return;
   if (!hasCurrentPatientData()) return;
-  const payload = {
-    session_id: sessionId,
-    billing_text: (dailyBillingText?.value || "").trim(),
-    referral_text: (referralLetterText?.textContent || "").trim(),
-    clinical_query_text: extractClinicalQueryText(),
-  };
   try {
-    await apiPost("/note_log", payload);
+    await apiPost("/note_log", { session_id: sessionId });
   } catch (err) {
     console.warn("Note log snapshot failed:", err);
   }

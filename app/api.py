@@ -1598,17 +1598,7 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
             soap_text = ""
     if not soap_text:
         return {"skipped": True, "reason": "no_soap"}
-    referral_text = (payload.referral_text or "").strip()
-    if not referral_text:
-        try:
-            refs = getattr(context.derived_outputs, "referrals", None) or []
-            if refs:
-                referral_text = (refs[-1].text or "").strip()
-        except Exception:
-            referral_text = ""
-    ddx_output = (getattr(context.derived_outputs, "differential", None) or "").strip()
-
-    chief = _infer_chief_complaint(soap_text, referral_text, transcript)
+    chief = _infer_chief_complaint(soap_text, "", "")
 
     module_types = ["SOAP"]
 
