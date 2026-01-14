@@ -34,6 +34,7 @@ SOAP_MAX_OUTPUT_TOKENS = int(os.getenv("SOAP_MAX_OUTPUT_TOKENS", "2500"))
 SOAP_DEBUG_LOG_PROMPTS = os.getenv("SOAP_DEBUG_LOG_PROMPTS", "0").strip() == "1"
 SOAP_SINGLE_PASS = os.getenv("SOAP_SINGLE_PASS", "1").strip() == "1"
 SOAP_SINGLE_PASS_MODEL = os.getenv("SOAP_SINGLE_PASS_MODEL", "gpt-4o-mini")
+SOAP_SINGLE_PASS_FALLBACK_MODEL = os.getenv("SOAP_SINGLE_PASS_FALLBACK_MODEL", "gpt-4.1-mini")
 SOAP_SINGLE_PASS_EFFORT = os.getenv("SOAP_SINGLE_PASS_EFFORT", "low")
 SOAP_SINGLE_PASS_VERBOSITY = os.getenv("SOAP_SINGLE_PASS_VERBOSITY", "medium")
 
@@ -167,8 +168,17 @@ def _call_response(payload: Dict[str, Any], stage: str, model: str, transcript_h
         return text or ""
     except Exception as e:
         msg = str(e).lower()
+        # Retry removing unsupported temperature
         if "temperature" in msg:
             payload.pop("temperature", None)
+        # Retry removing reasoning/verbosity when unsupported
+        if "reasoning" in msg:
+            payload.pop("reasoning", None)
+        if "verbosity" in msg:
+            text_cfg = payload.get("text")
+            if isinstance(text_cfg, dict):
+                text_cfg.pop("verbosity", None)
+        if "temperature" in msg or "reasoning" in msg or "verbosity" in msg:
             resp = _responses_create(payload)
             text = _extract_output_text(resp)
             inp, out = _usage_tokens(resp)
@@ -341,7 +351,12 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
         }
         if SOAP_DEBUG_LOG_PROMPTS:
             logger.info("SOAP single-pass prompt: %s", final_user)
-        raw_json = _call_response(payload, "single", SOAP_SINGLE_PASS_MODEL, transcript_hash, transcript_chars)
+        try:
+            raw_json = _call_response(payload, "single", SOAP_SINGLE_PASS_MODEL, transcript_hash, transcript_chars)
+        except Exception as e:
+            logger.warning("SOAP single-pass failed; retrying with fallback model: %s", e)
+            payload["model"] = SOAP_SINGLE_PASS_FALLBACK_MODEL
+            raw_json = _call_response(payload, "single_fallback", SOAP_SINGLE_PASS_FALLBACK_MODEL, transcript_hash, transcript_chars)
     else:
         try:
             payload = {
