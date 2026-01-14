@@ -4,10 +4,8 @@ import json
 import sqlite3
 from typing import List, Dict, Any, Tuple
 
-try:
-    import PyPDF2  # type: ignore
-except Exception:
-    PyPDF2 = None
+from app.pdf_utils import extract_pdf_pages
+from app.chunk_utils import chunk_text, group_code_rows
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
