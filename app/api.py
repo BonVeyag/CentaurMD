@@ -3297,6 +3297,7 @@ def resolve_icd9(payload: ResolveIcd9Payload):
 
 @router.post("/billing/resolve_ffs")
 def resolve_ffs(payload: ResolveFfsPayload):
+    trace_id = str(uuid4())
     note_text = (payload.note_context or "").strip()
     if not note_text:
         raise HTTPException(status_code=400, detail="note_context required")
@@ -3308,31 +3309,78 @@ def resolve_ffs(payload: ResolveFfsPayload):
         "explanatory": search_somb(note_text, top_k=payload.top_k, doc_type="explanatory"),
     }
     suggested_icd9 = search_icd9(note_text, limit=3)
-    citations = []
+    evidence = {"codes": {}, "rules": []}
     billing_line = ""
     used_fallback = False
     fallback_reason = None
-    if retrieval["procedure_list"] and retrieval["governing_rules"]:
-        # naive: pick first procedure code string from text
-        proc_text = retrieval["procedure_list"][0]["text"]
-        m = re.search(r"\b\d{2}\.\d{2}[A-Z]?", proc_text)
-        if m:
-            code = m.group(0)
-            billing_line = code
-            citations.append({"doc_type": "procedure_list", "chunk_id": retrieval["procedure_list"][0]["chunk_id"], "filename": retrieval["procedure_list"][0].get("filename"), "page": retrieval["procedure_list"][0].get("page")})
-            citations.append({"doc_type": "governing_rules", "chunk_id": retrieval["governing_rules"][0]["chunk_id"], "filename": retrieval["governing_rules"][0].get("filename"), "page": retrieval["governing_rules"][0].get("page")})
+
+    cand_codes = []
+    for rec in retrieval["procedure_list"]:
+        for m in re.findall(r"\b\d{2}\.\d{2}[A-Z]?\b", rec.get("text", "")):
+            cand_codes.append(m)
+    cand_codes = sorted(list(dict.fromkeys(cand_codes)))
+
+    if not retrieval["governing_rules"]:
+        used_fallback = True
+        fallback_reason = "MISSING_GOVERNING_RULES_EVIDENCE"
+    else:
+        chosen_code = None
+        chosen_proc_cite = None
+        chosen_rule_cite = retrieval["governing_rules"][0] if retrieval["governing_rules"] else None
+        for code in cand_codes:
+            exact_chunks = get_chunks_containing_code(code, doc_type="procedure_list", top_k=1)
+            if not exact_chunks:
+                continue
+            chosen_code = code
+            chosen_proc_cite = exact_chunks[0]
+            break
+        if chosen_code and chosen_proc_cite:
+            billing_line = chosen_code
+            evidence["codes"][chosen_code] = {
+                "citations": [
+                    {
+                        "doc_type": "procedure_list",
+                        "filename": chosen_proc_cite.get("filename"),
+                        "page": chosen_proc_cite.get("page"),
+                        "chunk_id": chosen_proc_cite.get("chunk_id"),
+                        "snippet": _snip(chosen_proc_cite.get("text", ""), chosen_code),
+                    }
+                ],
+                "rationale": "Found exact code in SOMB procedure list chunk.",
+            }
+            if chosen_rule_cite:
+                evidence["rules"].append(
+                    {
+                        "doc_type": "governing_rules",
+                        "filename": chosen_rule_cite.get("filename"),
+                        "page": chosen_rule_cite.get("page"),
+                        "chunk_id": chosen_rule_cite.get("chunk_id"),
+                        "snippet": _snip(chosen_rule_cite.get("text", "")),
+                    }
+                )
         else:
             used_fallback = True
-            fallback_reason = "No procedure code found in retrieval"
-    else:
-        used_fallback = True
-        fallback_reason = "Insufficient SOMB evidence"
-    return {
-        "retrieval": retrieval,
-        "suggested": {"icd9": suggested_icd9, "billing_line": billing_line},
-        "citations": citations,
+            fallback_reason = "CODE_NOT_FOUND_IN_PROCEDURE_LIST"
+
+    log_obj = {
+        "trace_id": trace_id,
+        "note_hash": _log_safe_hash(note_text),
+        "suggested_codes": list(evidence["codes"].keys()) if evidence["codes"] else [],
         "used_fallback": used_fallback,
         "fallback_reason": fallback_reason,
+        "citations_count": sum(len(v.get("citations", [])) for v in evidence["codes"].values()),
+        "knowledge_version": KNOWLEDGE_VERSION,
+    }
+    logger.info("resolve_ffs %s", json.dumps(log_obj))
+
+    return {
+        "knowledge_version": KNOWLEDGE_VERSION,
+        "retrieval": retrieval,
+        "suggested": {"icd9": suggested_icd9, "billing_line": billing_line},
+        "evidence": evidence,
+        "used_fallback": used_fallback,
+        "fallback_reason": fallback_reason,
+        "trace_id": trace_id,
     }
 
 
