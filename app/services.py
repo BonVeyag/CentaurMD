@@ -52,7 +52,7 @@ PATIENT_SUMMARY_FALLBACK_MODEL = os.getenv("PATIENT_SUMMARY_FALLBACK_MODEL", "gp
 PATIENT_SUMMARY_MAX_CHARS = int(os.getenv("PATIENT_SUMMARY_MAX_CHARS", "16000"))
 
 # Billing model (use a smaller model; upgrade if you prefer)
-BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5.2")
+BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5-nano")
 
 # Web search (guidelines)
 WEB_SEARCH_ENABLED = (os.getenv("CENTAUR_WEB_SEARCH", "1").strip() == "1")
@@ -1292,7 +1292,7 @@ def generate_referral_letter(context: SessionContext) -> str:
     re_line = _build_re_line(context)
 
     response = client.chat.completions.create(
-        model="gpt-5-mini",
+        model="gpt-5-nano",
         messages=[
             {"role": "system", "content": "Write a clean consultant referral letter. Plain text only."},
             {"role": "user", "content": build_referral_prompt(context)},
@@ -1307,9 +1307,9 @@ def generate_referral_letter(context: SessionContext) -> str:
 # MAKE SOAP
 # =========================
 
-SOAP_STRUCTURE_MODEL = os.getenv("SOAP_STRUCTURE_MODEL", "gpt-4o-mini")
-SOAP_SYNTHESIS_MODEL = os.getenv("SOAP_SYNTHESIS_MODEL", "gpt-4o")
-SOAP_SCRUB_MODEL = os.getenv("SOAP_SCRUB_MODEL", "gpt-4o-mini")
+SOAP_STRUCTURE_MODEL = os.getenv("SOAP_STRUCTURE_MODEL", "gpt-5-nano")
+SOAP_SYNTHESIS_MODEL = os.getenv("SOAP_SYNTHESIS_MODEL", "gpt-5-nano")
+SOAP_SCRUB_MODEL = os.getenv("SOAP_SCRUB_MODEL", "gpt-5-nano")
 
 SOAP_STRUCTURE_TEMP = 0.2
 SOAP_SYNTHESIS_TEMP = 0.2
@@ -1785,7 +1785,7 @@ MIN_TRANSCRIPT_WORDS = 12
 COACH_MAX_TRANSCRIPT_CHARS = 4200
 COACH_MAX_BACKGROUND_CHARS = 4200
 
-DIFFERENTIAL_MODEL = "gpt-5.2"
+DIFFERENTIAL_MODEL = "gpt-5-nano"
 
 DDX_MAX = 4
 CANT_MISS_MAX = 4
