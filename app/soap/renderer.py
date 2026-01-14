@@ -39,7 +39,7 @@ def _item_to_dict(item: Any) -> Dict:
     return item
 
 
-def _render_issue_lines(items: List[Dict], issue_map: Dict[int, int]) -> List[str]:
+def _render_issue_lines(items: List[Dict], issue_map: Dict[int, int], number_lines: bool = True) -> List[str]:
     out: List[str] = []
     for item in items:
         item = _item_to_dict(item)
@@ -52,7 +52,7 @@ def _render_issue_lines(items: List[Dict], issue_map: Dict[int, int]) -> List[st
             clean = _strip_bullets(line)
             if not clean:
                 continue
-            if display_num > 0:
+            if number_lines and display_num > 0:
                 out.append(f"{display_num}. {clean}")
             else:
                 out.append(clean)
@@ -69,9 +69,9 @@ def render_soap(soap: SoapStructured) -> str:
         if title:
             rendered_issues.append(f"{idx}. {title}")
 
-    subjective_lines = _render_issue_lines(list(soap.subjective or []), issue_map)
+    subjective_lines = _render_issue_lines(list(soap.subjective or []), issue_map, number_lines=False)
     assessment_lines = _render_issue_lines(list(soap.assessment or []), issue_map)
-    plan_lines = _render_issue_lines(list(soap.plan or []), issue_map)
+    plan_lines = _render_issue_lines(list(soap.plan or []), issue_map, number_lines=False)
 
     safety_lines: List[str] = []
     if isinstance(soap.safety_red_flags, str):
