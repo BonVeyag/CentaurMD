@@ -2344,17 +2344,16 @@ def run_clinical_query(
         candidates = _unique_models([
             model,
             CLINICAL_QUERY_VISION_MODEL,
-            "gpt-5.2",
-            "gpt-4o-mini",
+            "gpt-5-nano",
         ])
     else:
         candidates = _unique_models([
             model,
             CLINICAL_QUERY_TEXT_MODEL,
             "gpt-5-nano",
-            "gpt-5-mini",
-            "gpt-4o-mini",
-            "gpt-5.2",
+            "gpt-5-nano",
+            "gpt-5-nano",
+            "gpt-5-nano",
         ])
 
     system_msg = (
