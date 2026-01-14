@@ -1,6 +1,7 @@
 import os
 import re
 import tempfile
+import threading
 import logging
 from typing import Optional
 
@@ -11,19 +12,6 @@ logger = logging.getLogger("centaurweb.transcription")
 # Prefer explicit key in env; OpenAI() will also read OPENAI_API_KEY automatically
 client = OpenAI()
 
-# Default to highest-accuracy STT model; allow override via env
-MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-transcribe")
-
-# Conservative min size (prevents empty/partial container chunks)
-MIN_AUDIO_BYTES = int(os.getenv("MIN_AUDIO_BYTES", "3000"))
-
-# Optional: language hint (e.g., "en"). If unset, model auto-detects.
-LANGUAGE_HINT = (os.getenv("TRANSCRIBE_LANGUAGE") or "").strip() or None
-
-# STT response format (text or verbose_json).
-RESPONSE_FORMAT = (os.getenv("TRANSCRIBE_RESPONSE_FORMAT") or "text").strip().lower()
-
-# Temperature (if supported by the model).
 def _float_env(name: str, default: float) -> float:
     raw = os.getenv(name)
     if raw is None:
@@ -33,6 +21,28 @@ def _float_env(name: str, default: float) -> float:
     except ValueError:
         return default
 
+
+# Transcription backend: local_whisper | openai
+TRANSCRIBE_BACKEND = (os.getenv("TRANSCRIBE_BACKEND") or "local_whisper").strip().lower()
+
+# Default to highest-accuracy STT model for OpenAI; allow override via env
+MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-transcribe")
+
+# Local Whisper settings
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "medium").strip()
+WHISPER_DEVICE = (os.getenv("WHISPER_DEVICE") or "").strip()
+WHISPER_FP16 = (os.getenv("WHISPER_FP16") or "0").strip() == "1"
+WHISPER_CONDITION_ON_PREV = (os.getenv("WHISPER_CONDITION_ON_PREV") or "0").strip() == "1"
+WHISPER_TEMPERATURE = _float_env("WHISPER_TEMPERATURE", 0.0)
+
+# Conservative min size (prevents empty/partial container chunks)
+MIN_AUDIO_BYTES = int(os.getenv("MIN_AUDIO_BYTES", "3000"))
+
+# Optional: language hint (e.g., "en"). If unset, model auto-detects.
+LANGUAGE_HINT = (os.getenv("TRANSCRIBE_LANGUAGE") or "").strip() or None
+
+# STT response format (text or verbose_json).
+RESPONSE_FORMAT = (os.getenv("TRANSCRIBE_RESPONSE_FORMAT") or "text").strip().lower()
 
 TEMPERATURE = _float_env("TRANSCRIBE_TEMPERATURE", 0.0)
 
