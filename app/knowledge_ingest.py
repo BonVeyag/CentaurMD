@@ -177,3 +177,29 @@ def search_somb(query: str, top_k: int = 8, doc_type: str = "") -> List[Dict[str
         doc_type_val, eff, fname, page = meta if meta else ("", "", "", 0)
         out.append({"chunk_id": cid, "text": text, "doc_type": doc_type_val, "effective_date": eff, "filename": fname, "page": page})
     return out
+
+
+def get_chunks_containing_code(code: str, doc_type: str = "", top_k: int = 5) -> List[Dict[str, Any]]:
+    """
+    Return chunks that contain the exact HSC/modifier code string.
+    """
+    code = (code or "").strip()
+    if not code:
+        return []
+    conn = sqlite3.connect(DB_PATH)
+    params: List[Any] = []
+    sql = "SELECT chunk_id, text, doc_type, effective_date, filename, page FROM somb_chunks WHERE text LIKE ?"
+    params.append(f"%{code}%")
+    if doc_type:
+        sql += " AND doc_type = ?"
+        params.append(doc_type)
+    sql += " LIMIT ?"
+    params.append(top_k)
+    cur = conn.execute(sql, params)
+    rows = cur.fetchall()
+    out: List[Dict[str, Any]] = []
+    for cid, text, dt, eff, fname, page in rows:
+        if not re.search(rf"\\b{re.escape(code)}\\b", text):
+            continue
+        out.append({"chunk_id": cid, "text": text, "doc_type": dt, "effective_date": eff, "filename": fname, "page": page})
+    return out
