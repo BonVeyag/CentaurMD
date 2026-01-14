@@ -97,6 +97,7 @@ from app.note_log import (
     get_note_log_entry,
     delete_note_log_entry,
 )
+from app.usage_log import usage_logger
 
 # -------------------------
 # TEMPORARY in-memory store
