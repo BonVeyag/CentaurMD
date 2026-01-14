@@ -1055,11 +1055,13 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
 
         elapsed = round(time.time() - start, 2)
         logger.info(f"Chunk transcribed in {elapsed}s (sid={context.session_meta.session_id})")
+        usage_logger.log_event("chunk", status=200, meta={"length": len(text or "")})
 
         return {"text": (text or "").strip()}
 
     except Exception as e:
         logger.exception("Transcription failed")
+        usage_logger.log_event("chunk_error", status=500, meta={"error": str(e)})
         raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 
