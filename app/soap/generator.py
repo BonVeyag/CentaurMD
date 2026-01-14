@@ -420,7 +420,7 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
         structured_dict = {
             "issues": [],
             "subjective": [],
-            "safety_red_flags": "none",
+            "safety_red_flags": ["none"],
             "social_hx": [],
             "objective": [],
             "assessment": [],
