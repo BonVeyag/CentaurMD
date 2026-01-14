@@ -271,6 +271,22 @@ body{
   gap:12px;
   margin-bottom:8px; /* slightly tighter to give more space to main panels */
 }
+.card-head.transcript-head{
+  flex-direction:column;
+  align-items:stretch;
+  gap:4px;
+}
+.transcript-head-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.transcript-head-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
 
 .headline{
   font-size: var(--fs-hero);
@@ -716,8 +732,8 @@ textarea::-webkit-scrollbar-track{
   display:flex;
   align-items:center;
   justify-content:flex-end;
-  flex:1;
-  min-width:60px;
+  flex:0 0 auto;
+  min-width:0;
   height:14px;
 }
 .mic-level-canvas{
@@ -1995,18 +2011,19 @@ textarea::-webkit-scrollbar-track{
       <div class="left-stack">
         <!-- TOP: LIVE TRANSCRIPT -->
         <div class="stack-top">
-          <div class="card-head">
-            <div>
+          <div class="card-head transcript-head">
+            <div class="transcript-head-row">
               <div class="headline">Live Transcript</div>
-              <div class="subhead">Speak in any language.</div>
+              <div class="transcript-head-right" aria-label="Recording status">
+                <div class="mic-level-wrap">
+                  <canvas class="mic-level-canvas" id="micLevelCanvas" width="160" height="14" aria-hidden="true"></canvas>
+                </div>
+                <div class="eyebrow transcript-status">
+                  <span class="timer" id="recordTimer">00:00</span>
+                </div>
+              </div>
             </div>
-
-          <div class="mic-level-wrap">
-            <canvas class="mic-level-canvas" id="micLevelCanvas" width="160" height="14" aria-hidden="true"></canvas>
-          </div>
-          <div class="eyebrow transcript-status" aria-label="Recording status">
-            <span class="timer" id="recordTimer">00:00</span>
-          </div>
+            <div class="subhead">Speak in any language.</div>
           </div>
 
           <div class="transcript-btnrow">
