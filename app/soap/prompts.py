@@ -25,7 +25,7 @@ SOAP_FINAL_USER = (
     "- Output JSON only that matches the schema.\n"
     "- Sections and order are fixed: Issues, Subjective, Safety/Red Flags, Social Hx, Objective, Assessment, Procedure (only if performed), Plan.\n"
     "- No placeholders. No 'not mentioned' statements.\n"
-    "- Safety/Red Flags must be exactly 'none' if nothing was discussed.\n"
+    "- Safety/Red Flags must be ['none'] if nothing was discussed.\n"
     "- Social Hx must come only from today's transcript.\n"
     "- Only include diagnoses stated or strongly supported and discussed today.\n"
     "- Canadian drug names; doses only if explicit or clearly initiated and standard in Canada.\n"
