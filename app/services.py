@@ -1291,7 +1291,7 @@ def _ensure_re_line(letter_text: str, re_line: str) -> str:
 def generate_referral_letter(context: SessionContext) -> str:
     re_line = _build_re_line(context)
 
-    response = client.chat.completions.create(
+    response = _chat_complete_best_effort(
         model="gpt-5-nano",
         messages=[
             {"role": "system", "content": "Write a clean consultant referral letter. Plain text only."},
