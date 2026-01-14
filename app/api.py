@@ -1196,6 +1196,7 @@ def create_session():
         pass
 
     SESSION_STORE[session_id] = context
+    usage_logger.log_event("session_created")
     return {"session_id": session_id}
 
 
