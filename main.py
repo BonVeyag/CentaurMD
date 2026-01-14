@@ -52,6 +52,7 @@ def startup_event():
         kb_init_db()
         kb_start_refresh_thread()
         logger.info("Local knowledge base initialized")
+        start_daily_reporter()
     except Exception as e:
         logger.warning(f"Local KB init failed: {e}")
     _auto_commit_on_reload()
