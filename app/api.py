@@ -3219,6 +3219,7 @@ def bill_current_session_into_daily_list(
     with BILLING_LOCK:
         st["billing_text"] = _append_entry_to_billing_text(st.get("billing_text") or "", lines)
         _touch_billing_state(user.username, st)
+        usage_logger.log_event("billing", status=200)
         total = _count_patients_in_billing_text(st.get("billing_text") or "")
 
         return {
