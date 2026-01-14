@@ -150,7 +150,7 @@ def _translate_to_english(text: str) -> str:
 
     try:
         resp = client.chat.completions.create(
-            model=os.getenv("TRANSCRIBE_TRANSLATE_MODEL", "gpt-4.1-mini"),
+            model=os.getenv("TRANSCRIBE_TRANSLATE_MODEL", "gpt-5-nano"),
             messages=[
                 {
                     "role": "system",
