@@ -2489,6 +2489,16 @@ let micVizAnalyser = null;
 let micVizData = null;
 let micVizRaf = null;
 let micVizLevel = 0;
+let micFrameHistory = [];
+let micClipBurst = 0;
+let lastClipWarnAt = 0;
+const MIC_FRAME_KEEP_MS = 120000;
+const SILENCE_RMS_THRESHOLD = 0.012;
+const CHUNK_SILENCE_RATIO_MAX = 0.7;
+const CHUNK_MIN_VOICED_FRAMES = 4;
+const CHUNK_RECENT_SPEECH_MS = 600;
+const CLIP_PEAK_THRESHOLD = 0.98;
+const CLIP_WARN_COOLDOWN_MS = 30000;
 let snapshotDebounce = null;
 let lastSnapshotHash = "";
 let lastPatientSummaryHash = "";
@@ -2792,13 +2802,17 @@ async function startMicViz(stream) {
     if (!micVizAnalyser || !micVizData) return;
     micVizAnalyser.getByteTimeDomainData(micVizData);
     let sum = 0;
+    let maxAbs = 0;
     for (let i = 0; i < micVizData.length; i++) {
       const v = (micVizData[i] - 128) / 128;
+      maxAbs = Math.max(maxAbs, Math.abs(v));
       sum += v * v;
     }
     const rms = Math.sqrt(sum / micVizData.length);
+    const clip = maxAbs >= CLIP_PEAK_THRESHOLD;
     const level = Math.max(0, Math.min(1, (rms - 0.02) * 6));
     micVizLevel = micVizLevel * 0.8 + level * 0.2;
+    pushMicFrame(rms, clip);
 
     const width = micLevelCanvas.width;
     const height = micLevelCanvas.height;
@@ -2835,6 +2849,66 @@ function stopMicViz() {
     const ctx = micLevelCanvas.getContext("2d");
     if (ctx) ctx.clearRect(0, 0, micLevelCanvas.width, micLevelCanvas.height);
   }
+  resetMicAnalysis();
+}
+
+function resetMicAnalysis() {
+  micFrameHistory = [];
+  micClipBurst = 0;
+  lastClipWarnAt = 0;
+}
+
+function pushMicFrame(rms, clip) {
+  const now = performance.now();
+  micFrameHistory.push({ t: now, rms, clip });
+  const cutoff = now - MIC_FRAME_KEEP_MS;
+  while (micFrameHistory.length && micFrameHistory[0].t < cutoff) {
+    micFrameHistory.shift();
+  }
+  if (clip) {
+    micClipBurst += 1;
+  } else {
+    micClipBurst = Math.max(0, micClipBurst - 1);
+  }
+  if (clip && micClipBurst >= 5 && (now - lastClipWarnAt) > CLIP_WARN_COOLDOWN_MS) {
+    lastClipWarnAt = now;
+    showToast("Mic is clipping. Reduce input level or move mic farther away.", "warn");
+  }
+}
+
+function analyzeChunkAudioStats(startMs, endMs) {
+  if (!micFrameHistory.length) return null;
+  const frames = micFrameHistory.filter(f => f.t >= startMs && f.t <= endMs);
+  if (!frames.length) return null;
+  let silenceFrames = 0;
+  let voicedFrames = 0;
+  let maxRms = 0;
+  let clipped = false;
+  for (const f of frames) {
+    maxRms = Math.max(maxRms, f.rms);
+    if (f.rms < SILENCE_RMS_THRESHOLD) silenceFrames += 1;
+    else voicedFrames += 1;
+    if (f.clip) clipped = true;
+  }
+  const total = frames.length;
+  const silenceRatio = total ? (silenceFrames / total) : 1;
+  const recentSpeech = frames.some(f => f.rms >= SILENCE_RMS_THRESHOLD && f.t >= (endMs - CHUNK_RECENT_SPEECH_MS));
+  return {
+    totalFrames: total,
+    silenceRatio,
+    voicedFrames,
+    recentSpeech,
+    maxRms,
+    clipped,
+  };
+}
+
+function shouldDropChunk(stats) {
+  if (!stats) return false;
+  if (stats.totalFrames < 6) return false;
+  if (stats.voicedFrames < CHUNK_MIN_VOICED_FRAMES && !stats.recentSpeech) return true;
+  if (stats.silenceRatio >= CHUNK_SILENCE_RATIO_MAX && !stats.recentSpeech) return true;
+  return false;
 }
 function escapeHtml(s) {
   return (s || "")
@@ -5745,8 +5819,9 @@ function pickBestMime() {
   }
   return { mime: "", ext: "webm" };
 }
-async function uploadAudioBlob(blob) {
+async function uploadAudioBlob(blob, stats=null) {
   if (!blob || blob.size < 3000) return;
+  if (shouldDropChunk(stats)) return;
   const fd = new FormData();
   const filename = `chunk_${Date.now()}.${chosenExt}`;
   fd.append("file", blob, filename);
@@ -5804,6 +5879,7 @@ async function startRecording() {
       const options = {};
       if (chosenMime) options.mimeType = chosenMime;
 
+      const chunkStartedAt = performance.now();
       recorder = new MediaRecorder(audioStream, options);
 
       recorder.ondataavailable = (e) => {
@@ -5812,7 +5888,9 @@ async function startRecording() {
       recorder.onstop = async () => {
         try {
           const blob = new Blob(chunks, { type: chosenMime || undefined });
-          await uploadAudioBlob(blob);
+          const chunkEndedAt = performance.now();
+          const stats = analyzeChunkAudioStats(chunkStartedAt, chunkEndedAt);
+          await uploadAudioBlob(blob, stats);
         } catch (err) {
           console.error("Transcription error:", err);
         } finally {
