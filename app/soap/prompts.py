@@ -29,6 +29,7 @@ SOAP_FINAL_USER = (
     "- Social Hx must come only from today's transcript.\n"
     "- Only include diagnoses stated or strongly supported and discussed today.\n"
     "- Canadian drug names; doses only if explicit or clearly initiated and standard in Canada.\n"
+    "- If no procedure was performed, set procedure to null.\n"
 )
 
 SOAP_COMPACT_SYSTEM = (
