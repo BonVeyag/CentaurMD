@@ -394,36 +394,28 @@ def transcribe_audio_bytes(
             f.write(audio_bytes)
             temp_path = f.name
 
-        with open(temp_path, "rb") as af:
-            prompt_text = _build_transcribe_prompt(prompt, prompt_terms)
-            kwargs = {
-                "model": MODEL,
-                "file": af,
-                "response_format": RESPONSE_FORMAT,
-                "temperature": TEMPERATURE,
-            }
-            # Language hint improves stability/latency when you know the default
-            if language_hint or LANGUAGE_HINT:
-                kwargs["language"] = (language_hint or LANGUAGE_HINT)
-            if prompt_text:
-                kwargs["prompt"] = prompt_text
+        prompt_text = _build_transcribe_prompt(prompt, prompt_terms)
+        backend = TRANSCRIBE_BACKEND
+        text = ""
+        translated_local = False
 
-            tr = client.audio.transcriptions.create(**kwargs)
+        if backend in {"local_whisper", "whisper", "local"}:
+            text = _transcribe_with_whisper(temp_path, prompt_text, language_hint)
+            translated_local = bool(TRANSLATE_TO_EN and text)
+            if not text and os.getenv("TRANSCRIBE_FALLBACK_TO_OPENAI", "1").strip() == "1":
+                logger.warning("Local Whisper returned empty; falling back to OpenAI STT.")
+                backend = "openai"
 
-        # SDK may return either an object with .text or a plain string
-        if isinstance(tr, str):
-            text = tr
-        else:
-            text = getattr(tr, "text", "") or ""
-            if not text and isinstance(tr, dict):
-                text = tr.get("text") or tr.get("transcript") or ""
+        if backend in {"openai", "api"} and not text:
+            with open(temp_path, "rb") as af:
+                text = _transcribe_with_openai(af, prompt_text, language_hint)
 
         text = _normalize_whitespace(text)
 
         if not text or len(text) < 2:
             return ""
 
-        if TRANSLATE_TO_EN:
+        if TRANSLATE_TO_EN and not translated_local:
             text = _translate_to_english(text)
 
         if SUPPRESS_NOISE:
