@@ -78,6 +78,8 @@ def _normalize_whitespace(text: str) -> str:
 
 
 _VOCAB_TERMS: Optional[list[str]] = None
+_WHISPER_MODEL = None
+_WHISPER_LOCK = threading.Lock()
 
 
 def _load_vocab_terms() -> list[str]:
@@ -138,6 +140,77 @@ def _build_transcribe_prompt(
     if len(base) > PROMPT_MAX_CHARS:
         return base[:PROMPT_MAX_CHARS].rstrip()
     return base
+
+
+def _load_whisper_model():
+    global _WHISPER_MODEL
+    if _WHISPER_MODEL is not None:
+        return _WHISPER_MODEL
+    with _WHISPER_LOCK:
+        if _WHISPER_MODEL is not None:
+            return _WHISPER_MODEL
+        try:
+            import whisper  # type: ignore
+        except Exception as e:
+            logger.warning(f"Local Whisper import failed: {e}")
+            return None
+        kwargs = {}
+        if WHISPER_DEVICE:
+            kwargs["device"] = WHISPER_DEVICE
+        try:
+            _WHISPER_MODEL = whisper.load_model(WHISPER_MODEL_NAME, **kwargs)
+        except Exception as e:
+            logger.warning(f"Local Whisper load failed ({WHISPER_MODEL_NAME}): {e}")
+            return None
+    return _WHISPER_MODEL
+
+
+def _transcribe_with_whisper(
+    audio_path: str,
+    prompt_text: Optional[str],
+    language_hint: Optional[str],
+) -> str:
+    model = _load_whisper_model()
+    if model is None:
+        return ""
+    options = {
+        "fp16": WHISPER_FP16,
+        "temperature": WHISPER_TEMPERATURE,
+        "condition_on_previous_text": WHISPER_CONDITION_ON_PREV,
+        "verbose": False,
+    }
+    if prompt_text:
+        options["initial_prompt"] = prompt_text
+    if language_hint or LANGUAGE_HINT:
+        options["language"] = (language_hint or LANGUAGE_HINT)
+    if TRANSLATE_TO_EN:
+        options["task"] = "translate"
+    result = model.transcribe(audio_path, **options)
+    return (result or {}).get("text", "") or ""
+
+
+def _transcribe_with_openai(
+    audio_file,
+    prompt_text: Optional[str],
+    language_hint: Optional[str],
+) -> str:
+    kwargs = {
+        "model": MODEL,
+        "file": audio_file,
+        "response_format": RESPONSE_FORMAT,
+        "temperature": TEMPERATURE,
+    }
+    if language_hint or LANGUAGE_HINT:
+        kwargs["language"] = (language_hint or LANGUAGE_HINT)
+    if prompt_text:
+        kwargs["prompt"] = prompt_text
+    tr = client.audio.transcriptions.create(**kwargs)
+    if isinstance(tr, str):
+        return tr
+    text = getattr(tr, "text", "") or ""
+    if not text and isinstance(tr, dict):
+        text = tr.get("text") or tr.get("transcript") or ""
+    return text
 
 
 def _looks_english(text: str) -> bool:
