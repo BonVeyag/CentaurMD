@@ -82,6 +82,7 @@ from app.icd9 import (
     suggest_icd9_from_text,
     has_icd9_dictionary,
 )
+from app.knowledge_ingest import reindex_all as knowledge_reindex, search_somb
 from app.local_kb import (
     KB_ENABLED,
     list_sites as kb_list_sites,
