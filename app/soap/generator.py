@@ -26,15 +26,15 @@ logger = logging.getLogger("centaurweb.soap")
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-SOAP_DRAFT_MODEL = os.getenv("SOAP_DRAFT_MODEL", "gpt-5.2-pro")
-SOAP_FINAL_MODEL = os.getenv("SOAP_FINAL_MODEL", "gpt-5.2-chat-latest")
+SOAP_DRAFT_MODEL = os.getenv("SOAP_DRAFT_MODEL", "gpt-5-mini")
+SOAP_FINAL_MODEL = os.getenv("SOAP_FINAL_MODEL", "gpt-5-mini")
 SOAP_REASONING_EFFORT = os.getenv("SOAP_REASONING_EFFORT", "medium")
 SOAP_VERBOSITY = os.getenv("SOAP_VERBOSITY", "high")
 SOAP_MAX_OUTPUT_TOKENS = int(os.getenv("SOAP_MAX_OUTPUT_TOKENS", "2500"))
 SOAP_DEBUG_LOG_PROMPTS = os.getenv("SOAP_DEBUG_LOG_PROMPTS", "0").strip() == "1"
 SOAP_SINGLE_PASS = os.getenv("SOAP_SINGLE_PASS", "1").strip() == "1"
-SOAP_SINGLE_PASS_MODEL = os.getenv("SOAP_SINGLE_PASS_MODEL", "gpt-4o-mini")
-SOAP_SINGLE_PASS_FALLBACK_MODEL = os.getenv("SOAP_SINGLE_PASS_FALLBACK_MODEL", "gpt-4.1-mini")
+SOAP_SINGLE_PASS_MODEL = os.getenv("SOAP_SINGLE_PASS_MODEL", "gpt-5-mini")
+SOAP_SINGLE_PASS_FALLBACK_MODEL = os.getenv("SOAP_SINGLE_PASS_FALLBACK_MODEL", "gpt-5-mini")
 SOAP_SINGLE_PASS_EFFORT = os.getenv("SOAP_SINGLE_PASS_EFFORT", "low")
 SOAP_SINGLE_PASS_VERBOSITY = os.getenv("SOAP_SINGLE_PASS_VERBOSITY", "medium")
 
