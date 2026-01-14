@@ -15,7 +15,7 @@ from app.services import client, extract_demographics_from_text, _clip_text
 
 logger = logging.getLogger("centaurweb.referral")
 
-REFERRAL_MODEL = os.getenv("REFERRAL_MODEL", "gpt-5-nano")
+REFERRAL_MODEL = os.getenv("REFERRAL_MODEL", "gpt-5-mini")
 REFERRAL_AUDIT_MODEL = os.getenv("REFERRAL_AUDIT_MODEL", REFERRAL_MODEL)
 
 
