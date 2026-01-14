@@ -1665,12 +1665,20 @@ def _run_soap_scrub(packet: Dict[str, Any], extraction: Dict[str, Any], draft: s
 
 
 def _chat_complete_with_seed(**kwargs):
+    return _chat_complete_best_effort(**kwargs)
+
+
+def _chat_complete_best_effort(**kwargs):
     try:
         return client.chat.completions.create(**kwargs)
     except Exception as e:
         msg = str(e).lower()
-        if "seed" in msg:
-            kwargs.pop("seed", None)
+        retry = False
+        for key in ("seed", "temperature", "top_p", "response_format"):
+            if key in msg and key in kwargs:
+                kwargs.pop(key, None)
+                retry = True
+        if retry:
             return client.chat.completions.create(**kwargs)
         raise
 
