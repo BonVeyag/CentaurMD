@@ -1999,7 +1999,7 @@ def run_differential_coach(context: SessionContext) -> str:
     response_text = ""
     used_response_format = False
     try:
-        resp = client.chat.completions.create(
+        resp = _chat_complete_best_effort(
             model=DIFFERENTIAL_MODEL,
             messages=[
                 {"role": "system", "content": "Clinical reasoning only. Transcript-first. Return STRICT JSON only."},
@@ -2011,7 +2011,7 @@ def run_differential_coach(context: SessionContext) -> str:
         used_response_format = True
         response_text = (resp.choices[0].message.content or "").strip()
     except Exception:
-        resp = client.chat.completions.create(
+        resp = _chat_complete_best_effort(
             model=DIFFERENTIAL_MODEL,
             messages=[
                 {"role": "system", "content": "Clinical reasoning only. Transcript-first. Return STRICT JSON only."},
