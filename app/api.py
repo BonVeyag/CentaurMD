@@ -3253,6 +3253,26 @@ class ResolveFfsPayload(BaseModel):
     procedures: Optional[list[str]] = None
     top_k: int = 5
 
+KNOWLEDGE_VERSION = "SOMB_2025-03-14"
+
+
+def _snip(text: str, needle: str = "", max_len: int = 240) -> str:
+    txt = (text or "").strip()
+    if not txt:
+        return ""
+    if not needle:
+        return txt[:max_len]
+    m = re.search(re.escape(needle), txt, flags=re.IGNORECASE)
+    if not m:
+        return txt[:max_len]
+    start = max(0, m.start() - 80)
+    end = min(len(txt), m.end() + 80)
+    return txt[start:end][:max_len]
+
+
+def _log_safe_hash(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()[:12]
+
 
 @router.post("/knowledge/reindex")
 def knowledge_reindex_endpoint():
