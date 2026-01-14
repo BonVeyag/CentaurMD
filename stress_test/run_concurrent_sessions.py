@@ -260,33 +260,33 @@ class SessionRunner:
     def _run_post_actions(self) -> None:
         # Patient summary
         start = time.time()
-        status, obj = self._post_json_with_retry(f"/api/session/{self.session_id}/patient_summary")
-        self.logger.log({"type": "summary", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status})
+        status, obj, retries = self._post_json_with_retry(f"/api/session/{self.session_id}/patient_summary")
+        self.logger.log({"type": "summary", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status, "retries": retries})
         if status != 200:
             self.logger.log({"type": "error", "session_id": self.session_id, "label": self.session_label, "stage": "summary", "status": status, "detail": obj})
 
         # Billing
         start = time.time()
-        status, obj = self._post_json_with_retry(f"/api/session/{self.session_id}/billing/bill")
-        self.logger.log({"type": "billing", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status})
+        status, obj, retries = self._post_json_with_retry(f"/api/session/{self.session_id}/billing/bill")
+        self.logger.log({"type": "billing", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status, "retries": retries})
         if status != 200:
             self.logger.log({"type": "error", "session_id": self.session_id, "label": self.session_label, "stage": "billing", "status": status, "detail": obj})
 
         # SOAP
         start = time.time()
-        status, obj = self._post_json_with_retry(f"/api/session/{self.session_id}/make_soap")
-        self.logger.log({"type": "soap", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status})
+        status, obj, retries = self._post_json_with_retry(f"/api/session/{self.session_id}/make_soap")
+        self.logger.log({"type": "soap", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status, "retries": retries})
         if status != 200:
             self.logger.log({"type": "error", "session_id": self.session_id, "label": self.session_label, "stage": "soap", "status": status, "detail": obj})
 
         if self.do_regen:
             start = time.time()
-            status, obj = self._post_json_with_retry(f"/api/session/{self.session_id}/make_soap")
-            self.logger.log({"type": "soap_regen", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status})
+            status, obj, retries = self._post_json_with_retry(f"/api/session/{self.session_id}/make_soap")
+            self.logger.log({"type": "soap_regen", "session_id": self.session_id, "label": self.session_label, "latency_s": time.time() - start, "status": status, "retries": retries})
             if status != 200:
                 self.logger.log({"type": "error", "session_id": self.session_id, "label": self.session_label, "stage": "soap_regen", "status": status, "detail": obj})
 
-    def _post_json_with_retry(self, path: str) -> Tuple[int, dict]:
+    def _post_json_with_retry(self, path: str) -> Tuple[int, dict, int]:
         attempts = 0
         backoff = 1.0
         last_status = 0
@@ -296,11 +296,11 @@ class SessionRunner:
             last_status = status
             last_obj = obj
             if status == 200:
-                return status, obj
+                return status, obj, attempts
             attempts += 1
             time.sleep(backoff)
             backoff = min(backoff * 2, 8.0)
-        return last_status, last_obj
+        return last_status, last_obj, attempts
 
 
 def main() -> None:
