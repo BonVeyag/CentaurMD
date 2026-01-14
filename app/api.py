@@ -1402,7 +1402,12 @@ def differential_coach_endpoint(session_id: str):
     context = _get_context_or_404(session_id)
 
     _ensure_anchor_hydrated_from_emr(context)
-    output_raw = run_differential_coach(context)
+    try:
+        output_raw = run_differential_coach(context)
+        usage_logger.log_event("differential", status=200)
+    except Exception as exc:
+        usage_logger.log_event("differential_error", status=500, meta={"error": str(exc)})
+        raise HTTPException(status_code=500, detail=f"Differential coach failed: {str(exc)}")
     output_text = output_raw
 
     _safe_cache_derived(context, "differential", output_text)
