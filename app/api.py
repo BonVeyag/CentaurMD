@@ -317,7 +317,7 @@ def _rate_limit_feedback(keys: List[str]) -> Optional[int]:
 # Billing model + reference
 # =========================
 
-BILLING_MODEL_NAME = os.getenv("BILLING_MODEL", "gpt-5-nano")
+BILLING_MODEL_NAME = os.getenv("BILLING_MODEL", "gpt-5.2")
 DEFAULT_BILLING_REFERENCE_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
     "data",
@@ -1712,8 +1712,8 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
     module_types = ["SOAP"]
 
     models = {
-        "soap": "gpt-5-nano",
-        "soap_audit": "gpt-5-nano",
+        "soap": "gpt-5-mini",
+        "soap_audit": "gpt-5-mini",
     }
 
     entry = {
