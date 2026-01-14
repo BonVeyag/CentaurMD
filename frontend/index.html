@@ -275,17 +275,23 @@ body{
   flex-direction:column;
   align-items:stretch;
   gap:4px;
+  overflow:hidden;
 }
 .transcript-head-row{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:12px;
+  width:100%;
+  min-width:0;
+  flex-wrap:nowrap;
 }
 .transcript-head-right{
   display:flex;
   align-items:center;
   gap:10px;
+  flex:0 0 auto;
+  min-width:0;
 }
 
 .headline{
@@ -293,6 +299,9 @@ body{
   font-weight: 750;
   letter-spacing: .1px;
   line-height: 1.15;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .subhead{
@@ -735,10 +744,11 @@ textarea::-webkit-scrollbar-track{
   flex:0 0 auto;
   min-width:0;
   height:14px;
+  width:120px;
 }
 .mic-level-canvas{
   width:100%;
-  max-width:160px;
+  max-width:120px;
   height:14px;
   border-radius:5px;
   background: color-mix(in oklab, var(--panel2) 70%, transparent);
@@ -2016,7 +2026,7 @@ textarea::-webkit-scrollbar-track{
               <div class="headline">Live Transcript</div>
               <div class="transcript-head-right" aria-label="Recording status">
                 <div class="mic-level-wrap">
-                  <canvas class="mic-level-canvas" id="micLevelCanvas" width="160" height="14" aria-hidden="true"></canvas>
+                  <canvas class="mic-level-canvas" id="micLevelCanvas" width="120" height="14" aria-hidden="true"></canvas>
                 </div>
                 <div class="eyebrow transcript-status">
                   <span class="timer" id="recordTimer">00:00</span>
