@@ -89,6 +89,10 @@
   --primary-bg: color-mix(in oklab, #6D28D9 18%, var(--panel2));
   --primary-border: color-mix(in oklab, #6D28D9 32%, var(--border));
   --primary-text: var(--text);
+
+  /* Mic level colors (light) */
+  --mic-level-active: rgba(15, 23, 42, 0.55);
+  --mic-level-idle: rgba(15, 23, 42, 0.18);
 }
 
 /* Dark theme (explicit) */
@@ -113,6 +117,10 @@
   --primary-bg: color-mix(in oklab, var(--panel2) 88%, #4A4A4A);
   --primary-border: color-mix(in oklab, #ffffff 10%, transparent);
   --primary-text: var(--text);
+
+  /* Mic level colors (dark) */
+  --mic-level-active: rgba(237, 237, 237, 0.5);
+  --mic-level-idle: rgba(237, 237, 237, 0.18);
 }
 
 /* Auto theme: default light, but follow OS preference */
@@ -681,7 +689,7 @@ textarea::-webkit-scrollbar-track{
 
 .transcript-btnrow{
   display:grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap:10px;
   align-items:stretch;
   margin-bottom:8px; /* tighter to increase transcript area */
@@ -712,10 +720,10 @@ textarea::-webkit-scrollbar-track{
 }
 .mic-level-canvas{
   width:100%;
-  max-width:200px;
-  height:22px;
-  border-radius:6px;
-  background: color-mix(in oklab, var(--panel2) 90%, transparent);
+  max-width:160px;
+  height:18px;
+  border-radius:5px;
+  background: color-mix(in oklab, var(--panel2) 82%, transparent);
   display:none;
 }
 .mic-level-canvas.active{
@@ -1994,7 +2002,7 @@ textarea::-webkit-scrollbar-track{
             </div>
 
           <div class="mic-level-wrap">
-            <canvas class="mic-level-canvas" id="micLevelCanvas" width="200" height="22" aria-hidden="true"></canvas>
+            <canvas class="mic-level-canvas" id="micLevelCanvas" width="160" height="18" aria-hidden="true"></canvas>
           </div>
           <div class="eyebrow transcript-status" aria-label="Recording status">
             <span class="rec-dot" id="recDot" title="Recording status"></span>
@@ -2012,9 +2020,8 @@ textarea::-webkit-scrollbar-track{
                   <path d="M8 21h8"></path>
                 </svg>
               </span>
-              <span>Record</span>
+              <span id="record_btn_label">Record</span>
             </button>
-            <button id="pause_btn" type="button">Pause</button>
             <button id="new_patient_btn" type="button">New</button>
           </div>
 
@@ -2489,6 +2496,10 @@ let micVizAnalyser = null;
 let micVizData = null;
 let micVizRaf = null;
 let micVizLevel = 0;
+let micVizPalette = {
+  active: "rgba(255,255,255,0.6)",
+  idle: "rgba(255,255,255,0.2)",
+};
 let micFrameHistory = [];
 let micClipBurst = 0;
 let lastClipWarnAt = 0;
@@ -2547,7 +2558,7 @@ const waveformBtn = document.getElementById("waveform_btn");
 const recDot = document.getElementById("recDot");
 const timerEl = document.getElementById("recordTimer");
 const recordBtn = document.getElementById("record_btn");
-const pauseBtn = document.getElementById("pause_btn");
+const recordBtnLabel = document.getElementById("record_btn_label");
 const micLevelCanvas = document.getElementById("micLevelCanvas");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
@@ -2758,8 +2769,11 @@ window.addEventListener("unhandledrejection", (e) => {
 
 function setRecordingUI(active) {
   if (recDot) recDot.style.background = active ? "#DC2626" : "#9CA3AF";
-  if (recordBtn) recordBtn.disabled = active;
-  if (pauseBtn) pauseBtn.disabled = !active;
+  if (recordBtnLabel) recordBtnLabel.textContent = active ? "Pause" : "Record";
+  if (recordBtn) {
+    if (active) recordBtn.classList.remove("record-glow");
+    else recordBtn.classList.add("record-glow");
+  }
 }
 function formatTime(totalSeconds) {
   const m = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
@@ -2779,10 +2793,21 @@ function stopTimer() {
   clearInterval(timerInterval);
 }
 
+function refreshMicVizPalette() {
+  const styles = getComputedStyle(document.documentElement);
+  const active = styles.getPropertyValue("--mic-level-active").trim();
+  const idle = styles.getPropertyValue("--mic-level-idle").trim();
+  micVizPalette = {
+    active: active || "rgba(255,255,255,0.6)",
+    idle: idle || "rgba(255,255,255,0.2)",
+  };
+}
+
 async function startMicViz(stream) {
   if (!micLevelCanvas || !stream) return;
   micLevelCanvas.classList.add("active");
   const ctx = micLevelCanvas.getContext("2d");
+  refreshMicVizPalette();
   if (!micVizAudioCtx) {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     micVizAudioCtx = new AudioCtx();
@@ -2810,25 +2835,25 @@ async function startMicViz(stream) {
     }
     const rms = Math.sqrt(sum / micVizData.length);
     const clip = maxAbs >= CLIP_PEAK_THRESHOLD;
-    const level = Math.max(0, Math.min(1, (rms - 0.02) * 6));
+    const level = Math.max(0, Math.min(1, (rms - 0.02) * 4.5));
     micVizLevel = micVizLevel * 0.8 + level * 0.2;
     pushMicFrame(rms, clip);
 
     const width = micLevelCanvas.width;
     const height = micLevelCanvas.height;
     ctx.clearRect(0, 0, width, height);
-    const barCount = 18;
+    const barCount = 16;
     const gap = 3;
     const totalGap = gap * (barCount - 1);
     const barWidth = Math.max(2, Math.floor((width - totalGap) / barCount));
     let x = 0;
-    const activeBars = Math.round(micVizLevel * barCount);
+    const activeBars = Math.round(micVizLevel * barCount * 0.65);
     for (let i = 0; i < barCount; i++) {
       const shape = Math.sin((i / (barCount - 1)) * Math.PI);
       const maxH = height * (0.35 + 0.65 * shape);
-      const h = Math.max(2, maxH * Math.max(0.15, micVizLevel));
+      const h = Math.max(2, maxH * Math.max(0.12, micVizLevel * 0.85));
       const y = (height - h) / 2;
-      ctx.fillStyle = i < activeBars ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.25)";
+      ctx.fillStyle = i < activeBars ? micVizPalette.active : micVizPalette.idle;
       ctx.fillRect(x, y, barWidth, h);
       x += barWidth + gap;
     }
@@ -4538,6 +4563,7 @@ function normalizeTheme(t) {
 function applyTheme(theme) {
   const t = normalizeTheme(theme);
   document.documentElement.dataset.theme = t;
+  try { refreshMicVizPalette(); } catch {}
 }
 
 function getThemePref() {
@@ -5916,7 +5942,7 @@ async function startRecording() {
 }
 function stopRecording(releaseStream=false) {
   isRecording = false;
-  recState = "idle";
+  recState = "paused";
   clearTimeout(chunkStopTimeout);
   try { if (recorder && recorder.state !== "inactive") recorder.stop(); } catch {}
   if (releaseStream) releaseAudioStream();
@@ -7213,11 +7239,19 @@ feedbackCancelBtn?.addEventListener("click", () => closeFeedbackPanel());
 feedbackSendBtn?.addEventListener("click", async () => {
   await runWithButtonBusy(feedbackSendBtn, "Sending…", sendFeedback);
 });
+let recordToggleBusy = false;
 recordBtn?.addEventListener("click", async () => {
-  await runWithButtonBusy(recordBtn, "Recording…", startRecording);
-});
-pauseBtn?.addEventListener("click", () => {
-  stopRecording();
+  if (recordToggleBusy) return;
+  recordToggleBusy = true;
+  try {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      await startRecording();
+    }
+  } finally {
+    recordToggleBusy = false;
+  }
 });
 profileCloseBtn?.addEventListener("click", () => closeProfilePanel());
 profileOverlay?.addEventListener("click", () => closeProfilePanel());
