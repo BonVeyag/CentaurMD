@@ -32,6 +32,10 @@ SOAP_REASONING_EFFORT = os.getenv("SOAP_REASONING_EFFORT", "medium")
 SOAP_VERBOSITY = os.getenv("SOAP_VERBOSITY", "high")
 SOAP_MAX_OUTPUT_TOKENS = int(os.getenv("SOAP_MAX_OUTPUT_TOKENS", "2500"))
 SOAP_DEBUG_LOG_PROMPTS = os.getenv("SOAP_DEBUG_LOG_PROMPTS", "0").strip() == "1"
+SOAP_SINGLE_PASS = os.getenv("SOAP_SINGLE_PASS", "1").strip() == "1"
+SOAP_SINGLE_PASS_MODEL = os.getenv("SOAP_SINGLE_PASS_MODEL", "gpt-4o-mini")
+SOAP_SINGLE_PASS_EFFORT = os.getenv("SOAP_SINGLE_PASS_EFFORT", "low")
+SOAP_SINGLE_PASS_VERBOSITY = os.getenv("SOAP_SINGLE_PASS_VERBOSITY", "medium")
 
 SOAP_MAX_TRANSCRIPT_CHARS = int(os.getenv("SOAP_MAX_TRANSCRIPT_CHARS", "24000"))
 SOAP_COMPACT_CHUNK_CHARS = int(os.getenv("SOAP_COMPACT_CHUNK_CHARS", "3000"))
@@ -310,52 +314,81 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
     )
 
     draft_text = ""
-    try:
+    if SOAP_SINGLE_PASS:
+        final_user = SOAP_FINAL_USER.format(
+            transcript=transcript_for_prompt or "[empty]",
+            packet=context_blob,
+            draft="[no draft]",
+        )
         payload = {
-            "model": SOAP_DRAFT_MODEL,
+            "model": SOAP_SINGLE_PASS_MODEL,
             "input": [
-                {"role": "system", "content": SOAP_DRAFT_SYSTEM},
-                {"role": "user", "content": draft_user},
+                {"role": "system", "content": SOAP_FINAL_SYSTEM},
+                {"role": "user", "content": final_user},
+            ],
+            "temperature": 0.2,
+            "max_output_tokens": SOAP_MAX_OUTPUT_TOKENS,
+            "reasoning": {"effort": SOAP_SINGLE_PASS_EFFORT},
+            "text": {
+                "verbosity": SOAP_SINGLE_PASS_VERBOSITY,
+                "format": {
+                    "type": "json_schema",
+                    "name": "soap_note",
+                    "schema": soap_json_schema(),
+                    "strict": True,
+                },
+            },
+        }
+        if SOAP_DEBUG_LOG_PROMPTS:
+            logger.info("SOAP single-pass prompt: %s", final_user)
+        raw_json = _call_response(payload, "single", SOAP_SINGLE_PASS_MODEL, transcript_hash, transcript_chars)
+    else:
+        try:
+            payload = {
+                "model": SOAP_DRAFT_MODEL,
+                "input": [
+                    {"role": "system", "content": SOAP_DRAFT_SYSTEM},
+                    {"role": "user", "content": draft_user},
+                ],
+                "temperature": 0.2,
+                "max_output_tokens": SOAP_MAX_OUTPUT_TOKENS,
+                "reasoning": {"effort": SOAP_REASONING_EFFORT},
+                "text": {"verbosity": SOAP_VERBOSITY},
+            }
+            if SOAP_DEBUG_LOG_PROMPTS:
+                logger.info("SOAP draft prompt: %s", draft_user)
+            draft_text = _call_response(payload, "draft", SOAP_DRAFT_MODEL, transcript_hash, transcript_chars)
+        except Exception:
+            draft_text = ""
+
+        final_user = SOAP_FINAL_USER.format(
+            transcript=transcript_for_prompt or "[empty]",
+            packet=context_blob,
+            draft=draft_text or "[no draft]",
+        )
+
+        payload = {
+            "model": SOAP_FINAL_MODEL,
+            "input": [
+                {"role": "system", "content": SOAP_FINAL_SYSTEM},
+                {"role": "user", "content": final_user},
             ],
             "temperature": 0.2,
             "max_output_tokens": SOAP_MAX_OUTPUT_TOKENS,
             "reasoning": {"effort": SOAP_REASONING_EFFORT},
-            "text": {"verbosity": SOAP_VERBOSITY},
+            "text": {
+                "verbosity": SOAP_VERBOSITY,
+                "format": {
+                    "type": "json_schema",
+                    "name": "soap_note",
+                    "schema": soap_json_schema(),
+                    "strict": True,
+                },
+            },
         }
         if SOAP_DEBUG_LOG_PROMPTS:
-            logger.info("SOAP draft prompt: %s", draft_user)
-        draft_text = _call_response(payload, "draft", SOAP_DRAFT_MODEL, transcript_hash, transcript_chars)
-    except Exception:
-        draft_text = ""
-
-    final_user = SOAP_FINAL_USER.format(
-        transcript=transcript_for_prompt or "[empty]",
-        packet=context_blob,
-        draft=draft_text or "[no draft]",
-    )
-
-    payload = {
-        "model": SOAP_FINAL_MODEL,
-        "input": [
-            {"role": "system", "content": SOAP_FINAL_SYSTEM},
-            {"role": "user", "content": final_user},
-        ],
-        "temperature": 0.2,
-        "max_output_tokens": SOAP_MAX_OUTPUT_TOKENS,
-        "reasoning": {"effort": SOAP_REASONING_EFFORT},
-        "text": {
-            "verbosity": SOAP_VERBOSITY,
-            "format": {
-                "type": "json_schema",
-                "name": "soap_note",
-                "schema": soap_json_schema(),
-                "strict": True,
-            },
-        },
-    }
-    if SOAP_DEBUG_LOG_PROMPTS:
-        logger.info("SOAP final prompt: %s", final_user)
-    raw_json = _call_response(payload, "final", SOAP_FINAL_MODEL, transcript_hash, transcript_chars)
+            logger.info("SOAP final prompt: %s", final_user)
+        raw_json = _call_response(payload, "final", SOAP_FINAL_MODEL, transcript_hash, transcript_chars)
 
     try:
         parsed = json.loads(raw_json)
