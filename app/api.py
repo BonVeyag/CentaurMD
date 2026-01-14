@@ -2698,6 +2698,25 @@ def _generate_icd9_and_billing_lines(
     else:
         fallback_source = _extract_last_dated_emr_entry(context)
 
+
+    # Try knowledge-based billing first (audit-safe)
+    kb_line = ""
+    kb_icd9 = []
+    kb_used = False
+    if transcript_ok:
+        try:
+            kb_res = resolve_ffs(ResolveFfsPayload(note_context=transcript, top_k=3))
+            kb_used = not kb_res.get("used_fallback") and bool((kb_res.get("suggested") or {}).get("billing_line"))
+            if kb_used:
+                kb_line = kb_res["suggested"].get("billing_line") or ""
+                kb_icd9 = kb_res["suggested"].get("icd9") or []
+        except Exception:
+            kb_used = False
+    
+    if kb_used:
+        line2 = "ICD-9: " + ", ".join([f"{c.get('code')} ({c.get('label') or c.get('description')})" for c in kb_icd9 if c.get('code')])
+        line3 = f"Billing: {kb_line}".strip()
+        return line2, line3
     source_text = transcript if transcript_ok else fallback_source
 
     model_norm = (billing_model or "FFS").strip().upper()
