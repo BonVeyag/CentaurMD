@@ -63,14 +63,7 @@ def ingest_icd9(conn: sqlite3.Connection) -> int:
 
 
 def _iter_pdf_text(pdf_path: str) -> List[Tuple[int, str]]:
-    pages: List[Tuple[int, str]] = []
-    if PyPDF2 is None:
-        return pages
-    with open(pdf_path, "rb") as f:
-        reader = PyPDF2.PdfReader(f)
-        for i, page in enumerate(reader.pages):
-            text = page.extract_text() or ""
-            pages.append((i + 1, text))
+    pages = extract_pdf_pages(pdf_path)
     return pages
 
 
@@ -89,6 +82,41 @@ def _infer_doc_type(filename: str) -> str:
     return "unknown"
 
 
+def _load_manifest() -> Dict[str, str]:
+    manifest_path = os.path.join(SOMB_DIR, "manifest.json")
+    if not os.path.exists(manifest_path):
+        return {}
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        # Expect {"files": {"filename.pdf": "doc_type"}}
+        if isinstance(data, dict):
+            files = data.get("files", {}) or {}
+            if isinstance(files, dict):
+                return {k: str(v) for k, v in files.items()}
+    except Exception:
+        return {}
+    return {}
+
+
+def _chunk_somb_text(text: str) -> List[str]:
+    if not text.strip():
+        return []
+    # Try to preserve code rows
+    rows = group_code_rows(text)
+    if rows:
+        blocks = rows
+    else:
+        blocks = [text]
+    chunks: List[str] = []
+    for block in blocks:
+        subchunks = chunk_text(block, min_size=500, max_size=1200)
+        for c in subchunks:
+            if c.strip():
+                chunks.append(c.strip())
+    return chunks
+
+
 def ingest_somb(conn: sqlite3.Connection) -> int:
     somb_raw_dir = os.path.join(SOMB_DIR, "raw", "somb_pdfs")
     if not os.path.isdir(somb_raw_dir):
@@ -96,22 +124,25 @@ def ingest_somb(conn: sqlite3.Connection) -> int:
     conn.execute("DELETE FROM somb_chunks;")
     conn.execute("DELETE FROM somb_fts;")
     rows = 0
+    manifest_map = _load_manifest()
     for fname in os.listdir(somb_raw_dir):
         if not fname.lower().endswith(".pdf"):
             continue
         path = os.path.join(somb_raw_dir, fname)
-        doc_type = _infer_doc_type(fname)
-        for page_num, text in _iter_pdf_text(path):
+        doc_type = manifest_map.get(fname) or _infer_doc_type(fname)
+        pages = _iter_pdf_text(path)
+        for page_num, text in pages:
             text = text.strip()
             if not text:
                 continue
-            chunk_id = f"{fname}#p{page_num}"
-            conn.execute(
-                "INSERT OR REPLACE INTO somb_chunks(chunk_id, text, doc_type, effective_date, filename, page) VALUES (?,?,?,?,?,?)",
-                (chunk_id, text, doc_type, "2025-03-14", fname, page_num),
-            )
-            conn.execute("INSERT INTO somb_fts(text, chunk_id) VALUES (?,?)", (text, chunk_id))
-            rows += 1
+            for idx, chunk in enumerate(_chunk_somb_text(text)):
+                chunk_id = f"{fname}#p{page_num}#c{idx}"
+                conn.execute(
+                    "INSERT OR REPLACE INTO somb_chunks(chunk_id, text, doc_type, effective_date, filename, page) VALUES (?,?,?,?,?,?)",
+                    (chunk_id, chunk, doc_type, "2025-03-14", fname, page_num),
+                )
+                conn.execute("INSERT INTO somb_fts(text, chunk_id) VALUES (?,?)", (chunk, chunk_id))
+                rows += 1
     conn.commit()
     return rows
 
