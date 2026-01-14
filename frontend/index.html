@@ -729,12 +729,6 @@ textarea::-webkit-scrollbar-track{
 .mic-level-canvas.active{
   display:block;
 }
-.rec-dot{
-  width:10px;
-  height:10px;
-  border-radius:50%;
-  background: color-mix(in oklab, var(--muted) 70%, transparent);
-}
 .timer{
   font-size:18px;
   font-weight:700;
@@ -2005,7 +1999,6 @@ textarea::-webkit-scrollbar-track{
             <canvas class="mic-level-canvas" id="micLevelCanvas" width="160" height="18" aria-hidden="true"></canvas>
           </div>
           <div class="eyebrow transcript-status" aria-label="Recording status">
-            <span class="rec-dot" id="recDot" title="Recording status"></span>
             <span class="timer" id="recordTimer">00:00</span>
           </div>
           </div>
@@ -2496,6 +2489,8 @@ let micVizAnalyser = null;
 let micVizData = null;
 let micVizRaf = null;
 let micVizLevel = 0;
+let micVizPeakLevel = 0;
+let micVizPeakAt = 0;
 let micVizPalette = {
   active: "rgba(255,255,255,0.6)",
   idle: "rgba(255,255,255,0.2)",
@@ -2555,7 +2550,6 @@ let patientAge = ""; // years as string, e.g. "27"
 // -------------------------
 const transcriptBox = document.getElementById("transcript_box");
 const waveformBtn = document.getElementById("waveform_btn");
-const recDot = document.getElementById("recDot");
 const timerEl = document.getElementById("recordTimer");
 const recordBtn = document.getElementById("record_btn");
 const recordBtnLabel = document.getElementById("record_btn_label");
@@ -2768,7 +2762,6 @@ window.addEventListener("unhandledrejection", (e) => {
 });
 
 function setRecordingUI(active) {
-  if (recDot) recDot.style.background = active ? "#DC2626" : "#9CA3AF";
   if (recordBtnLabel) recordBtnLabel.textContent = active ? "Pause" : "Record";
   if (recordBtn) {
     if (active) recordBtn.classList.remove("record-glow");
@@ -2857,6 +2850,24 @@ async function startMicViz(stream) {
       ctx.fillRect(x, y, barWidth, h);
       x += barWidth + gap;
     }
+
+    const now = performance.now();
+    if (level > micVizPeakLevel || (now - micVizPeakAt) > 380) {
+      micVizPeakLevel = level;
+      micVizPeakAt = now;
+    }
+    const peakAge = now - micVizPeakAt;
+    if (micVizPeakLevel > 0.06 && peakAge < 520) {
+      const idx = Math.min(barCount - 1, Math.round(micVizPeakLevel * (barCount - 1)));
+      const cx = idx * (barWidth + gap) + (barWidth / 2);
+      const cy = height * 0.22;
+      const alpha = peakAge <= 260 ? 0.6 : Math.max(0, 0.6 * (1 - ((peakAge - 260) / 260)));
+      const dotColor = micVizPalette.active.replace(/[\d\.]+\)$/, `${alpha})`);
+      ctx.fillStyle = dotColor;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
   draw();
 }
@@ -2881,6 +2892,8 @@ function resetMicAnalysis() {
   micFrameHistory = [];
   micClipBurst = 0;
   lastClipWarnAt = 0;
+  micVizPeakLevel = 0;
+  micVizPeakAt = 0;
 }
 
 function pushMicFrame(rms, clip) {
