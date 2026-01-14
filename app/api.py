@@ -1372,7 +1372,12 @@ def make_soap_endpoint(session_id: str):
 
     _ensure_anchor_hydrated_from_emr(context)
     attachments_text = _collect_attachments_text_for_query(context)
-    result = make_soap(context, attachments_text=attachments_text)
+    try:
+        result = make_soap(context, attachments_text=attachments_text)
+        usage_logger.log_event("soap", status=200)
+    except Exception as exc:
+        usage_logger.log_event("soap_error", status=500, meta={"error": str(exc)})
+        raise
 
     try:
         soap_obj = SoapNoteOutput(
