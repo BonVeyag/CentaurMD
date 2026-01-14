@@ -1593,7 +1593,7 @@ def merge_structured_extractions(extractions: List[Dict[str, Any]]) -> Dict[str,
 
 def _run_structure_extraction(packet: Dict[str, Any]) -> Dict[str, Any]:
     payload = json.dumps(packet, ensure_ascii=False)
-    response = client.chat.completions.create(
+    response = _chat_complete_best_effort(
         model=SOAP_STRUCTURE_MODEL,
         messages=[
             {"role": "system", "content": SOAP_STRUCTURE_SYSTEM},
@@ -1631,7 +1631,7 @@ def _run_soap_synthesis(packet: Dict[str, Any], extraction: Dict[str, Any]) -> s
         + "\n\nStructuredExtraction:\n"
         + json.dumps(extraction, ensure_ascii=False)
     )
-    response = client.chat.completions.create(
+    response = _chat_complete_best_effort(
         model=SOAP_SYNTHESIS_MODEL,
         messages=[
             {"role": "system", "content": SOAP_SYNTHESIS_SYSTEM},
