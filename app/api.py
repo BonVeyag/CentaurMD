@@ -2053,8 +2053,10 @@ def patient_summary(session_id: str):
 
     try:
         summary = generate_patient_summary(context)
+        usage_logger.log_event("summary", status=200)
     except Exception as e:
         logger.exception("Patient summary failed")
+        usage_logger.log_event("summary_error", status=500, meta={"error": str(e)})
         raise HTTPException(status_code=500, detail=f"Patient summary failed: {str(e)}")
 
     _touch(context)
