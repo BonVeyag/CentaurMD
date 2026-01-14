@@ -4290,7 +4290,7 @@ async function generateSoapDraft() {
   return stripPairedMarkdownEmphasis(soapTextRaw);
 }
 
-async function generateTemplateDraft(macroContent, modelOverride="gpt-5.2") {
+async function generateTemplateDraft(macroContent, modelOverride="gpt-5-mini") {
   await ensureSession();
   const payload = { query: "", mode: "fast", macro: macroContent };
   if (modelOverride) payload.model = modelOverride;
@@ -4330,7 +4330,7 @@ EMR:
 ${emr || "[none]"}
 `.trim();
 
-  return await generateTemplateDraft(rxPrompt, "gpt-5.2");
+  return await generateTemplateDraft(rxPrompt, "gpt-5-mini");
 }
 
 const REFERRAL_MISSING_LABELS = {
@@ -6890,7 +6890,7 @@ async function sendClinicalQueryWithDraft(queryText, macroOverride="", modelOver
 
   const payload = { query: q, mode };
   if (macroText) payload.macro = macroText;
-  const model = modelOverride || (macroText ? "gpt-5.2" : "");
+  const model = modelOverride || (macroText ? "gpt-5-mini" : "");
   if (model) payload.model = model;
 
   const contentEl = addMessage("Centaur", "…");
@@ -7007,7 +7007,7 @@ Live transcript:
 ${transcript || "[none]"}`;
     }
 
-    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: instruction, model: "gpt-5.2" });
+    const data = await apiPost(`/session/${sessionId}/clinical_query`, { query: "", mode: "fast", macro: instruction, model: "gpt-5-mini" });
     let content = data?.response ?? "";
     let letter = "";
     try {
@@ -7440,7 +7440,7 @@ macroSelect?.addEventListener("change", async () => {
     await openNoteDraftPanel({
       templateId: id,
       templateLabel: label,
-      generate: () => generateTemplateDraft(expanded, "gpt-5.2"),
+      generate: () => generateTemplateDraft(expanded, "gpt-5-mini"),
     });
   }
 });

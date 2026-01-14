@@ -1712,8 +1712,8 @@ def create_note_log(payload: NoteLogCreatePayload, user: AuthUser = Depends(requ
     module_types = ["SOAP"]
 
     models = {
-        "soap": "gpt-5.2",
-        "soap_audit": "gpt-5.2",
+        "soap": "gpt-5-mini",
+        "soap_audit": "gpt-5-mini",
     }
 
     entry = {
