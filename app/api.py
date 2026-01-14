@@ -3223,16 +3223,96 @@ def bill_current_session_into_daily_list(
         usage_logger.log_event("billing", status=200)
         total = _count_patients_in_billing_text(st.get("billing_text") or "")
 
-        return {
-            "ok": True,
-            "date": day_key,
-            "physician": st.get("physician") or "",
-            "billing_model": st.get("billing_model") or "FFS",
-            "total_patient_count": total,
-            "billing_text": st.get("billing_text") or "",
-            "last_updated_at": st.get("last_updated_at"),
-            "appended_entry": "\n".join([ln for ln in lines if (ln or "").strip()]).strip(),
-        }
+    return {
+        "ok": True,
+        "date": day_key,
+        "physician": st.get("physician") or "",
+        "billing_model": st.get("billing_model") or "FFS",
+        "total_patient_count": total,
+        "billing_text": st.get("billing_text") or "",
+        "last_updated_at": st.get("last_updated_at"),
+        "appended_entry": "\n".join([ln for ln in lines if (ln or "").strip()]).strip(),
+    }
+
+
+# =========================
+# Knowledge reindex + billing resolvers
+# =========================
+
+
+class ResolveIcd9Payload(BaseModel):
+    text: str
+    top_k: int = 5
+
+
+class ResolveFfsPayload(BaseModel):
+    note_context: str
+    visit_type: Optional[str] = None
+    time_minutes: Optional[int] = None
+    procedures: Optional[list[str]] = None
+    top_k: int = 5
+
+
+@router.post("/knowledge/reindex")
+def knowledge_reindex_endpoint():
+    try:
+        result = knowledge_reindex()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reindex failed: {e}")
+
+
+@router.post("/billing/resolve_icd9")
+def resolve_icd9(payload: ResolveIcd9Payload):
+    try:
+        cands = search_icd9(payload.text, limit=payload.top_k)
+        out = []
+        for c in cands:
+            out.append({"code": c.get("code"), "description": c.get("label") or c.get("description"), "score": 1.0})
+        return {"candidates": out}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ICD-9 resolve failed: {e}")
+
+
+@router.post("/billing/resolve_ffs")
+def resolve_ffs(payload: ResolveFfsPayload):
+    note_text = (payload.note_context or "").strip()
+    if not note_text:
+        raise HTTPException(status_code=400, detail="note_context required")
+    retrieval = {
+        "procedure_list": search_somb(note_text, top_k=payload.top_k, doc_type="procedure_list"),
+        "governing_rules": search_somb(note_text, top_k=payload.top_k, doc_type="governing_rules"),
+        "price_list": search_somb(note_text, top_k=payload.top_k, doc_type="price_list"),
+        "modifiers": search_somb(note_text, top_k=payload.top_k, doc_type="modifiers"),
+        "explanatory": search_somb(note_text, top_k=payload.top_k, doc_type="explanatory"),
+    }
+    suggested_icd9 = search_icd9(note_text, limit=3)
+    citations = []
+    billing_line = ""
+    used_fallback = False
+    fallback_reason = None
+    if retrieval["procedure_list"] and retrieval["governing_rules"]:
+        # naive: pick first procedure code string from text
+        proc_text = retrieval["procedure_list"][0]["text"]
+        m = re.search(r"\b\d{2}\.\d{2}[A-Z]?", proc_text)
+        if m:
+            code = m.group(0)
+            billing_line = code
+            citations.append({"doc_type": "procedure_list", "chunk_id": retrieval["procedure_list"][0]["chunk_id"], "filename": retrieval["procedure_list"][0].get("filename"), "page": retrieval["procedure_list"][0].get("page")})
+            citations.append({"doc_type": "governing_rules", "chunk_id": retrieval["governing_rules"][0]["chunk_id"], "filename": retrieval["governing_rules"][0].get("filename"), "page": retrieval["governing_rules"][0].get("page")})
+        else:
+            used_fallback = True
+            fallback_reason = "No procedure code found in retrieval"
+    else:
+        used_fallback = True
+        fallback_reason = "Insufficient SOMB evidence"
+    return {
+        "retrieval": retrieval,
+        "suggested": {"icd9": suggested_icd9, "billing_line": billing_line},
+        "citations": citations,
+        "used_fallback": used_fallback,
+        "fallback_reason": fallback_reason,
+    }
 
 
 @router.post("/billing/print")
