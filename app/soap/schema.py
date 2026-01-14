@@ -75,7 +75,7 @@ def soap_json_schema() -> Dict[str, Any]:
                 },
             },
             "procedure": {
-                "type": "object",
+                "type": ["object", "null"],
                 "additionalProperties": False,
                 "properties": {
                     "lines": {"type": "array", "items": {"type": "string"}},
@@ -102,6 +102,7 @@ def soap_json_schema() -> Dict[str, Any]:
             "social_hx",
             "objective",
             "assessment",
+            "procedure",
             "plan",
         ],
     }
