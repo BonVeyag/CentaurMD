@@ -29,7 +29,7 @@ TRANSCRIBE_BACKEND = (os.getenv("TRANSCRIBE_BACKEND") or "local_whisper").strip(
 MODEL = os.getenv("TRANSCRIBE_MODEL", "gpt-4o-transcribe")
 
 # Local Whisper settings
-WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "medium").strip()
+WHISPER_MODEL_NAME = os.getenv("WHISPER_MODEL", "small").strip()
 WHISPER_DEVICE = (os.getenv("WHISPER_DEVICE") or "").strip()
 WHISPER_FP16 = (os.getenv("WHISPER_FP16") or "0").strip() == "1"
 WHISPER_CONDITION_ON_PREV = (os.getenv("WHISPER_CONDITION_ON_PREV") or "0").strip() == "1"

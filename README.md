@@ -87,3 +87,33 @@ Ambient Mode enables continuous room audio capture with automatic segmentation a
 - `POST /api/ambient/start_encounter`
 - `POST /api/ambient/upload_segment`
 - `POST /api/ambient/stop_encounter`
+
+## Local Whisper Transcription (Mac mini)
+
+Centaur can transcribe locally using openai-whisper instead of the OpenAI API.
+
+### Install
+```bash
+brew install ffmpeg
+.venv/bin/pip install openai-whisper
+whisper --model medium --download-only
+```
+
+### Configure
+```bash
+export TRANSCRIBE_BACKEND=local_whisper
+export WHISPER_MODEL=medium
+```
+
+Optional:
+```bash
+export WHISPER_DEVICE=cpu
+export WHISPER_FP16=0
+export WHISPER_CONDITION_ON_PREV=0
+export WHISPER_TEMPERATURE=0.0
+export TRANSCRIBE_FALLBACK_TO_OPENAI=1
+```
+
+### Notes
+- If local Whisper fails or is missing, the server can fall back to OpenAI STT when `TRANSCRIBE_FALLBACK_TO_OPENAI=1`.
+- Translation (if enabled) uses the existing chat translation step.
