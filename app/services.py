@@ -2394,12 +2394,12 @@ def run_clinical_query(
             try:
                 base_kwargs["model"] = cand
                 if use_response_format:
-                    response = client.chat.completions.create(
+                    response = _chat_complete_best_effort(
                         **base_kwargs,
                         response_format={"type": "json_object"},
                     )
                 else:
-                    response = client.chat.completions.create(**base_kwargs)
+                    response = _chat_complete_best_effort(**base_kwargs)
                 return (response.choices[0].message.content or "").strip()
             except Exception as e:
                 last_error = e
