@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Union, Literal, Dict, Any
+from typing import List, Optional, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ class ProcedureBlock(BaseModel):
 class SoapStructured(BaseModel):
     issues: List[Issue]
     subjective: List[IssueLines]
-    safety_red_flags: Union[Literal["none"], List[str]]
+    safety_red_flags: List[str]
     social_hx: List[str]
     objective: List[str]
     assessment: List[IssueLines]
@@ -59,12 +59,7 @@ def soap_json_schema() -> Dict[str, Any]:
                     "required": ["issue_number", "lines"],
                 },
             },
-            "safety_red_flags": {
-                "oneOf": [
-                    {"type": "string", "enum": ["none"]},
-                    {"type": "array", "items": {"type": "string"}},
-                ]
-            },
+            "safety_red_flags": {"type": "array", "items": {"type": "string"}},
             "social_hx": {"type": "array", "items": {"type": "string"}},
             "objective": {"type": "array", "items": {"type": "string"}},
             "assessment": {
