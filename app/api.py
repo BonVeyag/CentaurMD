@@ -12,6 +12,7 @@ from datetime import datetime, date, timezone
 from typing import Optional, Dict, Any, List, Tuple
 from uuid import uuid4
 from threading import Lock as ThreadLock
+import hashlib
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
 from fastapi.responses import StreamingResponse
