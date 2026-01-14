@@ -204,6 +204,14 @@ def get_icd9_by_code(code: str) -> Optional[Dict[str, Any]]:
 
 
 def search_icd9(query: str, limit: int = 20) -> List[Dict[str, str]]:
+    # If the new FTS index exists, prefer it for speed/recall.
+    try:
+        from app.knowledge_ingest import search_icd9 as fts_search  # type: ignore
+        res = fts_search(query, top_k=limit)
+        if res:
+            return [{"code": r.get("code", ""), "label": r.get("description", "")} for r in res][:limit]
+    except Exception:
+        pass
     load_icd9_dictionary()
     q = _normalize_text(query or "")
     if not q:
