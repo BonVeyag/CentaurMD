@@ -3,7 +3,7 @@ import re
 import tempfile
 import threading
 import logging
-from typing import Optional
+from typing import Optional, Tuple, Dict, Any, Callable
 
 from openai import OpenAI
 
@@ -80,6 +80,8 @@ def _normalize_whitespace(text: str) -> str:
 _VOCAB_TERMS: Optional[list[str]] = None
 _WHISPER_MODEL = None
 _WHISPER_LOCK = threading.Lock()
+_FW_MODEL = None
+_FW_LOCK = threading.Lock()
 
 
 def _load_vocab_terms() -> list[str]:
@@ -142,51 +144,71 @@ def _build_transcribe_prompt(
     return base
 
 
-def _load_whisper_model():
-    global _WHISPER_MODEL
-    if _WHISPER_MODEL is not None:
-        return _WHISPER_MODEL
-    with _WHISPER_LOCK:
-        if _WHISPER_MODEL is not None:
-            return _WHISPER_MODEL
+def _load_faster_whisper_model():
+    """
+    Load faster-whisper base model (singleton).
+    """
+    global _FW_MODEL
+    if _FW_MODEL is not None:
+        return _FW_MODEL
+    with _FW_LOCK:
+        if _FW_MODEL is not None:
+            return _FW_MODEL
         try:
-            import whisper  # type: ignore
+            from faster_whisper import WhisperModel  # type: ignore
         except Exception as e:
-            logger.warning(f"Local Whisper import failed: {e}")
+            logger.warning(f"faster-whisper import failed: {e}")
             return None
-        kwargs = {}
-        if WHISPER_DEVICE:
-            kwargs["device"] = WHISPER_DEVICE
+        device = WHISPER_DEVICE or "cpu"
+        compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8").strip() or "int8"
         try:
-            _WHISPER_MODEL = whisper.load_model(WHISPER_MODEL_NAME, **kwargs)
+            _FW_MODEL = WhisperModel(
+                WHISPER_MODEL_NAME,
+                device=device,
+                compute_type=compute_type,
+            )
         except Exception as e:
-            logger.warning(f"Local Whisper load failed ({WHISPER_MODEL_NAME}): {e}")
+            logger.warning(f"faster-whisper load failed ({WHISPER_MODEL_NAME}): {e}")
             return None
-    return _WHISPER_MODEL
+    return _FW_MODEL
 
 
-def _transcribe_with_whisper(
+def _transcribe_with_faster_whisper(
     audio_path: str,
     prompt_text: Optional[str],
-    language_hint: Optional[str],
-) -> str:
-    model = _load_whisper_model()
+    language: Optional[str],
+    *,
+    beam_size: int = 5,
+    vad_filter: bool = True,
+) -> Tuple[str, Optional[str], Optional[float]]:
+    """
+    Transcribe with faster-whisper in TRANSCRIBE mode (no translation).
+    Returns (text, language, language_probability).
+    """
+    model = _load_faster_whisper_model()
     if model is None:
-        return ""
-    options = {
-        "fp16": WHISPER_FP16,
-        "temperature": WHISPER_TEMPERATURE,
-        "condition_on_previous_text": WHISPER_CONDITION_ON_PREV,
-        "verbose": False,
-    }
-    if prompt_text:
-        options["initial_prompt"] = prompt_text
-    if language_hint or LANGUAGE_HINT:
-        options["language"] = (language_hint or LANGUAGE_HINT)
-    if TRANSLATE_TO_EN:
-        options["task"] = "translate"
-    result = model.transcribe(audio_path, **options)
-    return (result or {}).get("text", "") or ""
+        return "", None, None
+
+    segments, info = model.transcribe(
+        audio_path,
+        language=language,
+        task="transcribe",
+        beam_size=beam_size,
+        vad_filter=vad_filter,
+        initial_prompt=prompt_text or None,
+        condition_on_previous_text=False,
+    )
+    text_parts = []
+    try:
+        for seg in segments:
+            if getattr(seg, "text", None):
+                text_parts.append(seg.text)
+    except Exception:
+        pass
+    text = " ".join(text_parts).strip()
+    lang = getattr(info, "language", None)
+    prob = getattr(info, "language_probability", None)
+    return text, lang, prob
 
 
 def _transcribe_with_openai(
