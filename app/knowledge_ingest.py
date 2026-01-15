@@ -11,6 +11,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 ICD9_PATH = os.path.join(ROOT, "knowledge", "icd9", "icd9_dx_long.txt")
 SOMB_DIR = os.path.join(ROOT, "knowledge", "alberta_ffs", "somb", "2025-03-14")
+SOMB_VERSION = "2025-03-14"
 INDEX_DIR = os.path.join(ROOT, "knowledge", "index")
 DB_PATH = os.path.join(INDEX_DIR, "knowledge.db")
 
@@ -67,19 +68,30 @@ def _iter_pdf_text(pdf_path: str) -> List[Tuple[int, str]]:
     return pages
 
 
+DOC_TYPE_MAP = {
+    "governing_rules": "somb_governing_rules",
+    "modifiers": "somb_modifiers",
+    "explanatory": "somb_explanatory",
+    "price_list": "somb_price_list",
+    "procedure_list": "somb_procedure_list",
+    "unknown": "unknown",
+}
+
+
 def _infer_doc_type(filename: str) -> str:
     name = filename.lower()
-    if "governing" in name:
-        return "governing_rules"
-    if "modifier" in name:
-        return "modifiers"
-    if "explan" in name:
-        return "explanatory"
-    if "price" in name:
-        return "price_list"
-    if "procedure" in name:
-        return "procedure_list"
-    return "unknown"
+    base = "unknown"
+    if "governing" in name or "rule" in name:
+        base = "governing_rules"
+    elif "modifier" in name:
+        base = "modifiers"
+    elif "explan" in name:
+        base = "explanatory"
+    elif "price" in name:
+        base = "price_list"
+    elif "procedure" in name:
+        base = "procedure_list"
+    return DOC_TYPE_MAP.get(base, "unknown")
 
 
 def _load_manifest() -> Dict[str, str]:
