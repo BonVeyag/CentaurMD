@@ -244,6 +244,31 @@ def _looks_english(text: str) -> bool:
     ascii_ratio = sum(1 for c in text if ord(c) < 128) / max(1, len(text))
     return ascii_ratio > 0.92
 
+_SCRIPT_REGEX = {
+    "ne": r"[\u0900-\u097F]",
+    "hi": r"[\u0900-\u097F]",
+    "mr": r"[\u0900-\u097F]",
+    "zh": r"[\u4E00-\u9FFF]",
+    "ja": r"[\u3040-\u30FF]",
+    "ko": r"[\uAC00-\uD7AF]",
+    "ar": r"[\u0600-\u06FF]",
+    "fa": r"[\u0600-\u06FF]",
+    "ur": r"[\u0600-\u06FF]",
+    "ru": r"[\u0400-\u04FF]",
+    "uk": r"[\u0400-\u04FF]",
+    "bg": r"[\u0400-\u04FF]",
+    "sr": r"[\u0400-\u04FF]",
+    "el": r"[\u0370-\u03FF]",
+    "he": r"[\u0590-\u05FF]",
+    "th": r"[\u0E00-\u0E7F]",
+}
+
+
+def _count_chars(text: str, pattern: str) -> int:
+    if not text or not pattern:
+        return 0
+    return len(re.findall(pattern, text))
+
 
 def _translate_to_english(text: str) -> str:
     """
