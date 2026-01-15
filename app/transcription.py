@@ -474,7 +474,7 @@ def transcribe_audio_bytes(
                             text = retry_text
 
         # Fallback to OpenAI only if explicitly allowed and local returned empty
-        if not text and os.getenv("TRANSCRIBE_FALLBACK_TO_OPENAI", "0").strip() == "1":
+        if not text and os.getenv("TRANSCRIBE_FALLBACK_TO_OPENAI", "1").strip() == "1":
             with open(temp_path, "rb") as af:
                 text = _transcribe_with_openai(af, prompt_text, language_hint)
                 language_used = language_used or LANGUAGE_HINT or None
