@@ -3398,6 +3398,7 @@ def resolve_ffs(payload: ResolveFfsPayload):
     evidence = {"codes": {}, "rules": [], "patient": patient_evidence}
     billing_lines: List[str] = []
     suggested_lines_for_review: List[str] = []
+    missing_evidence: List[str] = []
 
     cand_codes: List[str] = []
     for rec in retrieval["procedure_list"]:
