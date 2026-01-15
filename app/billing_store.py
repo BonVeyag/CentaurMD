@@ -102,6 +102,22 @@ def _safe_json_write(path: str, payload: Dict[str, Any]) -> None:
     os.replace(tmp, path)
 
 
+def save_billing_decision(decision: Dict[str, Any], decisions_dir: Optional[str] = None) -> Optional[str]:
+    """
+    Persist a billing decision record (audit packet). Stores JSON per trace_id.
+    By default, stores minimal data; caller controls the payload.
+    """
+    try:
+        trace_id = (decision.get("trace_id") or str(uuid.uuid4())).strip()
+        decisions_dir = decisions_dir or DEFAULT_DECISIONS_DIR
+        _ensure_dir(decisions_dir)
+        path = os.path.join(decisions_dir, f"{trace_id}.json")
+        _safe_json_write(path, decision)
+        return path
+    except Exception:
+        return None
+
+
 def _normalize_model(model: str) -> str:
     """
     Accepts common variants:
