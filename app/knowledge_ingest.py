@@ -167,13 +167,28 @@ def ingest_somb(conn: sqlite3.Connection) -> int:
     return rows
 
 
+def _write_db_hash() -> str:
+    """
+    Compute SHA256 of knowledge DB for provenance.
+    """
+    try:
+        with open(DB_PATH, "rb") as f:
+            h = hashlib.sha256(f.read()).hexdigest()
+        with open(DB_HASH_PATH, "w", encoding="utf-8") as f:
+            f.write(h)
+        return h
+    except Exception:
+        return ""
+
+
 def reindex_all() -> Dict[str, Any]:
     os.makedirs(INDEX_DIR, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     _ensure_db(conn)
     icd_rows = ingest_icd9(conn)
     somb_rows = ingest_somb(conn)
-    return {"icd9_rows": icd_rows, "somb_chunks": somb_rows, "db_path": DB_PATH}
+    db_hash = _write_db_hash()
+    return {"icd9_rows": icd_rows, "somb_chunks": somb_rows, "db_path": DB_PATH, "db_hash": db_hash}
 
 
 def search_icd9(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
