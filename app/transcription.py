@@ -461,7 +461,7 @@ def transcribe_audio_bytes(
                 regex = _SCRIPT_REGEX.get(language_used)
                 if regex:
                     count = _count_chars(text, regex)
-                    if count < 3 and (language_prob or 0) >= 0.50:
+                    if count < 3 and ((language_prob or 0) >= 0.50 or session_language == language_used):
                         retry_text, _, _ = _transcribe_with_faster_whisper(
                             temp_path,
                             prompt_text,
