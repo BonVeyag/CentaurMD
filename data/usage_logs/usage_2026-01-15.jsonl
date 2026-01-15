@@ -39,3 +39,4 @@
 {"ts": 1768485356.737078, "type": "differential", "status": 200, "meta": {}}
 {"ts": 1768485363.484064, "type": "chunk", "status": 200, "meta": {"length": 8}}
 {"ts": 1768485389.488572, "type": "chunk", "status": 200, "meta": {"length": 23}}
+{"ts": 1768491891.903203, "type": "session_created", "status": 200, "meta": {}}

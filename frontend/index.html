@@ -1093,7 +1093,6 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   height: calc(100vh - 160px);
   min-height:520px;
-  max-width:980px;
   width:100%;
   margin:0 auto;
   align-items:stretch;
@@ -1113,8 +1112,8 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   gap:10px;
   overscroll-behavior: contain;
-  max-width:960px;
-  margin:0 auto;
+  max-width:100%;
+  margin:0;
   width:100%;
 }
 
@@ -1130,11 +1129,11 @@ textarea::-webkit-scrollbar-track{
   box-shadow: var(--shadow-md),
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
-  max-width:960px;
-  margin-left:auto;
-  margin-right:auto;
-  width:66%;
-  min-width:320px;
+  max-width:100%;
+  margin-left:0;
+  margin-right:0;
+  width:100%;
+  min-width:0;
 }
 
 /* reserve space on the right for '+' + Send */
@@ -1170,11 +1169,11 @@ textarea::-webkit-scrollbar-track{
   justify-content:flex-start;
   margin-top:12px;
   flex-wrap:wrap;
-  max-width:960px;
-  margin-left:auto;
-  margin-right:auto;
-  width:66%;
-  min-width:320px;
+  max-width:100%;
+  margin-left:0;
+  margin-right:0;
+  width:100%;
+  min-width:0;
 }
 .query-actions button.primary{
   min-width: var(--btn-primary-min);
@@ -1200,7 +1199,7 @@ textarea::-webkit-scrollbar-track{
   .chatlog,
   .chatinput,
   .query-actions{
-    width:90%;
+    width:100%;
     min-width:0;
   }
 }
