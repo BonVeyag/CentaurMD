@@ -20,6 +20,7 @@ except Exception:  # pragma: no cover
 # =============================================================================
 
 DEFAULT_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "billing")
+DEFAULT_DECISIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "billing_decisions")
 ENV_DATA_DIR = "CENTAUR_BILLING_DATA_DIR"
 
 # "1" => per-day file, else single rolling file
