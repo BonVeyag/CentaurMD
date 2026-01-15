@@ -61,6 +61,7 @@ from app.macro_store import (
     save_macro_for_user as store_save_macro_for_user,
     delete_macro_for_user as store_delete_macro_for_user,
 )
+from app.billing_store import save_billing_decision
 from app.models import (
     SessionContext,
     SessionMeta,
