@@ -19,6 +19,10 @@
 <meta http-equiv="X-Content-Type-Options" content="nosniff" />
 
 <title>Centaur Web</title>
+<!-- Language-support fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans&family=Noto+Sans+SC&family=Noto+Sans+Devanagari&family=Noto+Sans+Arabic&family=Noto+Sans+Thai&family=Noto+Sans+JP&family=Noto+Sans+KR&display=swap" rel="stylesheet">
 
 <style>
 /* =====================
@@ -1009,6 +1013,8 @@ textarea::-webkit-scrollbar-track{
   min-height:0;
   resize:none;
   overflow:auto;
+  font-family: "Noto Sans Devanagari","Noto Sans SC","Noto Sans Arabic","Noto Sans Thai","Noto Sans JP","Noto Sans KR","Noto Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  unicode-bidi: plaintext;
 }
 
 /* =====================
@@ -6073,6 +6079,8 @@ async function uploadAudioBlob(blob, stats=null) {
   }
   const data = await res.json();
   const text = (data?.text || "").trim();
+  const lang = data?.languageUsed || data?.language || "";
+  if (lang && transcriptBox) transcriptBox.setAttribute("lang", lang);
   if (text && !isGarbageDelta(text)) {
     transcriptBox.value += (transcriptBox.value ? " " : "") + text;
     transcriptBox.scrollTop = transcriptBox.scrollHeight;
@@ -6577,6 +6585,8 @@ class AmbientController {
       }
       const data = await res.json();
       const text = (data?.text || "").trim();
+      const lang = data?.languageUsed || data?.language || "";
+      if (lang && transcriptBox) transcriptBox.setAttribute("lang", lang);
       if (text && !isGarbageDelta(text)) {
         transcriptBox.value += (transcriptBox.value ? "\n" : "") + text;
         transcriptBox.scrollTop = transcriptBox.scrollHeight;

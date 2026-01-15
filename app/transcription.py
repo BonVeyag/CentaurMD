@@ -415,6 +415,8 @@ def transcribe_audio_bytes(
     prompt: Optional[str] = None,
     prompt_terms: Optional[list[str]] = None,
     language_hint: Optional[str] = None,
+    session_language: Optional[str] = None,
+    session_language_prob: Optional[float] = None,
 ) -> Dict[str, Any]:
     """
     Transcribe audio bytes using local faster-whisper (base, int8).
