@@ -104,6 +104,8 @@ class Transcript(StrictBaseModel):
     mode: Literal["live_audio", "imported"] = "live_audio"
     segments: List[TranscriptSegment] = Field(default_factory=list)
     raw_text: str = ""
+    language: Optional[str] = None
+    language_probability: Optional[float] = None
 
 
 # =========================

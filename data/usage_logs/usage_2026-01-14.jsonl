@@ -983,3 +983,44 @@
 {"ts": 1768453343.269665, "type": "billing", "status": 200, "meta": {}}
 {"ts": 1768453350.1410859, "type": "soap", "status": 200, "meta": {}}
 {"ts": 1768453351.758713, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768453504.142093, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768453521.14274, "type": "chunk", "status": 200, "meta": {"length": 113}}
+{"ts": 1768453618.062644, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768453631.8828921, "type": "chunk", "status": 200, "meta": {"length": 0}}
+{"ts": 1768453668.716657, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768453693.643397, "type": "chunk", "status": 200, "meta": {"length": 3}}
+{"ts": 1768453742.51757, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768453744.2283468, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768453749.090569, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768453752.174232, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768453767.488878, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768453816.2757308, "type": "chunk", "status": 200, "meta": {"length": 10}}
+{"ts": 1768453853.1389031, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768453927.9139469, "type": "chunk", "status": 200, "meta": {"length": 30}}
+{"ts": 1768453952.7781608, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768453965.577734, "type": "chunk", "status": 200, "meta": {"length": 39}}
+{"ts": 1768453990.37568, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768453991.780546, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768454111.241924, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768454119.398884, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768454133.993448, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768454137.076193, "type": "chunk", "status": 200, "meta": {"length": 0}}
+{"ts": 1768454185.8339741, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768454198.535091, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768454223.910483, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454226.0017211, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454226.7507782, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454230.962993, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454232.887682, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454233.987267, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454235.3748941, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454237.422972, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454239.166446, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454239.670698, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454240.122411, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454240.857528, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768454247.459956, "type": "chunk", "status": 200, "meta": {"length": 31}}
+{"ts": 1768454261.219507, "type": "chunk", "status": 200, "meta": {"length": 167}}
+{"ts": 1768454262.864758, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768454270.0530298, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768454280.002489, "type": "chunk", "status": 200, "meta": {"length": 10}}

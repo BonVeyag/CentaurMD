@@ -7814,6 +7814,22 @@ soapContextInput?.addEventListener("input", () => {
     maybeTriggerSoap(true);
   }, 500);
 });
+// Submit-on-Enter for SOAP context (no shift = submit)
+soapContextInput?.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  e.preventDefault();
+  emrBackgroundText = (soapContextInput.value || "").trim();
+  soapContextInput.value = emrBackgroundText;
+  setPatientAnchorFromTextBestEffort(emrBackgroundText);
+  hasAiSummary = false;
+  lastSnapshotHash = "";
+  lastPatientSummaryHash = "";
+  renderRapidSummary(true);
+  clearTimeout(snapshotDebounce);
+  snapshotDebounce = setTimeout(() => loadPatientSummaryAI(false), 400);
+  await saveSoapContextToSession(emrBackgroundText);
+  maybeTriggerSoap(true);
+});
 
 document.addEventListener("click", () => { closeMenuPopover(); closeProfilePopover(); });
 document.addEventListener("keydown", (e) => {
