@@ -1174,6 +1174,8 @@ async def ambient_upload_segment(
         "segment_id": segment_id,
         "encounter_id": encounter_id,
         "transcript_len": len(encounter.transcript_assembled),
+        "languageUsed": lang_used,
+        "languageProbability": lang_prob,
     }
 
 
