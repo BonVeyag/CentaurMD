@@ -3449,6 +3449,11 @@ def resolve_ffs(payload: ResolveFfsPayload):
         else:
             billing_lines.append(chosen_code)
 
+    if retrieval.get("modifiers"):
+        # Modifiers not emitted yet — require explicit authoritative + patient evidence before use.
+        missing_evidence.append("modifiers_not_validated")
+        review_required = True
+
     knowledge_db_hash = ""
     try:
         from app.knowledge_ingest import DB_HASH_PATH, DB_PATH  # type: ignore
