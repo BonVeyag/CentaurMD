@@ -151,6 +151,7 @@ def ingest_somb(conn: sqlite3.Connection) -> int:
             continue
         path = os.path.join(somb_raw_dir, fname)
         doc_type = manifest_map.get(fname) or _infer_doc_type(fname)
+        doc_id = fname
         pages = _iter_pdf_text(path)
         for page_num, text in pages:
             text = text.strip()
@@ -159,8 +160,8 @@ def ingest_somb(conn: sqlite3.Connection) -> int:
             for idx, chunk in enumerate(_chunk_somb_text(text)):
                 chunk_id = f"{fname}#p{page_num}#c{idx}"
                 conn.execute(
-                    "INSERT OR REPLACE INTO somb_chunks(chunk_id, text, doc_type, effective_date, filename, page) VALUES (?,?,?,?,?,?)",
-                    (chunk_id, chunk, doc_type, "2025-03-14", fname, page_num),
+                    "INSERT OR REPLACE INTO somb_chunks(chunk_id, text, doc_type, effective_date, filename, page, doc_id) VALUES (?,?,?,?,?,?,?)",
+                    (chunk_id, chunk, doc_type, SOMB_VERSION, fname, page_num, doc_id),
                 )
                 conn.execute("INSERT INTO somb_fts(text, chunk_id) VALUES (?,?)", (chunk, chunk_id))
                 rows += 1
