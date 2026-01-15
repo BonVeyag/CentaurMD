@@ -3381,11 +3381,11 @@ def resolve_ffs(payload: ResolveFfsPayload):
     fact_terms = " ".join((facts.get("diagnoses") or []) + (facts.get("procedures") or []))
     query_text = (note_text + " " + fact_terms).strip() or note_text
     retrieval = {
-        "procedure_list": search_somb(query_text, top_k=payload.top_k, doc_type="procedure_list"),
-        "governing_rules": search_somb(query_text, top_k=payload.top_k, doc_type="governing_rules"),
-        "price_list": search_somb(query_text, top_k=payload.top_k, doc_type="price_list"),
-        "modifiers": search_somb(query_text, top_k=payload.top_k, doc_type="modifiers"),
-        "explanatory": search_somb(query_text, top_k=payload.top_k, doc_type="explanatory"),
+        "procedure_list": search_somb(query_text, top_k=payload.top_k, doc_type="somb_procedure_list"),
+        "governing_rules": search_somb(query_text, top_k=payload.top_k, doc_type="somb_governing_rules"),
+        "price_list": search_somb(query_text, top_k=payload.top_k, doc_type="somb_price_list"),
+        "modifiers": search_somb(query_text, top_k=payload.top_k, doc_type="somb_modifiers"),
+        "explanatory": search_somb(query_text, top_k=payload.top_k, doc_type="somb_explanatory"),
     }
 
     suggested_icd9: List[Dict[str, Any]] = []
@@ -3427,9 +3427,9 @@ def resolve_ffs(payload: ResolveFfsPayload):
 
     if not review_required:
         for code in cand_codes:
-            proc_exact = get_chunks_containing_code(code, doc_type="procedure_list", top_k=1)
-            rule_exact = get_chunks_containing_code(code, doc_type="governing_rules", top_k=1)
-            price_exact = get_chunks_containing_code(code, doc_type="price_list", top_k=1)
+            proc_exact = get_chunks_containing_code(code, doc_type="somb_procedure_list", top_k=1)
+            rule_exact = get_chunks_containing_code(code, doc_type="somb_governing_rules", top_k=1)
+            price_exact = get_chunks_containing_code(code, doc_type="somb_price_list", top_k=1)
             if proc_exact and rule_exact and price_exact:
                 chosen_code = code
                 evidence["codes"][code] = {
