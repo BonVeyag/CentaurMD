@@ -3477,7 +3477,7 @@ def resolve_ffs(payload: ResolveFfsPayload):
     }
     logger.info("resolve_ffs %s", json.dumps(log_obj))
 
-    return {
+    decision_record = {
         "trace_id": trace_id,
         "knowledge_version": KNOWLEDGE_VERSION,
         "knowledge_db_hash": knowledge_db_hash,
@@ -3492,6 +3492,8 @@ def resolve_ffs(payload: ResolveFfsPayload):
         "review_required": review_required,
         "missing_evidence": missing_evidence,
     }
+    save_billing_decision(decision_record)
+    return decision_record
 
 
 @router.post("/billing/print")
