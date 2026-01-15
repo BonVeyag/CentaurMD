@@ -185,16 +185,18 @@ def search_icd9(query: str, top_k: int = 5) -> List[Dict[str, Any]]:
 
 def search_somb(query: str, top_k: int = 8, doc_type: str = "") -> List[Dict[str, Any]]:
     conn = sqlite3.connect(DB_PATH)
-    match = query
-    if doc_type:
-        match = f"{query} {doc_type}"
-    cur = conn.execute("SELECT text, chunk_id FROM somb_fts WHERE somb_fts MATCH ? LIMIT ?", (match, top_k))
+    match = query or ""
+    cur = conn.execute("SELECT text, chunk_id FROM somb_fts WHERE somb_fts MATCH ? LIMIT ?", (match, top_k * 3))
     rows = cur.fetchall()
     out: List[Dict[str, Any]] = []
     for text, cid in rows:
         meta = conn.execute("SELECT doc_type, effective_date, filename, page FROM somb_chunks WHERE chunk_id=?", (cid,)).fetchone()
         doc_type_val, eff, fname, page = meta if meta else ("", "", "", 0)
+        if doc_type and doc_type_val != doc_type:
+            continue
         out.append({"chunk_id": cid, "text": text, "doc_type": doc_type_val, "effective_date": eff, "filename": fname, "page": page})
+        if len(out) >= top_k:
+            break
     return out
 
 
