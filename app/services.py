@@ -55,6 +55,7 @@ PATIENT_SUMMARY_MAX_CHARS = int(os.getenv("PATIENT_SUMMARY_MAX_CHARS", "16000"))
 
 # Billing model (use a smaller model; upgrade if you prefer)
 BILLING_MODEL = os.getenv("BILLING_MODEL", "gpt-5.2")
+BILLING_FACT_MODEL = os.getenv("BILLING_FACT_MODEL", "gpt-5.2")
 
 # Web search (guidelines)
 WEB_SEARCH_ENABLED = (os.getenv("CENTAUR_WEB_SEARCH", "1").strip() == "1")
