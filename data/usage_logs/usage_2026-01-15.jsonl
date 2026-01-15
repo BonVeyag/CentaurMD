@@ -42,3 +42,14 @@
 {"ts": 1768491891.903203, "type": "session_created", "status": 200, "meta": {}}
 {"ts": 1768492168.671983, "type": "session_created", "status": 200, "meta": {}}
 {"ts": 1768492375.614161, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768500844.589343, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768500867.47865, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768500875.11492, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768500878.051692, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768500883.117514, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768500886.2424698, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768500892.07955, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768501058.890643, "type": "chunk", "status": 200, "meta": {"length": 544}}
+{"ts": 1768501064.254048, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768501068.004533, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768501076.953642, "type": "soap", "status": 200, "meta": {}}
