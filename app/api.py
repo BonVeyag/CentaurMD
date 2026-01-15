@@ -1131,6 +1131,8 @@ async def ambient_upload_segment(
         filename=file.filename or "segment.wav",
         prompt_terms=prompt_terms,
         language_hint=language_hint,
+        session_language=context.transcript.language,
+        session_language_prob=context.transcript.language_probability,
     )
     text = (result or {}).get("text", "") or ""
     lang_used = (result or {}).get("language") or language_hint or None
