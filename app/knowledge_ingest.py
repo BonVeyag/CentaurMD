@@ -14,6 +14,7 @@ SOMB_DIR = os.path.join(ROOT, "knowledge", "alberta_ffs", "somb", "2025-03-14")
 SOMB_VERSION = "2025-03-14"
 INDEX_DIR = os.path.join(ROOT, "knowledge", "index")
 DB_PATH = os.path.join(INDEX_DIR, "knowledge.db")
+DB_HASH_PATH = os.path.join(INDEX_DIR, "knowledge.db.sha256")
 
 
 def _ensure_db(conn: sqlite3.Connection) -> None:
