@@ -682,6 +682,32 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   min-height:0;
 }
+.soap-live-panel{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+}
+.soap-live-pre{
+  white-space:pre-wrap;
+  font-family: var(--mono);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  margin:0;
+}
+.soap-context{
+  margin-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.soap-context textarea{
+  width:100%;
+  min-height:90px;
+  resize:vertical;
+}
+.query-card.full-width{
+  margin-top: var(--gap);
+}
 
 /* =====================
    LEFT COLUMN: Transcript (top) + Snapshot (bottom)
@@ -2014,7 +2040,7 @@ textarea::-webkit-scrollbar-track{
     </div>
   </div>
 
-  <!-- MAIN ROW: (LEFT STACK) | COACH | CLINICAL QUERY -->
+  <!-- MAIN ROW: (LEFT STACK) | COACH | SOAP LIVE -->
   <div class="grid-main">
     <!-- LEFT STACK -->
     <div class="card row-card">
@@ -2082,34 +2108,54 @@ textarea::-webkit-scrollbar-track{
       <div class="panel-white coach-panel" id="coach_panel"></div>
     </div>
 
-    <!-- CLINICAL QUERY -->
-    <div class="card query-card" id="query_card">
+    <!-- LIVE SOAP -->
+    <div class="card row-card">
       <div class="card-head">
         <div>
-          <div class="headline">Clinical Query</div>
-          <div class="subhead">Up-to-date Canada-Alberta guideline based answers at point-of-care.</div>
+          <div class="headline">SOAP Note</div>
+          <div class="subhead">Auto-generates in real time as you speak.</div>
         </div>
-        <div class="eyebrow"></div>
+        <div class="eyebrow">
+          <button id="soapCopyBtn" type="button" class="ghost small">Copy</button>
+        </div>
       </div>
-
-      <div class="chatlog" aria-live="polite"></div>
-
-      <div class="chatinput" id="cqChatInputWrap">
-        <textarea id="cqTextArea" placeholder="Ask a clinical question, or paste EMR/background…" spellcheck="false"></textarea>
-        <button class="send-btn" id="cqSendBtn" type="button">Send</button>
+      <div class="panel-white soap-live-panel" id="soap_live_panel">
+        <pre id="soap_live_text" aria-live="polite" class="soap-live-pre">Waiting for transcript…</pre>
       </div>
-
-      <div class="query-actions">
-        <button class="primary" type="button" id="soapBtn">SOAP</button>
-        <button class="primary" type="button" id="referralBtn">Referral</button>
-        <button class="primary" type="button" id="rxBtn">Rx</button>
+      <div class="soap-context">
+        <label for="soapContextInput" class="eyebrow" style="margin-bottom:4px;">Add EMR context or notes</label>
+        <textarea id="soapContextInput" placeholder="Paste EMR background or type notes to guide the live SOAP…" spellcheck="false"></textarea>
       </div>
+    </div>
+  </div>
 
-      <div class="macro-row">
-        <select id="macroSelect">
-          <option value="">Templates</option>
-        </select>
+  <!-- CLINICAL QUERY FULL-WIDTH -->
+  <div class="card query-card full-width" id="query_card">
+    <div class="card-head">
+      <div>
+        <div class="headline">Clinical Query</div>
+        <div class="subhead">Up-to-date Canada-Alberta guideline based answers at point-of-care.</div>
       </div>
+      <div class="eyebrow"></div>
+    </div>
+
+    <div class="chatlog" aria-live="polite"></div>
+
+    <div class="chatinput" id="cqChatInputWrap">
+      <textarea id="cqTextArea" placeholder="Ask a clinical question, or paste EMR/background…" spellcheck="false"></textarea>
+      <button class="send-btn" id="cqSendBtn" type="button">Send</button>
+    </div>
+
+    <div class="query-actions">
+      <button class="primary" type="button" id="soapBtn">SOAP</button>
+      <button class="primary" type="button" id="referralBtn">Referral</button>
+      <button class="primary" type="button" id="rxBtn">Rx</button>
+    </div>
+
+    <div class="macro-row">
+      <select id="macroSelect">
+        <option value="">Templates</option>
+      </select>
     </div>
   </div>
 
@@ -2551,7 +2597,16 @@ const COACH_DEBOUNCE_MS = 25000;
 let lastCoachRunAt = 0;
 let coachPendingChars = 0;
 let coachPendingWords = 0;
+// Live SOAP tuning
+const SOAP_MIN_DELTA_CHARS = 500;
+const SOAP_SMALL_DELTA_CHARS = 250;
+const SOAP_DEBOUNCE_MS = 20000;
+let lastSoapRunAt = 0;
+let soapPendingChars = 0;
+let soapPendingWords = 0;
+let lastSoapHash = "";
 let emrBackgroundText = "";
+let soapContextSaveTimeout = null;
 let macros = [];
 let editingMacroId = "";
 const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
@@ -2590,6 +2645,10 @@ const micLevelCanvas = document.getElementById("micLevelCanvas");
 const newBtn    = document.getElementById("new_patient_btn");
 const snapshotPanel = document.getElementById("snapshot_panel");
 const coachPanel    = document.getElementById("coach_panel");
+const soapLivePanel = document.getElementById("soap_live_panel");
+const soapLiveText  = document.getElementById("soap_live_text");
+const soapContextInput = document.getElementById("soapContextInput");
+const soapCopyBtn   = document.getElementById("soapCopyBtn");
 
 const chatLog   = document.querySelector(".chatlog");
 const chatInput = document.getElementById("cqTextArea");
@@ -5677,6 +5736,12 @@ async function startNewPatientSession() {
   coachPendingWords = 0;
   lastAssistantPlainText = "";
   hasBilledCurrentPatient = false;
+  lastSoapRunAt = 0;
+  soapPendingChars = 0;
+  soapPendingWords = 0;
+  lastSoapHash = "";
+  if (soapLiveText) soapLiveText.textContent = "Waiting for transcript…";
+  if (soapContextInput) soapContextInput.value = "";
 
   patientName = "";
   patientPHN = "";
@@ -6612,6 +6677,9 @@ function registerTranscriptDelta(deltaText, opts = {}) {
   coachPendingChars += chunk.length;
   coachPendingWords += countWords(chunk);
   maybeTriggerCoach(Boolean(opts.utteranceEnded));
+  soapPendingChars += chunk.length;
+  soapPendingWords += countWords(chunk);
+  maybeTriggerSoap(Boolean(opts.utteranceEnded));
 }
 
 function maybeTriggerCoach(utteranceEnded = false) {
@@ -6626,6 +6694,71 @@ function maybeTriggerCoach(utteranceEnded = false) {
   coachPendingWords = 0;
   lastCoachRunAt = now;
   loadCoach(false);
+}
+
+// -------------------------
+// Live SOAP generation
+// -------------------------
+function getSoapContextText() {
+  return (soapContextInput?.value || "").trim();
+}
+
+function soapPayloadHash(transcript, contextText) {
+  return hashLite(String(transcript || "") + "\n\n" + String(contextText || ""));
+}
+
+async function loadSoapLive(force=false) {
+  const transcript = (transcriptBox?.value || "").trim();
+  const ctx = getSoapContextText();
+  if (transcript.length < 80) {
+    if (soapLiveText) soapLiveText.textContent = "Waiting for transcript…";
+    return;
+  }
+  const payloadHash = soapPayloadHash(transcript, ctx);
+  if (!force && payloadHash === lastSoapHash) {
+    lastSoapRunAt = Date.now();
+    return;
+  }
+  try {
+    await ensureSession();
+    if (soapLiveText) soapLiveText.textContent = "Generating…";
+    const data = await apiPost(`/session/${sessionId}/make_soap`);
+    const textRaw = data?.soap || data?.soap_text || data?.response || "";
+    const cleaned = stripPairedMarkdownEmphasis(textRaw).trim();
+    if (cleaned) soapLiveText.textContent = cleaned;
+    else soapLiveText.textContent = "No SOAP returned yet.";
+    lastSoapHash = payloadHash;
+    lastSoapRunAt = Date.now();
+    soapPendingChars = 0;
+    soapPendingWords = 0;
+    markUpdated("coach"); // reuse staleness timer styling
+  } catch (err) {
+    uiError("Live SOAP", err);
+  }
+}
+
+function maybeTriggerSoap(utteranceEnded = false) {
+  if (ambientController?.paused) return;
+  const now = Date.now();
+  if (now - lastSoapRunAt < SOAP_DEBOUNCE_MS) return;
+  const meetsChars = soapPendingChars >= SOAP_MIN_DELTA_CHARS ||
+    (utteranceEnded && soapPendingChars >= SOAP_SMALL_DELTA_CHARS);
+  if (!meetsChars) return;
+  soapPendingChars = 0;
+  soapPendingWords = 0;
+  lastSoapRunAt = now;
+  loadSoapLive(false);
+}
+
+async function saveSoapContextToSession(text) {
+  const clean = String(text || "").trim();
+  if (!clean && !sessionId) return;
+  try {
+    await ensureSession();
+    await apiPost(`/session/${sessionId}/clinical_background`, { background_text: clean });
+  } catch (err) {
+    uiError("SOAP context", err);
+  }
 }
 
 function renderCoachOutput(rawText) {
@@ -7596,6 +7729,23 @@ chatInput.addEventListener("keydown", (e) => {
   }
 });
 
+// Live SOAP context sync
+soapContextInput?.addEventListener("input", () => {
+  emrBackgroundText = (soapContextInput.value || "").trim();
+  setPatientAnchorFromTextBestEffort(emrBackgroundText);
+  hasAiSummary = false;
+  lastSnapshotHash = "";
+  lastPatientSummaryHash = "";
+  renderRapidSummary(true);
+  clearTimeout(snapshotDebounce);
+  snapshotDebounce = setTimeout(() => loadPatientSummaryAI(false), 400);
+  clearTimeout(soapContextSaveTimeout);
+  soapContextSaveTimeout = setTimeout(async () => {
+    await saveSoapContextToSession(emrBackgroundText);
+    maybeTriggerSoap(true);
+  }, 500);
+});
+
 document.addEventListener("click", () => { closeMenuPopover(); closeProfilePopover(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
@@ -7697,6 +7847,17 @@ printBillingBtn.addEventListener("click", async () => {
 window.addEventListener("beforeunload", () => {
   try { stopRecording(true); } catch {}
   try { saveBillingToLocal(); } catch {}
+});
+
+soapCopyBtn?.addEventListener("click", async () => {
+  const text = (soapLiveText?.textContent || "").trim();
+  if (!text) { uiError("SOAP", "Nothing to copy yet."); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    uiToast("SOAP copied.");
+  } catch (e) {
+    uiError("SOAP", "Copy failed.");
+  }
 });
 
 // -------------------------
