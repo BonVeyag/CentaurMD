@@ -415,22 +415,13 @@ def transcribe_audio_bytes(
     prompt: Optional[str] = None,
     prompt_terms: Optional[list[str]] = None,
     language_hint: Optional[str] = None,
-) -> str:
+) -> Dict[str, Any]:
     """
-    Transcribe audio bytes using OpenAI Speech-to-Text.
-
-    Behavior:
-      - Returns transcript in spoken language by default.
-      - If TRANSCRIBE_TRANSLATE_TO_EN=1, returns English-only transcript (best effort).
-      - Uses a safe temp file and always cleans up.
-      - Adds optional language hint via TRANSCRIBE_LANGUAGE (e.g., 'en').
-
-    Notes:
-      - Do not pass tiny blobs; you are already chunking in frontend.
-      - Keep temperature=0 for determinism in clinical workflows.
+    Transcribe audio bytes using local faster-whisper (base, int8).
+    Returns dict: {text, language, language_prob}
     """
     if not audio_bytes or len(audio_bytes) < MIN_AUDIO_BYTES:
-        return ""
+        return {"text": "", "language": None, "language_prob": None}
 
     ext = _safe_ext(filename or "")
     temp_path: Optional[str] = None
@@ -444,42 +435,65 @@ def transcribe_audio_bytes(
         prompt_text = _build_transcribe_prompt(prompt, prompt_terms)
         backend = TRANSCRIBE_BACKEND
         text = ""
-        translated_local = False
+        language_used: Optional[str] = language_hint or None
+        language_prob: Optional[float] = None
 
         if backend in {"local_whisper", "whisper", "local"}:
-            text = _transcribe_with_whisper(temp_path, prompt_text, language_hint)
-            translated_local = bool(TRANSLATE_TO_EN and text)
-            if not text and os.getenv("TRANSCRIBE_FALLBACK_TO_OPENAI", "1").strip() == "1":
-                logger.warning("Local Whisper returned empty; falling back to OpenAI STT.")
-                backend = "openai"
+            # First pass (auto-detect if no hint provided)
+            lang_for_first_pass = language_used if language_used else None
+            text, detected_lang, detected_prob = _transcribe_with_faster_whisper(
+                temp_path,
+                prompt_text,
+                lang_for_first_pass,
+                beam_size=5,
+                vad_filter=True,
+            )
+            if not language_used and detected_lang:
+                language_used = detected_lang
+                language_prob = detected_prob
+            if language_used and language_prob is None:
+                language_prob = detected_prob
 
-        if backend in {"openai", "api"} and not text:
+            # Script-guard retry for languages with a defined script
+            if language_used and text:
+                regex = _SCRIPT_REGEX.get(language_used)
+                if regex:
+                    count = _count_chars(text, regex)
+                    if count < 3 and (language_prob or 0) >= 0.50:
+                        retry_text, _, _ = _transcribe_with_faster_whisper(
+                            temp_path,
+                            prompt_text,
+                            language_used,
+                            beam_size=8,
+                            vad_filter=False,
+                        )
+                        retry_count = _count_chars(retry_text, regex)
+                        if retry_count > count:
+                            text = retry_text
+
+        # Fallback to OpenAI only if explicitly allowed and local returned empty
+        if not text and os.getenv("TRANSCRIBE_FALLBACK_TO_OPENAI", "0").strip() == "1":
             with open(temp_path, "rb") as af:
                 text = _transcribe_with_openai(af, prompt_text, language_hint)
+                language_used = language_used or LANGUAGE_HINT or None
 
         text = _normalize_whitespace(text)
 
-        if not text or len(text) < 2:
-            return ""
-
-        if TRANSLATE_TO_EN and not translated_local:
-            text = _translate_to_english(text)
-
-        if SUPPRESS_NOISE:
+        if SUPPRESS_NOISE and text:
             text = _suppress_nonsense(text)
 
         if _should_drop_transcript(text):
-            return ""
+            text = ""
 
-        if not text:
-            return ""
-
-        return text
+        return {
+            "text": text or "",
+            "language": language_used,
+            "language_prob": language_prob,
+        }
 
     except Exception as e:
         logger.exception(f"Transcription failed: {e}")
-        # Surface as empty; api.py can decide whether to raise or tolerate
-        return ""
+        return {"text": "", "language": None, "language_prob": None}
 
     finally:
         if temp_path:
