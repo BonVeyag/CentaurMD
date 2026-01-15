@@ -29,6 +29,7 @@ from app.services import (
     update_demographics_from_text,
     extract_demographics_from_text,  # <-- unify identifier parsing with services
     generate_patient_summary,
+    extract_billing_facts,
     CLINICAL_QUERY_TEXT_MODEL,
     PATIENT_SUMMARY_MODEL,
     BILLING_MODEL,
