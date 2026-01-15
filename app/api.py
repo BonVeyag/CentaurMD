@@ -1041,16 +1041,24 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
     start = time.time()
     try:
         prompt_terms = _build_transcribe_prompt_terms(context)
-        text = transcribe_audio_bytes(
+        result = transcribe_audio_bytes(
             audio_bytes=audio_bytes,
             filename=file.filename or "chunk.webm",
             prompt_terms=prompt_terms,
+            language_hint=None,
         )
+        text = (result or {}).get("text", "") or ""
+        lang_used = (result or {}).get("language")
+        lang_prob = (result or {}).get("language_prob")
 
         if not getattr(context.transcript, "raw_text", None):
             context.transcript.raw_text = ""
 
         context.transcript.raw_text = (context.transcript.raw_text + " " + (text or "")).strip()
+        if lang_used:
+            context.transcript.language = lang_used
+        if lang_prob is not None:
+            context.transcript.language_probability = lang_prob
 
         # IMPORTANT: Do NOT hydrate identifiers from transcript (EMR-only invariant).
         _touch(context)
@@ -1059,7 +1067,11 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
         logger.info(f"Chunk transcribed in {elapsed}s (sid={context.session_meta.session_id})")
         usage_logger.log_event("chunk", status=200, meta={"length": len(text or "")})
 
-        return {"text": (text or "").strip()}
+        return {
+            "text": (text or "").strip(),
+            "languageUsed": lang_used,
+            "languageProbability": lang_prob,
+        }
 
     except Exception as e:
         logger.exception("Transcription failed")
