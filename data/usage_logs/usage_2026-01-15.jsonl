@@ -5,3 +5,5 @@
 {"ts": 1768482664.780663, "type": "session_created", "status": 200, "meta": {}}
 {"ts": 1768482679.8355908, "type": "chunk", "status": 200, "meta": {"length": 0}}
 {"ts": 1768482690.4398248, "type": "chunk", "status": 200, "meta": {"length": 0}}
+{"ts": 1768483576.813875, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768484536.127625, "type": "session_created", "status": 200, "meta": {}}

@@ -158,15 +158,17 @@ body{
   color:var(--text);
   font-size:15px;
   line-height:1.45;
+  min-height:100vh;
 }
 
 .page{
   max-width:1280px;
-  margin:auto;
+  margin:0 auto;
   padding:16px;
   display:flex;
   flex-direction:column;
   gap:16px;
+  min-height:100vh;
 }
 
 /* Auth overlay */
@@ -711,6 +713,7 @@ textarea::-webkit-scrollbar-track{
 }
 .query-card.full-width{
   margin-top: var(--gap);
+  flex:1;
 }
 
 /* =====================
@@ -1087,8 +1090,8 @@ textarea::-webkit-scrollbar-track{
 .query-card{
   display:flex;
   flex-direction:column;
-  height:var(--rowH);
-  min-height:0;
+  height:auto;
+  min-height:520px;
 }
 
 .chatlog{
@@ -1106,10 +1109,13 @@ textarea::-webkit-scrollbar-track{
   flex-direction:column;
   gap:10px;
   overscroll-behavior: contain;
+  max-width:960px;
+  margin:0 auto;
+  width:100%;
 }
 
 .chatinput{
-  position: relative; /* pinned within flow; no floating on scroll */
+  position: relative;
   bottom: auto;
   margin-top:12px;
 
@@ -1120,11 +1126,17 @@ textarea::-webkit-scrollbar-track{
   box-shadow: var(--shadow-md),
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
+  max-width:960px;
+  margin-left:auto;
+  margin-right:auto;
 }
 
 /* reserve space on the right for '+' + Send */
 .chatinput textarea{
-  min-height:76px;
+  min-height:46px;
+  height:auto;
+  overflow-y:hidden;
+  max-height:220px;
   padding-left:12px;
   padding-right:168px; /* space for + and Send */
   box-shadow: var(--shadow-xs);
@@ -1152,19 +1164,17 @@ textarea::-webkit-scrollbar-track{
   justify-content:flex-start;
   margin-top:12px;
   flex-wrap:wrap;
+  max-width:960px;
+  margin-left:auto;
+  margin-right:auto;
 }
 .query-actions button.primary{
   min-width: var(--btn-primary-min);
   min-height: var(--btn-height);
   padding: var(--btn-pad);
 }
-.macro-row{
-  display:flex;
-  align-items:center;
-  margin-top:10px;
-}
-.macro-row select{
-  width:100%;
+.macro-inline-select{
+  min-width:140px;
   background: color-mix(in oklab, var(--panel2) 96%, transparent);
   color: var(--text);
   border:none;
@@ -1172,8 +1182,11 @@ textarea::-webkit-scrollbar-track{
               inset 0 0 0 1px var(--edge-soft),
               inset 0 1px 0 var(--edge-hi);
   font-size: var(--fs-body);
+  border-radius:12px;
+  padding:7px 10px;
+  height: var(--btn-height);
 }
-.macro-row select option{
+.macro-inline-select option{
   color: var(--text);
   background: var(--panel);
 }
@@ -2028,7 +2041,7 @@ textarea::-webkit-scrollbar-track{
 
       <div id="menuPopover" class="popover menu-popover" role="dialog" aria-label="Menu" style="display:none">
         <div class="pop-row" style="margin-bottom:0;">
-          <button id="macroBuilderBtn" type="button" class="menu-item">Template builder</button>
+          <button id="macroBuilderBtn" type="button" class="menu-item">Macro builder</button>
           <button id="noteLogBtn" type="button" class="menu-item" style="display:none">Note Log</button>
           <button id="feedbackBtn" type="button" class="menu-item">Feedback</button>
           <button id="aboutBtn" type="button" class="menu-item">About</button>
@@ -2186,11 +2199,8 @@ textarea::-webkit-scrollbar-track{
       <button class="primary" type="button" id="soapBtn">SOAP</button>
       <button class="primary" type="button" id="referralBtn">Referral</button>
       <button class="primary" type="button" id="rxBtn">Rx</button>
-    </div>
-
-    <div class="macro-row">
-      <select id="macroSelect">
-        <option value="">Templates</option>
+      <select id="macroSelect" class="macro-inline-select">
+        <option value="">Macros</option>
       </select>
     </div>
   </div>
@@ -2201,9 +2211,9 @@ textarea::-webkit-scrollbar-track{
 </div>
 
 <div id="macroOverlay" class="macro-overlay" style="display:none"></div>
-<div id="macroPanel" class="macro-panel" style="display:none" aria-label="Template builder">
+<div id="macroPanel" class="macro-panel" style="display:none" aria-label="Macro builder">
   <div class="macro-head">
-    <div class="headline">Template Builder</div>
+    <div class="headline">Macro Builder</div>
     <button id="macroCloseBtn" type="button">✕</button>
   </div>
 
@@ -2218,8 +2228,8 @@ textarea::-webkit-scrollbar-track{
 
   <div class="macro-section macro-editor">
     <div class="summary-title">Editor</div>
-    <input id="macroNameInput" type="text" placeholder="Template name" />
-    <textarea id="macroContentInput" placeholder="Paste template content"></textarea>
+    <input id="macroNameInput" type="text" placeholder="Macro name" />
+    <textarea id="macroContentInput" placeholder="Paste macro content"></textarea>
     <div id="macroStatus" class="macro-status"></div>
     <div class="macro-editor-actions">
       <button id="macroSaveBtn" class="primary" type="button">Save</button>
@@ -2845,6 +2855,15 @@ const newPatientConfirmProceedBtn = document.getElementById("newPatientConfirmPr
 // -------------------------
 // Helpers
 // -------------------------
+function autoResizeTextarea(ta) {
+  if (!ta) return;
+  ta.style.height = "auto";
+  const maxH = 220;
+  const newH = Math.min(maxH, ta.scrollHeight);
+  ta.style.height = `${newH}px`;
+  ta.style.overflowY = ta.scrollHeight > maxH ? "auto" : "hidden";
+}
+
 function safeJsonStringify(obj) {
   try { return JSON.stringify(obj, null, 2); } catch { return String(obj); }
 }
@@ -3239,7 +3258,7 @@ function safeSubsetFormat(text) {
 }
 
 // -------------------------
-// Templates
+// Macros
 // -------------------------
 const MACROS_CACHE_KEY = "centaur_macros_cache_v1";
 const MACRO_SELECTED_KEY = "centaur_macro_selected_v1";
@@ -3311,7 +3330,7 @@ function refreshMacroDropdown() {
   macroSelect.innerHTML = "";
   const optNone = document.createElement("option");
   optNone.value = "";
-  optNone.textContent = "Templates";
+  optNone.textContent = "Macros";
   macroSelect.appendChild(optNone);
   for (const m of macros.filter(isMacroVisible)) {
     const opt = document.createElement("option");
@@ -3456,7 +3475,7 @@ function editMacroFromPicker() {
   }
   const target = macros.find(m => m.id === id);
   if (!target) {
-    setMacroStatus("Template not found.", true);
+    setMacroStatus("Macro not found.", true);
     return;
   }
   editingMacroId = id;
@@ -3472,7 +3491,7 @@ async function deleteMacroFromPicker() {
   }
   const target = macros.find(m => m.id === id);
   if (!target) {
-    setMacroStatus("Template not found.", true);
+    setMacroStatus("Macro not found.", true);
     return;
   }
   if (target.locked) {
@@ -7741,7 +7760,7 @@ macroSelect?.addEventListener("change", async () => {
       TRANSCRIPT: transcriptBox.value || "[none]",
       EXTRA: "",
     });
-    const label = macro?.name || "Template";
+    const label = macro?.name || "Macro";
     await openNoteDraftPanel({
       templateId: id,
       templateLabel: label,
@@ -7809,6 +7828,8 @@ chatInput.addEventListener("keydown", (e) => {
     sendBtn.click();
   }
 });
+chatInput.addEventListener("input", () => autoResizeTextarea(chatInput));
+setTimeout(() => autoResizeTextarea(chatInput), 0);
 
 // Live SOAP context sync
 soapContextInput?.addEventListener("input", () => {
