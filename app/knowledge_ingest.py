@@ -105,7 +105,14 @@ def _load_manifest() -> Dict[str, str]:
         if isinstance(data, dict):
             files = data.get("files", {}) or {}
             if isinstance(files, dict):
-                return {k: str(v) for k, v in files.items()}
+                out: Dict[str, str] = {}
+                for k, v in files.items():
+                    base = str(v or "").strip()
+                    if base in DOC_TYPE_MAP.values():
+                        out[k] = base
+                    else:
+                        out[k] = DOC_TYPE_MAP.get(base, "unknown")
+                return out
     except Exception:
         return {}
     return {}
