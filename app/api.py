@@ -3449,9 +3449,13 @@ def resolve_ffs(payload: ResolveFfsPayload):
 
     knowledge_db_hash = ""
     try:
-        from app.knowledge_ingest import DB_PATH as KB_DB_PATH  # type: ignore
-        with open(KB_DB_PATH, "rb") as f:
-            knowledge_db_hash = hashlib.sha256(f.read()).hexdigest()
+        from app.knowledge_ingest import DB_HASH_PATH, DB_PATH  # type: ignore
+        if os.path.exists(DB_HASH_PATH):
+            with open(DB_HASH_PATH, "r", encoding="utf-8") as f:
+                knowledge_db_hash = f.read().strip()
+        else:
+            with open(DB_PATH, "rb") as f:
+                knowledge_db_hash = hashlib.sha256(f.read()).hexdigest()
     except Exception:
         knowledge_db_hash = ""
 
