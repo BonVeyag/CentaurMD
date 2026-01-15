@@ -3348,11 +3348,38 @@ def resolve_ffs(payload: ResolveFfsPayload):
     if not note_text:
         raise HTTPException(status_code=400, detail="note_context required")
 
-    # 1) Extract billing facts (diagnoses/procedures/visit hints) using strong model
-    facts = extract_billing_facts(note_text, "")
-    fact_terms = " ".join(facts.get("diagnoses", []) + facts.get("procedures", []))
-    query_text = (note_text + " " + fact_terms).strip() or note_text
+    fact_bundle = extract_billing_facts(note_text, "")
+    facts = fact_bundle.get("facts", {})
+    review_required = bool(fact_bundle.get("review_required"))
+    missing_evidence: List[str] = []
+    patient_evidence: Dict[str, List[Dict[str, Any]]] = {}
 
+    def _find_span(term: str, text: str) -> Optional[Dict[str, Any]]:
+        if not term or not text:
+            return None
+        t_low = term.lower()
+        text_low = text.lower()
+        idx = text_low.find(t_low)
+        if idx < 0:
+            return None
+        return {
+            "source": "transcript",
+            "quote": text[idx: idx + len(term)],
+            "start_char": idx,
+            "end_char": idx + len(term),
+        }
+
+    for label in (facts.get("diagnoses") or []):
+        span = _find_span(label, note_text)
+        if span:
+            patient_evidence.setdefault("diagnoses", []).append(span)
+    for label in (facts.get("procedures") or []):
+        span = _find_span(label, note_text)
+        if span:
+            patient_evidence.setdefault("procedures", []).append(span)
+
+    fact_terms = " ".join((facts.get("diagnoses") or []) + (facts.get("procedures") or []))
+    query_text = (note_text + " " + fact_terms).strip() or note_text
     retrieval = {
         "procedure_list": search_somb(query_text, top_k=payload.top_k, doc_type="procedure_list"),
         "governing_rules": search_somb(query_text, top_k=payload.top_k, doc_type="governing_rules"),
@@ -3360,6 +3387,7 @@ def resolve_ffs(payload: ResolveFfsPayload):
         "modifiers": search_somb(query_text, top_k=payload.top_k, doc_type="modifiers"),
         "explanatory": search_somb(query_text, top_k=payload.top_k, doc_type="explanatory"),
     }
+
     suggested_icd9: List[Dict[str, Any]] = []
     if facts.get("diagnoses"):
         for d in facts["diagnoses"]:
@@ -3367,78 +3395,91 @@ def resolve_ffs(payload: ResolveFfsPayload):
     if not suggested_icd9:
         suggested_icd9 = search_icd9(note_text, limit=3)
 
-    evidence = {"codes": {}, "rules": []}
-    billing_line = ""
-    used_fallback = False
-    fallback_reason = None
+    evidence = {"codes": {}, "rules": [], "patient": patient_evidence}
+    billing_lines: List[str] = []
+    suggested_lines_for_review: List[str] = []
 
-    cand_codes = []
+    cand_codes: List[str] = []
     for rec in retrieval["procedure_list"]:
         for m in re.findall(r"\b\d{2}\.\d{2}[A-Z]?\b", rec.get("text", "")):
             cand_codes.append(m)
     cand_codes = sorted(list(dict.fromkeys(cand_codes)))
 
+    def _citation(rec: Dict[str, Any], code: str = "") -> Dict[str, Any]:
+        return {
+            "doc_type": rec.get("doc_type"),
+            "filename": rec.get("filename"),
+            "page": rec.get("page"),
+            "chunk_id": rec.get("chunk_id"),
+            "snippet": _snip(rec.get("text", ""), code),
+        }
+
+    chosen_code = None
     if not retrieval["governing_rules"]:
-        used_fallback = True
-        fallback_reason = "MISSING_GOVERNING_RULES_EVIDENCE"
-    else:
-        chosen_code = None
-        chosen_proc_cite = None
-        chosen_rule_cite = retrieval["governing_rules"][0] if retrieval["governing_rules"] else None
+        review_required = True
+        missing_evidence.append("missing_governing_rules")
+    if not retrieval["procedure_list"]:
+        review_required = True
+        missing_evidence.append("missing_procedure_list")
+    if not retrieval["price_list"]:
+        review_required = True
+        missing_evidence.append("missing_price_list")
+
+    if not review_required:
         for code in cand_codes:
-            exact_chunks = get_chunks_containing_code(code, doc_type="procedure_list", top_k=1)
-            if not exact_chunks:
-                continue
-            chosen_code = code
-            chosen_proc_cite = exact_chunks[0]
-            break
-        if chosen_code and chosen_proc_cite:
-            billing_line = chosen_code
-            evidence["codes"][chosen_code] = {
-                "citations": [
-                    {
-                        "doc_type": "procedure_list",
-                        "filename": chosen_proc_cite.get("filename"),
-                        "page": chosen_proc_cite.get("page"),
-                        "chunk_id": chosen_proc_cite.get("chunk_id"),
-                        "snippet": _snip(chosen_proc_cite.get("text", ""), chosen_code),
-                    }
-                ],
-                "rationale": "Found exact code in SOMB procedure list chunk.",
-            }
-            if chosen_rule_cite:
-                evidence["rules"].append(
-                    {
-                        "doc_type": "governing_rules",
-                        "filename": chosen_rule_cite.get("filename"),
-                        "page": chosen_rule_cite.get("page"),
-                        "chunk_id": chosen_rule_cite.get("chunk_id"),
-                        "snippet": _snip(chosen_rule_cite.get("text", "")),
-                    }
-                )
+            proc_exact = get_chunks_containing_code(code, doc_type="procedure_list", top_k=1)
+            rule_exact = get_chunks_containing_code(code, doc_type="governing_rules", top_k=1)
+            price_exact = get_chunks_containing_code(code, doc_type="price_list", top_k=1)
+            if proc_exact and rule_exact and price_exact:
+                chosen_code = code
+                evidence["codes"][code] = {
+                    "citations": [
+                        _citation(proc_exact[0], code),
+                        _citation(rule_exact[0], code),
+                        _citation(price_exact[0], code),
+                    ],
+                    "rationale": "Code present in procedure list, governing rules, and price list.",
+                }
+                break
+        if not chosen_code:
+            review_required = True
+            missing_evidence.append("no_valid_code_found")
         else:
-            used_fallback = True
-            fallback_reason = "CODE_NOT_FOUND_IN_PROCEDURE_LIST"
+            billing_lines.append(chosen_code)
+
+    knowledge_db_hash = ""
+    try:
+        from app.knowledge_ingest import DB_PATH as KB_DB_PATH  # type: ignore
+        with open(KB_DB_PATH, "rb") as f:
+            knowledge_db_hash = hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        knowledge_db_hash = ""
 
     log_obj = {
         "trace_id": trace_id,
         "note_hash": _log_safe_hash(note_text),
-        "suggested_codes": list(evidence["codes"].keys()) if evidence["codes"] else [],
-        "used_fallback": used_fallback,
-        "fallback_reason": fallback_reason,
-        "citations_count": sum(len(v.get("citations", [])) for v in evidence["codes"].values()),
+        "suggested_codes": billing_lines,
+        "review_required": review_required,
+        "missing_evidence": missing_evidence,
+        "citations_count": sum(len(v.get("citations", [])) for v in evidence.get("codes", {}).values()),
         "knowledge_version": KNOWLEDGE_VERSION,
     }
     logger.info("resolve_ffs %s", json.dumps(log_obj))
 
     return {
-        "knowledge_version": KNOWLEDGE_VERSION,
-        "retrieval": retrieval,
-        "suggested": {"icd9": suggested_icd9, "billing_line": billing_line},
-        "evidence": evidence,
-        "used_fallback": used_fallback,
-        "fallback_reason": fallback_reason,
         "trace_id": trace_id,
+        "knowledge_version": KNOWLEDGE_VERSION,
+        "knowledge_db_hash": knowledge_db_hash,
+        "model_info": {
+            "fact_model": fact_bundle.get("meta", {}).get("model"),
+            "fact_prompt_version": fact_bundle.get("meta", {}).get("prompt_version"),
+        },
+        "retrieval": retrieval,
+        "facts": fact_bundle,
+        "suggested": {"icd9": suggested_icd9, "billing_lines": billing_lines, "suggested_lines_for_review": suggested_lines_for_review},
+        "evidence": evidence,
+        "review_required": review_required,
+        "missing_evidence": missing_evidence,
     }
 
 
