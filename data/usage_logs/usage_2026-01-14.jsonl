@@ -975,3 +975,11 @@
 {"ts": 1768442642.3053398, "type": "chunk", "status": 200, "meta": {"length": 13}}
 {"ts": 1768442673.656118, "type": "billing", "status": 200, "meta": {}}
 {"ts": 1768451993.506614, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768453142.9740312, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768453219.578007, "type": "chunk", "status": 200, "meta": {"length": 104}}
+{"ts": 1768453232.238807, "type": "chunk", "status": 200, "meta": {"length": 3}}
+{"ts": 1768453244.9102259, "type": "chunk", "status": 200, "meta": {"length": 25}}
+{"ts": 1768453341.018683, "type": "chunk", "status": 200, "meta": {"length": 278}}
+{"ts": 1768453343.269665, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768453350.1410859, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768453351.758713, "type": "differential", "status": 200, "meta": {}}

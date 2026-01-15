@@ -2936,10 +2936,17 @@ async function startMicViz(stream) {
     const height = micLevelCanvas.height;
     ctx.clearRect(0, 0, width, height);
     const dotCount = 12;
-    const radius = Math.max(2, Math.min(3.2, height * 0.22));
-    const gap = Math.max(4, Math.round(radius * 1.7));
-    const totalWidth = dotCount * radius * 2 + (dotCount - 1) * gap;
-    let x = (width - totalWidth) / 2 + radius;
+    let radius = Math.max(2, Math.min(3.2, height * 0.22));
+    let gap = Math.max(4, Math.round(radius * 1.7));
+    let totalWidth = dotCount * radius * 2 + (dotCount - 1) * gap;
+    const maxWidth = Math.max(20, width - 8); // keep margin so edges are not clipped
+    if (totalWidth > maxWidth) {
+      const scale = maxWidth / totalWidth;
+      radius *= scale;
+      gap *= scale;
+      totalWidth = dotCount * radius * 2 + (dotCount - 1) * gap;
+    }
+    let x = Math.max(radius + 2, (width - totalWidth) / 2 + radius);
     for (let i = 0; i < dotCount; i++) {
       const pos = i / (dotCount - 1);
       const dist = Math.abs(pos * 2 - 1);
