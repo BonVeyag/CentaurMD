@@ -3347,14 +3347,26 @@ def resolve_ffs(payload: ResolveFfsPayload):
     note_text = (payload.note_context or "").strip()
     if not note_text:
         raise HTTPException(status_code=400, detail="note_context required")
+
+    # 1) Extract billing facts (diagnoses/procedures/visit hints) using strong model
+    facts = extract_billing_facts(note_text, "")
+    fact_terms = " ".join(facts.get("diagnoses", []) + facts.get("procedures", []))
+    query_text = (note_text + " " + fact_terms).strip() or note_text
+
     retrieval = {
-        "procedure_list": search_somb(note_text, top_k=payload.top_k, doc_type="procedure_list"),
-        "governing_rules": search_somb(note_text, top_k=payload.top_k, doc_type="governing_rules"),
-        "price_list": search_somb(note_text, top_k=payload.top_k, doc_type="price_list"),
-        "modifiers": search_somb(note_text, top_k=payload.top_k, doc_type="modifiers"),
-        "explanatory": search_somb(note_text, top_k=payload.top_k, doc_type="explanatory"),
+        "procedure_list": search_somb(query_text, top_k=payload.top_k, doc_type="procedure_list"),
+        "governing_rules": search_somb(query_text, top_k=payload.top_k, doc_type="governing_rules"),
+        "price_list": search_somb(query_text, top_k=payload.top_k, doc_type="price_list"),
+        "modifiers": search_somb(query_text, top_k=payload.top_k, doc_type="modifiers"),
+        "explanatory": search_somb(query_text, top_k=payload.top_k, doc_type="explanatory"),
     }
-    suggested_icd9 = search_icd9(note_text, limit=3)
+    suggested_icd9: List[Dict[str, Any]] = []
+    if facts.get("diagnoses"):
+        for d in facts["diagnoses"]:
+            suggested_icd9.extend(search_icd9(d, limit=2))
+    if not suggested_icd9:
+        suggested_icd9 = search_icd9(note_text, limit=3)
+
     evidence = {"codes": {}, "rules": []}
     billing_line = ""
     used_fallback = False
