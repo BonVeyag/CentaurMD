@@ -974,3 +974,4 @@
 {"ts": 1768442637.4771461, "type": "chunk", "status": 200, "meta": {"length": 0}}
 {"ts": 1768442642.3053398, "type": "chunk", "status": 200, "meta": {"length": 13}}
 {"ts": 1768442673.656118, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768451993.506614, "type": "session_created", "status": 200, "meta": {}}

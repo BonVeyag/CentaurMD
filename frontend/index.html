@@ -1103,8 +1103,8 @@ textarea::-webkit-scrollbar-track{
 }
 
 .chatinput{
-  position: sticky;
-  bottom: 12px;
+  position: relative; /* pinned within flow; no floating on scroll */
+  bottom: auto;
   margin-top:12px;
 
   background: var(--panel2);
@@ -2110,18 +2110,18 @@ textarea::-webkit-scrollbar-track{
 
     <!-- LIVE SOAP -->
     <div class="card row-card">
-      <div class="card-head">
-        <div>
-          <div class="headline">SOAP Note</div>
-          <div class="subhead">Auto-generates in real time as you speak.</div>
-        </div>
-        <div class="eyebrow">
-          <button id="soapCopyBtn" type="button" class="ghost small">Copy</button>
-        </div>
+    <div class="card-head">
+      <div>
+        <div class="headline">SOAP Note</div>
+        <div class="subhead">Organize your thoughts</div>
       </div>
-      <div class="panel-white soap-live-panel" id="soap_live_panel">
-        <pre id="soap_live_text" aria-live="polite" class="soap-live-pre">Waiting for transcript…</pre>
+      <div class="eyebrow">
+        <button id="soapCopyBtn" type="button" class="ghost small">Copy</button>
       </div>
+    </div>
+    <div class="panel-white soap-live-panel" id="soap_live_panel">
+        <pre id="soap_live_text" aria-live="polite" class="soap-live-pre"></pre>
+    </div>
       <div class="soap-context">
         <label for="soapContextInput" class="eyebrow" style="margin-bottom:4px;">Add EMR context or notes</label>
         <textarea id="soapContextInput" placeholder="Paste EMR background or type notes to guide the live SOAP…" spellcheck="false"></textarea>
@@ -2142,7 +2142,7 @@ textarea::-webkit-scrollbar-track{
     <div class="chatlog" aria-live="polite"></div>
 
     <div class="chatinput" id="cqChatInputWrap">
-      <textarea id="cqTextArea" placeholder="Ask a clinical question, or paste EMR/background…" spellcheck="false"></textarea>
+      <textarea id="cqTextArea" placeholder="Ask a clinical question…" spellcheck="false"></textarea>
       <button class="send-btn" id="cqSendBtn" type="button">Send</button>
     </div>
 
@@ -2605,6 +2605,14 @@ let lastSoapRunAt = 0;
 let soapPendingChars = 0;
 let soapPendingWords = 0;
 let lastSoapHash = "";
+// Live Billing tuning
+const BILLING_MIN_DELTA_CHARS = 450;
+const BILLING_SMALL_DELTA_CHARS = 220;
+const BILLING_DEBOUNCE_MS = 30000;
+let lastBillingRunAt = 0;
+let billingPendingChars = 0;
+let billingPendingWords = 0;
+let lastBillingHash = "";
 let emrBackgroundText = "";
 let soapContextSaveTimeout = null;
 let macros = [];
@@ -5740,6 +5748,13 @@ async function startNewPatientSession() {
   soapPendingChars = 0;
   soapPendingWords = 0;
   lastSoapHash = "";
+  lastBillingRunAt = 0;
+  billingPendingChars = 0;
+  billingPendingWords = 0;
+  lastBillingHash = "";
+  if (dailyBillingText && !dailyBillingText.value.trim()) {
+    lastBillingHash = "";
+  }
   if (soapLiveText) soapLiveText.textContent = "Waiting for transcript…";
   if (soapContextInput) soapContextInput.value = "";
 
@@ -6680,6 +6695,9 @@ function registerTranscriptDelta(deltaText, opts = {}) {
   soapPendingChars += chunk.length;
   soapPendingWords += countWords(chunk);
   maybeTriggerSoap(Boolean(opts.utteranceEnded));
+  billingPendingChars += chunk.length;
+  billingPendingWords += countWords(chunk);
+  maybeTriggerBilling(Boolean(opts.utteranceEnded));
 }
 
 function maybeTriggerCoach(utteranceEnded = false) {
@@ -6748,6 +6766,48 @@ function maybeTriggerSoap(utteranceEnded = false) {
   soapPendingWords = 0;
   lastSoapRunAt = now;
   loadSoapLive(false);
+}
+
+// Auto-billing refresh
+async function loadBillingAuto(force=false) {
+  const transcript = (transcriptBox?.value || "").trim();
+  if (transcript.length < 80 && !force) return;
+  await ensureSession();
+  try {
+    const data = await apiPost(`/session/${sessionId}/billing/bill`, { billing_model: getSelectedBillingModel() });
+    const billingText = String(data?.billing_text || "").trim();
+    if (!billingText) return;
+    const incoming = billingText.endsWith("\n") ? billingText : billingText + "\n";
+    const incomingHash = hashLite(incoming);
+    if (!force && incomingHash === lastBillingHash) return;
+    const current = String(dailyBillingText?.value || "");
+    if (incoming !== current) {
+      dailyBillingText.value = incoming;
+      hasBilledCurrentPatient = true;
+      try { await saveBillingToLocal(); } catch {}
+      try { await saveBillingToServer(); } catch {}
+      scrollBillingToEnd();
+    }
+    lastBillingHash = incomingHash;
+    lastBillingRunAt = Date.now();
+    billingPendingChars = 0;
+    billingPendingWords = 0;
+  } catch (err) {
+    uiError("Live Billing", err);
+  }
+}
+
+function maybeTriggerBilling(utteranceEnded = false) {
+  if (ambientController?.paused) return;
+  const now = Date.now();
+  if (now - lastBillingRunAt < BILLING_DEBOUNCE_MS) return;
+  const meetsChars = billingPendingChars >= BILLING_MIN_DELTA_CHARS ||
+    (utteranceEnded && billingPendingChars >= BILLING_SMALL_DELTA_CHARS);
+  if (!meetsChars) return;
+  billingPendingChars = 0;
+  billingPendingWords = 0;
+  lastBillingRunAt = now;
+  loadBillingAuto(false);
 }
 
 async function saveSoapContextToSession(text) {
@@ -7325,6 +7385,7 @@ async function loadBillingFromServer() {
     }
     const serverModel = normalizeBillingModel(data?.billing_model || "");
     setBillingModelPref(serverModel);
+    lastBillingHash = hashLite(String(dailyBillingText.value || ""));
     syncBillingDate();
     scrollBillingToEnd();
   } catch {
@@ -7362,6 +7423,7 @@ async function billNow() {
 
   dailyBillingText.value = billingText + "\n";
   hasBilledCurrentPatient = true;
+  lastBillingHash = hashLite(dailyBillingText.value || "");
 
   await saveBillingToLocal();
   scrollBillingToEnd();
