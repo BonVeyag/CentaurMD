@@ -1046,6 +1046,8 @@ async def transcribe_chunk(session_id: str, file: UploadFile = File(...)):
             filename=file.filename or "chunk.webm",
             prompt_terms=prompt_terms,
             language_hint=None,
+            session_language=context.transcript.language,
+            session_language_prob=context.transcript.language_probability,
         )
         text = (result or {}).get("text", "") or ""
         lang_used = (result or {}).get("language")
