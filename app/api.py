@@ -3449,10 +3449,23 @@ def resolve_ffs(payload: ResolveFfsPayload):
         else:
             billing_lines.append(chosen_code)
 
-    if retrieval.get("modifiers"):
-        # Modifiers not emitted yet — require explicit authoritative + patient evidence before use.
-        missing_evidence.append("modifiers_not_validated")
+    # Modifiers/explanatory (never auto-emit; send to review with evidence if present)
+    modifier_candidates: List[str] = []
+    for rec in retrieval.get("modifiers") or []:
+        for m in re.findall(r"\b[A-Z]{2,6}\d{1,2}[A-Z]{0,2}\b", rec.get("text", "")):
+            modifier_candidates.append(m)
+    modifier_candidates = sorted(list(dict.fromkeys(modifier_candidates)))
+    if modifier_candidates:
         review_required = True
+        missing_evidence.append("modifiers_require_review")
+        for mod in modifier_candidates:
+            mod_exact = get_chunks_containing_code(mod, doc_type="somb_modifiers", top_k=1)
+            if not mod_exact:
+                continue
+            evidence["codes"].setdefault(mod, {"citations": [], "rationale": ""})
+            evidence["codes"][mod]["citations"].append(_citation(mod_exact[0], mod))
+            evidence["codes"][mod]["rationale"] = "Modifier present in SOMB modifiers list; manual validation required."
+            suggested_lines_for_review.append(mod)
 
     knowledge_db_hash = ""
     try:
