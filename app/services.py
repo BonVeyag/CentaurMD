@@ -2473,6 +2473,71 @@ def _truncate_output(text: str) -> str:
     return text[:CLINICAL_QUERY_MAX_CHARS].rstrip() + " … (truncated)"
 
 
+# =========================
+# Billing fact extraction (LLM-assisted, retrieval-safe)
+# =========================
+
+BILLING_FACT_PROMPT = """You are a clinical coding assistant. Extract ONLY supported facts needed for Alberta FFS billing.
+Return STRICT JSON with these keys:
+- diagnoses: array of short diagnosis/problem phrases discussed today (no codes).
+- procedures: array of short procedure descriptions performed today (if none, empty array).
+- visit_type: one of ["in_person","virtual","phone","unknown"].
+- duration_minutes: integer minutes if stated, else null.
+- red_flags: array of any acute severity items (if none, empty array).
+Rules:
+- Do NOT invent facts.
+- Use only what is explicitly in the transcript/background.
+- Keep each string concise (<=8 words)."""
+
+
+def extract_billing_facts(transcript_text: str, background_text: str = "") -> Dict[str, Any]:
+    """
+    Single LLM call to pull diagnoses/procedures/visit hints.
+    Safe defaults on failure.
+    """
+    tx = (transcript_text or "").strip()
+    bg = (background_text or "").strip()
+    if not tx and not bg:
+        return {"diagnoses": [], "procedures": [], "visit_type": "unknown", "duration_minutes": None, "red_flags": []}
+
+    content = f"{BILLING_FACT_PROMPT}\n\nTRANSCRIPT:\n{tx}\n\nBACKGROUND:\n{bg}\n"
+    try:
+        resp = _chat_complete_best_effort(
+            model=BILLING_FACT_MODEL,
+            messages=[
+                {"role": "system", "content": "Extract only supported billing facts. JSON only."},
+                {"role": "user", "content": content},
+            ],
+            temperature=0.1,
+            response_format={"type": "json_object"},
+        )
+        txt = (resp.choices[0].message.content or "").strip()
+        parsed = json.loads(txt)
+        if not isinstance(parsed, dict):
+            raise ValueError("Not a dict")
+        # Coerce fields safely
+        diagnoses = [str(x).strip() for x in parsed.get("diagnoses", []) if str(x).strip()]
+        procedures = [str(x).strip() for x in parsed.get("procedures", []) if str(x).strip()]
+        vt = str(parsed.get("visit_type") or "unknown").strip().lower()
+        if vt not in {"in_person", "virtual", "phone", "unknown"}:
+            vt = "unknown"
+        try:
+            dur = parsed.get("duration_minutes")
+            duration = int(dur) if dur is not None else None
+        except Exception:
+            duration = None
+        red_flags = [str(x).strip() for x in parsed.get("red_flags", []) if str(x).strip()]
+        return {
+            "diagnoses": diagnoses,
+            "procedures": procedures,
+            "visit_type": vt,
+            "duration_minutes": duration,
+            "red_flags": red_flags,
+        }
+    except Exception:
+        return {"diagnoses": [], "procedures": [], "visit_type": "unknown", "duration_minutes": None, "red_flags": []}
+
+
 def run_clinical_query_stream(
     context: SessionContext,
     query: str,
