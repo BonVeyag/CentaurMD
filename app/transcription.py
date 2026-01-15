@@ -437,8 +437,8 @@ def transcribe_audio_bytes(
         prompt_text = _build_transcribe_prompt(prompt, prompt_terms)
         backend = TRANSCRIBE_BACKEND
         text = ""
-        language_used: Optional[str] = language_hint or None
-        language_prob: Optional[float] = None
+        language_used: Optional[str] = session_language or language_hint or None
+        language_prob: Optional[float] = session_language_prob
 
         if backend in {"local_whisper", "whisper", "local"}:
             # First pass (auto-detect if no hint provided)
