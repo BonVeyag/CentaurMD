@@ -7,3 +7,35 @@
 {"ts": 1768482690.4398248, "type": "chunk", "status": 200, "meta": {"length": 0}}
 {"ts": 1768483576.813875, "type": "session_created", "status": 200, "meta": {}}
 {"ts": 1768484536.127625, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768484978.487617, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768484999.623158, "type": "chunk", "status": 200, "meta": {"length": 98}}
+{"ts": 1768485014.4566941, "type": "chunk", "status": 200, "meta": {"length": 75}}
+{"ts": 1768485029.041971, "type": "chunk", "status": 200, "meta": {"length": 51}}
+{"ts": 1768485030.791668, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768485043.199734, "type": "chunk", "status": 200, "meta": {"length": 23}}
+{"ts": 1768485058.422279, "type": "chunk", "status": 200, "meta": {"length": 24}}
+{"ts": 1768485065.46251, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768485071.807083, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768485072.37798, "type": "chunk", "status": 200, "meta": {"length": 24}}
+{"ts": 1768485086.1792839, "type": "chunk", "status": 200, "meta": {"length": 37}}
+{"ts": 1768485100.6059399, "type": "chunk", "status": 200, "meta": {"length": 96}}
+{"ts": 1768485126.591233, "type": "chunk", "status": 200, "meta": {"length": 14}}
+{"ts": 1768485140.460822, "type": "chunk", "status": 200, "meta": {"length": 64}}
+{"ts": 1768485141.95332, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768485154.021037, "type": "chunk", "status": 200, "meta": {"length": 18}}
+{"ts": 1768485162.637162, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768485181.662428, "type": "chunk", "status": 200, "meta": {"length": 7}}
+{"ts": 1768485212.958208, "type": "chunk", "status": 200, "meta": {"length": 33}}
+{"ts": 1768485225.096478, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768485226.750005, "type": "chunk", "status": 200, "meta": {"length": 27}}
+{"ts": 1768485240.808871, "type": "chunk", "status": 200, "meta": {"length": 47}}
+{"ts": 1768485255.676175, "type": "chunk", "status": 200, "meta": {"length": 34}}
+{"ts": 1768485269.69386, "type": "chunk", "status": 200, "meta": {"length": 34}}
+{"ts": 1768485283.415931, "type": "chunk", "status": 200, "meta": {"length": 28}}
+{"ts": 1768485285.047153, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768485297.2115068, "type": "chunk", "status": 200, "meta": {"length": 8}}
+{"ts": 1768485335.112821, "type": "chunk", "status": 200, "meta": {"length": 9}}
+{"ts": 1768485349.172489, "type": "chunk", "status": 200, "meta": {"length": 28}}
+{"ts": 1768485356.737078, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768485363.484064, "type": "chunk", "status": 200, "meta": {"length": 8}}
+{"ts": 1768485389.488572, "type": "chunk", "status": 200, "meta": {"length": 23}}

@@ -40,11 +40,13 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # =========================
 # Model selection
 # =========================
-CLINICAL_QUERY_TEXT_MODEL = "gpt-5-nano"
-CLINICAL_QUERY_FAST_MODEL = os.getenv("CLINICAL_QUERY_FAST_MODEL", "gpt-5-nano")
-CLINICAL_QUERY_THINK_MODEL = os.getenv("CLINICAL_QUERY_THINK_MODEL", CLINICAL_QUERY_TEXT_MODEL)
-CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5-nano")
-CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL", "gpt-5-nano")
+CLINICAL_QUERY_MODEL_FAST = os.getenv("CLINICAL_QUERY_MODEL_FAST", "gpt-5-nano").strip()
+CLINICAL_QUERY_MODEL_ACCURATE = os.getenv("CLINICAL_QUERY_MODEL_ACCURATE", "gpt-5-mini").strip()
+CLINICAL_QUERY_MODE_DEFAULT = os.getenv("CLINICAL_QUERY_MODE", "fast").strip().lower()
+CLINICAL_QUERY_THINK_MODEL = os.getenv("CLINICAL_QUERY_THINK_MODEL", CLINICAL_QUERY_MODEL_FAST)
+CLINICAL_QUERY_TEXT_MODEL = os.getenv("CLINICAL_QUERY_TEXT_MODEL", CLINICAL_QUERY_MODEL_FAST).strip()
+CLINICAL_QUERY_VISION_MODEL = os.getenv("CLINICAL_QUERY_VISION_MODEL", "gpt-5-nano").strip()
+CLINICAL_QUERY_VISION_FAST_MODEL = os.getenv("CLINICAL_QUERY_VISION_FAST_MODEL", "gpt-5-nano").strip()
 
 # Patient summary model
 PATIENT_SUMMARY_MODEL = os.getenv("PATIENT_SUMMARY_MODEL", "gpt-5-nano")
@@ -68,6 +70,7 @@ WEB_SEARCH_USER_AGENT = os.getenv(
 CLINICAL_QUERY_SERVICE_TIER = os.getenv("CENTAUR_CQ_SERVICE_TIER", "priority").strip() or "priority"
 CLINICAL_QUERY_MAX_TOKENS = int(os.getenv("CENTAUR_CQ_MAX_TOKENS", "450"))
 CLINICAL_QUERY_USE_WEB = (os.getenv("CENTAUR_CQ_WEB", "0").strip() == "1")
+CLINICAL_QUERY_MAX_CHARS = int(os.getenv("CLINICAL_QUERY_MAX_CHARS", "1200"))
 
 
 # =========================
@@ -2286,7 +2289,7 @@ def run_clinical_query(
     guideline_context = ""
     if KB_ENABLED:
         try:
-            kb_results = search_kb(query, limit=5)
+            kb_results = search_kb(query, limit=3)
             kb_context = format_kb_context(kb_results)
         except Exception:
             kb_context = ""
@@ -2333,8 +2336,21 @@ def run_clinical_query(
                 break
 
     user_content = _build_multimodal_user_content(prompt, attachments if has_images else None)
-    text_model = (model_override or CLINICAL_QUERY_TEXT_MODEL).strip()
+
+    # Model routing: fast by default; escalate if user asked or heuristic says complex
+    text_model = (model_override or CLINICAL_QUERY_MODEL_FAST).strip()
     vision_model = (model_override or CLINICAL_QUERY_VISION_MODEL).strip()
+    if mode_norm == "accurate":
+        text_model = CLINICAL_QUERY_MODEL_ACCURATE
+    else:
+        # simple heuristic for complexity without extra LLM calls
+        complex_terms = [
+            "guideline", "pregnancy", "peds dosing", "anticoag", "insulin",
+            "titration", "contraindication", "renal adjustment",
+        ]
+        if len(query or "") > 320 or any(t in q_lower for t in complex_terms):
+            text_model = CLINICAL_QUERY_MODEL_ACCURATE
+
     model = vision_model if (has_images and isinstance(user_content, list)) else text_model
 
     def _unique_models(models: List[str]) -> List[str]:
@@ -2366,11 +2382,13 @@ def run_clinical_query(
         ])
 
     system_msg = (
-        "You are Centaur: a focused, formal, exacting AI consultant for licensed clinicians in Alberta. "
-        "Conservative Alberta-appropriate advice. "
+        "You are Centaur: a concise, Canada/Alberta-focused clinical consultant for licensed clinicians. "
+        "Canada/Alberta medications only; avoid US-only products. "
+        "Be fast, succinct, and scannable. "
         "Do not reveal chain-of-thought. "
         "If PDF extracted text is provided, use it; otherwise say it is missing. "
-        "If image(s) are provided in the message payload, you may describe their visible features."
+        "If image(s) are provided in the message payload, you may describe their visible features. "
+        "If availability is uncertain, say so and suggest a Canadian alternative."
     )
 
     temperature = None if fast_mode else 0.2
@@ -2409,19 +2427,23 @@ def run_clinical_query(
 
     result = _attempt(True)
     if result is not None:
+        result = _truncate_output(result)
         return result
 
     result = _attempt(False)
     if result is not None:
+        result = _truncate_output(result)
         return result
 
     if "service_tier" in base_kwargs:
         base_kwargs.pop("service_tier", None)
         result = _attempt(True)
         if result is not None:
+            result = _truncate_output(result)
             return result
         result = _attempt(False)
         if result is not None:
+            result = _truncate_output(result)
             return result
     err = {
         "direct_answer": "",
@@ -2440,6 +2462,14 @@ def run_clinical_query(
         },
     }
     return json.dumps(err, ensure_ascii=False, indent=2)
+
+
+def _truncate_output(text: str) -> str:
+    if not text:
+        return text
+    if len(text) <= CLINICAL_QUERY_MAX_CHARS:
+        return text
+    return text[:CLINICAL_QUERY_MAX_CHARS].rstrip() + " … (truncated)"
 
 
 def run_clinical_query_stream(
