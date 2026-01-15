@@ -1124,12 +1124,16 @@ async def ambient_upload_segment(
         return {"text": "", "segment_id": segment_id}
 
     prompt_terms = _build_transcribe_prompt_terms(context)
-    text = transcribe_audio_bytes(
+    result = transcribe_audio_bytes(
         audio_bytes=audio_bytes,
         filename=file.filename or "segment.wav",
         prompt_terms=prompt_terms,
         language_hint=language_hint,
     )
+    text = (result or {}).get("text", "") or ""
+    lang_used = (result or {}).get("language") or language_hint or None
+    lang_prob = (result or {}).get("language_prob")
+
     if not text:
         return {"text": "", "segment_id": segment_id}
 
@@ -1140,7 +1144,7 @@ async def ambient_upload_segment(
         start_ts=start_dt,
         end_ts=end_dt,
         text=text,
-        language=language_hint or None,
+        language=lang_used,
     )
     encounter.segments.append(segment)
     encounter.segments.sort(key=lambda s: s.start_ts)
@@ -1150,6 +1154,10 @@ async def ambient_upload_segment(
     ).strip()
 
     context.transcript.raw_text = encounter.transcript_assembled
+    if lang_used:
+        context.transcript.language = lang_used
+    if lang_prob is not None:
+        context.transcript.language_probability = lang_prob
     context.transcript.segments = [
         TranscriptSegment(
             speaker="other",
