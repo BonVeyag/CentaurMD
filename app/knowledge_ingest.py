@@ -28,7 +28,8 @@ def _ensure_db(conn: sqlite3.Connection) -> None:
             doc_type TEXT,
             effective_date TEXT,
             filename TEXT,
-            page INT
+            page INT,
+            doc_id TEXT
         );
         """
     )
