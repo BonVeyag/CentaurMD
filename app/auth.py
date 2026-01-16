@@ -478,6 +478,7 @@ def require_user(request: Request) -> AuthUser:
         # Localhost-only bypass for knowledge reindex (developer convenience).
     # This keeps production protected while allowing local maintenance.
     try:
+        print("AUTH_DEBUG host=", request.client.host, "path=", request.url.path)
         if request.url.path == "/api/knowledge/reindex":
             host = (request.client.host or "").strip()
             if host in {"127.0.0.1", "::1"}:
