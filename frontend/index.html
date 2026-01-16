@@ -2152,6 +2152,7 @@ textarea::-webkit-scrollbar-track{
         <div class="subhead">Organize your thoughts</div>
       </div>
       <div class="eyebrow">
+        <button id="soapRefreshBtn" type="button" class="ghost small">Refresh</button>
         <button id="soapCopyBtn" type="button" class="ghost small">Copy</button>
       </div>
     </div>
@@ -2647,7 +2648,9 @@ let billingPendingChars = 0;
 let billingPendingWords = 0;
 let lastBillingHash = "";
 let emrBackgroundText = "";
+let emrDraftText = "";
 let soapContextSaveTimeout = null;
+let lastSoapText = "";
 let macros = [];
 let editingMacroId = "";
 const AUTH_TOKEN_KEY = "centaur_auth_token_v1";
@@ -2690,6 +2693,7 @@ const soapLivePanel = document.getElementById("soap_live_panel");
 const soapLiveText  = document.getElementById("soap_live_text");
 const soapContextInput = document.getElementById("soapContextInput");
 const soapCopyBtn   = document.getElementById("soapCopyBtn");
+const soapRefreshBtn = document.getElementById("soapRefreshBtn");
 
 const chatLog   = document.querySelector(".chatlog");
 const chatInput = document.getElementById("cqTextArea");
@@ -3096,6 +3100,13 @@ function stripPairedMarkdownEmphasis(text) {
   s = s.replace(/[ \t]+\n/g, "\n");
   s = s.replace(/\n{3,}/g, "\n\n");
   return s;
+}
+function normalizeSoapText(text) {
+  if (!text) return "";
+  let t = String(text);
+  t = t.replace(/^\s*\n+/, "");
+  t = t.replace(/\n{3,}/g, "\n\n");
+  return t.trimEnd();
 }
 function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
 function flashButton(btn){
@@ -6772,7 +6783,7 @@ function maybeTriggerCoach(utteranceEnded = false) {
 // Live SOAP generation
 // -------------------------
 function getSoapContextText() {
-  return (soapContextInput?.value || "").trim();
+  return (emrBackgroundText || "").trim();
 }
 
 function soapPayloadHash(transcript, contextText) {
@@ -6793,12 +6804,19 @@ async function loadSoapLive(force=false) {
   }
   try {
     await ensureSession();
-    if (soapLiveText) soapLiveText.textContent = "Generating…";
+    if (soapLiveText) soapLiveText.textContent = soapLiveText.textContent || "Generating…";
     const data = await apiPost(`/session/${sessionId}/make_soap`);
     const textRaw = data?.soap || data?.soap_text || data?.response || "";
-    const cleaned = stripPairedMarkdownEmphasis(textRaw).trim();
-    if (cleaned) soapLiveText.textContent = cleaned;
-    else soapLiveText.textContent = "No SOAP returned yet.";
+    const cleaned = normalizeSoapText(stripPairedMarkdownEmphasis(textRaw));
+    const prev = soapLiveText?.textContent || "";
+    if (cleaned && cleaned !== prev) {
+      soapLiveText.textContent = cleaned;
+      lastSoapText = cleaned;
+    } else if (!cleaned && prev) {
+      soapLiveText.textContent = prev;
+    } else {
+      soapLiveText.textContent = cleaned || prev || "No SOAP returned yet.";
+    }
     lastSoapHash = payloadHash;
     lastSoapRunAt = Date.now();
     soapPendingChars = 0;
@@ -7847,9 +7865,20 @@ chatInput.addEventListener("keydown", (e) => {
 chatInput.addEventListener("input", () => autoResizeTextarea(chatInput));
 setTimeout(() => autoResizeTextarea(chatInput), 0);
 
-// Live SOAP context sync
+// Live SOAP context sync (draft on input; append on Enter)
 soapContextInput?.addEventListener("input", () => {
-  emrBackgroundText = (soapContextInput.value || "").trim();
+  emrDraftText = (soapContextInput.value || "").trim();
+});
+
+// Submit-on-Enter for SOAP context (no shift = submit); append to context and clear box
+soapContextInput?.addEventListener("keydown", async (e) => {
+  if (e.key !== "Enter" || e.shiftKey) return;
+  e.preventDefault();
+  const newText = (soapContextInput.value || "").trim();
+  if (!newText) return;
+  emrBackgroundText = emrBackgroundText ? `${emrBackgroundText}\n\n${newText}` : newText;
+  emrDraftText = "";
+  soapContextInput.value = "";
   setPatientAnchorFromTextBestEffort(emrBackgroundText);
   hasAiSummary = false;
   lastSnapshotHash = "";
@@ -7861,23 +7890,11 @@ soapContextInput?.addEventListener("input", () => {
   soapContextSaveTimeout = setTimeout(async () => {
     await saveSoapContextToSession(emrBackgroundText);
     maybeTriggerSoap(true);
-  }, 500);
+  }, 100);
 });
-// Submit-on-Enter for SOAP context (no shift = submit)
-soapContextInput?.addEventListener("keydown", async (e) => {
-  if (e.key !== "Enter" || e.shiftKey) return;
-  e.preventDefault();
-  emrBackgroundText = (soapContextInput.value || "").trim();
-  soapContextInput.value = emrBackgroundText;
-  setPatientAnchorFromTextBestEffort(emrBackgroundText);
-  hasAiSummary = false;
-  lastSnapshotHash = "";
-  lastPatientSummaryHash = "";
-  renderRapidSummary(true);
-  clearTimeout(snapshotDebounce);
-  snapshotDebounce = setTimeout(() => loadPatientSummaryAI(false), 400);
-  await saveSoapContextToSession(emrBackgroundText);
-  maybeTriggerSoap(true);
+
+soapRefreshBtn?.addEventListener("click", async () => {
+  await loadSoapLive(true);
 });
 
 document.addEventListener("click", () => { closeMenuPopover(); closeProfilePopover(); });

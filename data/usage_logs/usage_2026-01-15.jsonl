@@ -65,3 +65,30 @@
 {"ts": 1768532528.005132, "type": "differential", "status": 200, "meta": {}}
 {"ts": 1768532536.126454, "type": "soap", "status": 200, "meta": {}}
 {"ts": 1768536198.801643, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768537122.507675, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768537156.743127, "type": "chunk", "status": 200, "meta": {"length": 18}}
+{"ts": 1768537232.975551, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768537252.326025, "type": "chunk", "status": 200, "meta": {"length": 122}}
+{"ts": 1768537267.637908, "type": "chunk", "status": 200, "meta": {"length": 168}}
+{"ts": 1768537273.118058, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768537278.738571, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768537279.7914062, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768537282.131555, "type": "chunk", "status": 200, "meta": {"length": 125}}
+{"ts": 1768537294.176194, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768537296.9496179, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768537298.072855, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768537298.482511, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768537302.386771, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768537524.612424, "type": "chunk", "status": 200, "meta": {"length": 43}}
+{"ts": 1768537539.105671, "type": "chunk", "status": 200, "meta": {"length": 96}}
+{"ts": 1768537544.912478, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768537548.237946, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768537552.16243, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768537577.320579, "type": "chunk", "status": 200, "meta": {"length": 34}}
+{"ts": 1768537616.0596569, "type": "chunk", "status": 200, "meta": {"length": 85}}
+{"ts": 1768537655.187416, "type": "chunk", "status": 200, "meta": {"length": 409}}
+{"ts": 1768537660.245905, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768537664.0503502, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768537669.68534, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768537813.406831, "type": "chunk", "status": 200, "meta": {"length": 111}}
+{"ts": 1768537960.5117152, "type": "chunk", "status": 200, "meta": {"length": 65}}
