@@ -92,3 +92,37 @@
 {"ts": 1768537669.68534, "type": "soap", "status": 200, "meta": {}}
 {"ts": 1768537813.406831, "type": "chunk", "status": 200, "meta": {"length": 111}}
 {"ts": 1768537960.5117152, "type": "chunk", "status": 200, "meta": {"length": 65}}
+{"ts": 1768538829.915488, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768538857.367935, "type": "chunk", "status": 200, "meta": {"length": 77}}
+{"ts": 1768538871.543425, "type": "chunk", "status": 200, "meta": {"length": 104}}
+{"ts": 1768538885.993359, "type": "chunk", "status": 200, "meta": {"length": 152}}
+{"ts": 1768538891.177027, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768538894.0828311, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768538896.1532512, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768538900.3680818, "type": "chunk", "status": 200, "meta": {"length": 153}}
+{"ts": 1768538915.484598, "type": "chunk", "status": 200, "meta": {"length": 96}}
+{"ts": 1768538929.239769, "type": "chunk", "status": 200, "meta": {"length": 69}}
+{"ts": 1768538935.761656, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768538937.161082, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768538943.132567, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768538944.8387241, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768538956.9458659, "type": "chunk", "status": 200, "meta": {"length": 67}}
+{"ts": 1768538970.882947, "type": "chunk", "status": 200, "meta": {"length": 38}}
+{"ts": 1768538985.3214998, "type": "chunk", "status": 200, "meta": {"length": 104}}
+{"ts": 1768538990.7504, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768538993.36599, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768538999.5547252, "type": "chunk", "status": 200, "meta": {"length": 121}}
+{"ts": 1768539014.541685, "type": "chunk", "status": 200, "meta": {"length": 121}}
+{"ts": 1768539017.0667021, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768539028.459533, "type": "chunk", "status": 200, "meta": {"length": 66}}
+{"ts": 1768539033.245815, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768539036.913887, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768539042.851955, "type": "chunk", "status": 200, "meta": {"length": 121}}
+{"ts": 1768539056.798819, "type": "chunk", "status": 200, "meta": {"length": 111}}
+{"ts": 1768539071.027807, "type": "chunk", "status": 200, "meta": {"length": 110}}
+{"ts": 1768539076.130826, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768539079.736093, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768539082.914318, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768539233.696697, "type": "summary", "status": 200, "meta": {}}
+{"ts": 1768539277.2922912, "type": "chunk", "status": 200, "meta": {"length": 68}}
+{"ts": 1768539313.406341, "type": "soap", "status": 200, "meta": {}}
