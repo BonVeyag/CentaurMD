@@ -32,6 +32,25 @@ SOAP_FINAL_USER = (
     "- If no procedure was performed, set procedure to null.\n"
 )
 
+SOAP_SCRUB_SYSTEM = (
+    "You are a SOAP note auditor. Your job is to REMOVE unsupported content and MERGE closely related issues. "
+    "Never invent facts. Output must match the SOAP schema exactly. Keep issues list tight by grouping related concerns."
+)
+
+SOAP_SCRUB_USER = (
+    "Transcript (verbatim):\n{transcript}\n\n"
+    "EncounterPacket:\n{packet}\n\n"
+    "Candidate SOAP (JSON):\n{candidate}\n\n"
+    "Rules:\n"
+    "- Remove any element not supported by transcript or packet.\n"
+    "- Group related issues into fewer issues when appropriate.\n"
+    "- Keep the same section order and schema. If a section is empty, leave it empty/null.\n"
+    "- Safety/Red Flags must be ['none'] if nothing was discussed.\n"
+    "- Social Hx only from today's transcript.\n"
+    "- No placeholders. No fabricated diagnoses/meds.\n"
+    "- Output STRICT JSON matching the schema."
+)
+
 SOAP_COMPACT_SYSTEM = (
     "You extract only supported clinical facts from a transcript chunk. "
     "Return short facts and a brief supporting quote from the chunk. "
