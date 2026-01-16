@@ -18,6 +18,8 @@ from .prompts import (
     SOAP_DRAFT_USER,
     SOAP_FINAL_SYSTEM,
     SOAP_FINAL_USER,
+    SOAP_SCRUB_SYSTEM,
+    SOAP_SCRUB_USER,
 )
 from .renderer import render_soap
 from .schema import SoapStructured, soap_json_schema
@@ -431,6 +433,40 @@ def generate_soap_note(packet: Dict[str, Any]) -> SoapGenerationResult:
             structured = SoapStructured.model_validate(structured_dict)
         else:
             structured = SoapStructured.parse_obj(structured_dict)
+
+    # Scrub pass (auditor) to remove unsupported items and merge issues
+    try:
+        scrub_user = SOAP_SCRUB_USER.format(
+            transcript=transcript_for_prompt or "[empty]",
+            packet=context_blob,
+            candidate=json.dumps(structured_dict, ensure_ascii=False),
+        )
+        payload = {
+            "model": SOAP_SCRUB_MODEL,
+            "input": [
+                {"role": "system", "content": SOAP_SCRUB_SYSTEM},
+                {"role": "user", "content": scrub_user},
+            ],
+            "temperature": 0.0,
+            "max_output_tokens": SOAP_MAX_OUTPUT_TOKENS,
+            "text": {
+                "format": {
+                    "type": "json_schema",
+                    "name": "soap_note",
+                    "schema": soap_json_schema(),
+                    "strict": True,
+                },
+            },
+        }
+        scrub_raw = _call_response(payload, "scrub", SOAP_SCRUB_MODEL, transcript_hash, transcript_chars)
+        scrub_parsed = json.loads(scrub_raw) if scrub_raw else {}
+        if hasattr(SoapStructured, "model_validate"):
+            structured = SoapStructured.model_validate(scrub_parsed)
+        else:
+            structured = SoapStructured.parse_obj(scrub_parsed)
+        structured_dict = structured.model_dump() if hasattr(structured, "model_dump") else structured.dict()
+    except Exception:
+        pass
 
     final_text = render_soap(structured)
 
