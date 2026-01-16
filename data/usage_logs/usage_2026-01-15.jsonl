@@ -126,3 +126,5 @@
 {"ts": 1768539233.696697, "type": "summary", "status": 200, "meta": {}}
 {"ts": 1768539277.2922912, "type": "chunk", "status": 200, "meta": {"length": 68}}
 {"ts": 1768539313.406341, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768539374.19437, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768540007.5974898, "type": "session_created", "status": 200, "meta": {}}
