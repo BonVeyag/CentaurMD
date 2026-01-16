@@ -53,3 +53,15 @@
 {"ts": 1768501064.254048, "type": "billing", "status": 200, "meta": {}}
 {"ts": 1768501068.004533, "type": "differential", "status": 200, "meta": {}}
 {"ts": 1768501076.953642, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768532389.773034, "type": "session_created", "status": 200, "meta": {}}
+{"ts": 1768532410.600862, "type": "chunk", "status": 200, "meta": {"length": 20}}
+{"ts": 1768532430.733206, "type": "chunk", "status": 200, "meta": {"length": 114}}
+{"ts": 1768532446.205397, "type": "chunk", "status": 200, "meta": {"length": 41}}
+{"ts": 1768532461.818515, "type": "chunk", "status": 200, "meta": {"length": 35}}
+{"ts": 1768532488.59905, "type": "chunk", "status": 200, "meta": {"length": 34}}
+{"ts": 1768532494.224907, "type": "billing", "status": 200, "meta": {}}
+{"ts": 1768532503.683152, "type": "chunk", "status": 200, "meta": {"length": 5}}
+{"ts": 1768532519.0016158, "type": "chunk", "status": 200, "meta": {"length": 15}}
+{"ts": 1768532528.005132, "type": "differential", "status": 200, "meta": {}}
+{"ts": 1768532536.126454, "type": "soap", "status": 200, "meta": {}}
+{"ts": 1768536198.801643, "type": "session_created", "status": 200, "meta": {}}
